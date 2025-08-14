@@ -21,45 +21,57 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  return (
-    <ClerkProvider 
-      appearance={{
-        baseTheme: undefined, // Use light theme
-        variables: {
-          colorPrimary: '#4F7942', // Farm green
-          colorText: '#1F2937', // Gray-800
-          colorTextSecondary: '#6B7280', // Gray-500
-        },
-        elements: {
-          formButtonPrimary: 'bg-farm-green hover:bg-farm-green-dark text-white',
-          footerActionLink: 'text-farm-green hover:text-farm-green-dark'
-        }
-      }}
-    >
-      <html lang="en">
-        <body className={`${quicksand.variable} font-sans bg-farm-earth-light`}>
-          <Header />
-          <main>{children}</main>
-          <footer className="border-t py-8 mt-24 bg-white">
-            <div className="container mx-auto px-4">
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <div className="flex items-center gap-2">
-                  <Image
-                    src="/images/local-roots-logo.png"
-                    width={120}
-                    height={120}
-                    alt="LocalRoots Logo"
-                    className="h-10 w-auto rounded-full"
-                  />
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  © {new Date().getFullYear()} LocalRoots. All rights reserved.
-                </div>
+  // Temporarily disable ClerkProvider for Sprint 1 testing without environment variables
+  const hasClerkKeys = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY;
+  
+  const content = (
+    <html lang="en">
+      <body className={`${quicksand.variable} font-sans bg-farm-earth-light`}>
+        <Header />
+        <main>{children}</main>
+        <footer className="border-t py-8 mt-24 bg-white">
+          <div className="container mx-auto px-4">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Image
+                  src="/images/local-roots-logo.png"
+                  width={120}
+                  height={120}
+                  alt="LocalRoots Logo"
+                  className="h-10 w-auto rounded-full"
+                />
+              </div>
+              <div className="text-sm text-muted-foreground">
+                © {new Date().getFullYear()} LocalRoots. All rights reserved.
               </div>
             </div>
-          </footer>
-        </body>
-      </html>
-    </ClerkProvider>
+          </div>
+        </footer>
+      </body>
+    </html>
   );
+
+  // Only use ClerkProvider if environment variables are configured
+  if (hasClerkKeys) {
+    return (
+      <ClerkProvider 
+        appearance={{
+          baseTheme: undefined, // Use light theme
+          variables: {
+            colorPrimary: '#4F7942', // Farm green
+            colorText: '#1F2937', // Gray-800
+            colorTextSecondary: '#6B7280', // Gray-500
+          },
+          elements: {
+            formButtonPrimary: 'bg-farm-green hover:bg-farm-green-dark text-white',
+            footerActionLink: 'text-farm-green hover:text-farm-green-dark'
+          }
+        }}
+      >
+        {content}
+      </ClerkProvider>
+    );
+  }
+
+  return content;
 } 
