@@ -16,13 +16,22 @@ dependencies:
     version: 1.3.3
   '@hono/zod-validator':
     specifier: ^0.1.11
+<<<<<<< HEAD
     version: 0.1.11(hono@3.12.0)(zod@3.22.4)
+=======
+    version: 0.1.11(hono@4.0.0)(zod@3.22.4)
+>>>>>>> feature/loc-8-farm-detail-drawer
   '@repo/db':
     specifier: workspace:*
     version: link:../../packages/db
   hono:
+<<<<<<< HEAD
     specifier: ^3.12.0
     version: 3.12.0
+=======
+    specifier: ^4.0.0
+    version: 4.0.0
+>>>>>>> feature/loc-8-farm-detail-drawer
   zod:
     specifier: ^3.22.4
     version: 3.22.4
@@ -404,13 +413,21 @@ packages:
     engines: {node: '>=18.14.1'}
     dev: false
 
+<<<<<<< HEAD
   /@hono/zod-validator@0.1.11(hono@3.12.0)(zod@3.22.4):
+=======
+  /@hono/zod-validator@0.1.11(hono@4.0.0)(zod@3.22.4):
+>>>>>>> feature/loc-8-farm-detail-drawer
     resolution: {integrity: sha512-PQXeHUP0+36qpRt8yfeD7N2jbK3ETlGvSN6dMof/HwUC/APRokQRjpXZm4rrlG71Ft0aWE01+Bm4XejqPie5Uw==}
     peerDependencies:
       hono: '>=3.9.0'
       zod: ^3.19.1
     dependencies:
+<<<<<<< HEAD
       hono: 3.12.0
+=======
+      hono: 4.0.0
+>>>>>>> feature/loc-8-farm-detail-drawer
       zod: 3.22.4
     dev: false
 
@@ -1328,8 +1345,13 @@ packages:
     dependencies:
       function-bind: 1.1.2
 
+<<<<<<< HEAD
   /hono@3.12.0:
     resolution: {integrity: sha512-UPEtZuLY7Wo7g0mqKWSOjLFdT8t7wJ60IYEcxKl3AQNU4u+R2QqU2fJMPmSu24C+/ag20Z8mOTQOErZzK4DMvA==}
+=======
+  /hono@4.0.0:
+    resolution: {integrity: sha512-8dKhuBBpRZEodUttQhrSFJ6PQqHRjXHyeeegfxOf132pvgbf0tOb9qqb7q7eYwAWpOcYrsUOsWdJ0sQIIovhZg==}
+>>>>>>> feature/loc-8-farm-detail-drawer
     engines: {node: '>=16.0.0'}
     dev: false
 
