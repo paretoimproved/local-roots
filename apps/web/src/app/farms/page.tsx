@@ -2,6 +2,7 @@
 
 import { FarmsList } from '@/components/farms/FarmsList';
 import { SearchBox } from '@/components/farms/SearchBox';
+import { FarmDetailDrawer } from '@/components/farms/FarmDetailDrawer';
 
 export default function FarmsPage() {
   return (
@@ -25,6 +26,9 @@ export default function FarmsPage() {
         {/* Farms List */}
         <FarmsList />
       </div>
+      
+      {/* Farm Detail Drawer */}
+      <FarmDetailDrawer />
     </div>
   );
 }
