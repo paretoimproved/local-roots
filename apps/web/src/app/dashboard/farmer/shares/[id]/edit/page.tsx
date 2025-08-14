@@ -31,10 +31,12 @@ export default function EditShare({ params }: { params: { id: string } }) {
   });
 
   // Fetch farmer's farms
-  const { data: farms = [], isLoading: isLoadingFarms } = useQuery({
+  const { data: farmsResponse, isLoading: isLoadingFarms } = useQuery({
     queryKey: ["farms", "me"],
     queryFn: getMyFarms,
   });
+
+  const farms = farmsResponse?.data || [];
 
   // Set form data when share data is loaded
   useEffect(() => {

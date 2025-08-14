@@ -19,10 +19,12 @@ export default function FarmerShares() {
   });
 
   // Fetch the farmer's farms
-  const { data: farms = [], isLoading: isLoadingFarms } = useQuery({
+  const { data: farmsResponse, isLoading: isLoadingFarms } = useQuery({
     queryKey: ["farms", "me"],
     queryFn: getMyFarms,
   });
+  
+  const farms = farmsResponse?.data || [];
 
   // Handle deleting a share
   const handleDeleteShare = async (shareId: string) => {
