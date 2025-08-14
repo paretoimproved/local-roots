@@ -1,5 +1,21 @@
 # Local-Roots Engineering Management Playbook
 
+## Linear Status Management Instructions
+
+**CRITICAL: Always update Linear ticket status as work progresses:**
+
+1. **Backlog → In Progress**: When starting work on a ticket
+2. **In Progress → In Review**: When code is complete and PR is created
+3. **In Review → Testing**: After PR approval, ready for functional testing
+4. **Testing → Done**: Only after EM completes functional testing and PR is merged
+
+**Use Linear MCP integration when available:**
+```
+mcp__linear__update_issue(id, state)
+```
+
+**If MCP unavailable, remind EM to update manually in Linear.**
+
 ## Sprint 1: Consumer Farm Discovery (Aug 14-20, 2025)
 
 ### Sprint Goal
