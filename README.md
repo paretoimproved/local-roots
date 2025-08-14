@@ -1,136 +1,265 @@
-# B(build)stack
+# LocalRoots: CSA Marketplace Platform
 
-A modern full-stack application template built with Turborepo, featuring a Hono + Bun API backend and Next.js frontend.
-Easiest way to build a SaaS.
+Connect local farmers with consumers through an easy-to-use Community Supported Agriculture (CSA) marketplace.
 
+## Vision
+LocalRoots is a two-sided marketplace connecting local farmers with consumers seeking fresh, seasonal produce through Community Supported Agriculture (CSA) subscriptions. We're building the definitive platform for discovering, comparing, and managing CSA shares - making local food as accessible as online shopping.
 
-### API (Backend)
-- [Bun](https://bun.sh/) 
-- [Drizzle ORM](https://orm.drizzle.team/)
-- [Supabase](https://supabase.com/)
+## MVP Features (Phase 1)
 
-### Web (Frontend)
-- [Next.js](https://nextjs.org/)
-- [Tailwind CSS](https://tailwindcss.com/) 
-- [Shadcn/ui](https://ui.shadcn.com/) 
-- [Clerk](https://clerk.com/) 
+### Core Functionality
+- ✅ Basic authentication (Clerk)
+- ✅ Two user types: Farmers and Consumers
+- ✅ Simple farm profiles
+- ⏳ Basic CSA share listings
+- ⏳ Location-based search
+- ⏳ Simple subscription management
 
-### Deployment
-- [Vercel](https://vercel.com/)
-- [Render](https://render.com/)
+### Farmer Features 👨‍🌾
+- ✅ Create/edit farm profile
+- ⏳ Add/edit CSA share offerings
+- ⏳ Basic dashboard for subscriber management
 
-### Misc
-- [Ngrok](https://ngrok.com/)
+### Consumer Features 🛒
+- ✅ Browse farms by location
+- ⏳ View farm profiles and available shares
+- ⏳ Subscribe to CSA shares
+- ⏳ Manage active subscriptions
 
+## Technical Implementation
 
-## 📦 Project Structure
+### Database Schema
+```typescript
+// Simplified initial schema
+interface Farm {
+  id: string
+  userId: string // Clerk Auth ID
+  name: string
+  description: string
+  location: {
+    latitude: number
+    longitude: number
+    address: string
+  }
+  images: string[]
+  createdAt: Date
+}
+
+interface CSAShare {
+  id: string
+  farmId: string
+  name: string
+  description: string
+  price: number
+  frequency: 'weekly' | 'biweekly' | 'monthly'
+  available: boolean
+  startDate: Date
+  endDate: Date
+}
+
+interface Subscription {
+  id: string
+  userId: string // Clerk Auth ID
+  shareId: string
+  status: 'active' | 'paused' | 'cancelled'
+  startDate: Date
+  nextDelivery: Date
+}
+```
+
+## Future Phases
+
+### Phase 2: Enhanced Features
+- Payment processing integration (Stripe)
+- Messaging system between farmers and subscribers
+- Share contents management
+- Delivery/pickup scheduling
+- Basic analytics for farmers
+
+### Phase 3: Advanced Features
+- Review and rating system
+- Advanced search filters
+- Subscription pausing/rescheduling
+- Mobile app development
+- Weather integration for harvest forecasting
+
+### Phase 4: Premium Features
+- Route optimization for deliveries
+- Advanced analytics dashboard
+- Marketing tools for farmers
+- Seasonal planning tools
+- Integration with farm management software
+
+## Development Roadmap
+
+### Phase 1 Implementation Plan
+
+1. **Setup & Authentication (Week 1)** ✅
+   - ✅ Initialize project structure
+   - ✅ Implement Clerk authentication
+   - ✅ Create user type selection flow
+
+2. **Farm Management (Week 2)** ⏳
+   - ✅ Create farm profile CRUD
+   - ⏳ Implement image upload
+   - ⏳ Basic location services
+
+3. **CSA Shares (Week 2-3)** ⏳
+   - ⏳ Share creation and management
+   - ⏳ Listing and search functionality
+   - ⏳ Basic location-based filtering
+
+4. **Subscriptions (Week 3-4)**
+   - ⏳ Subscribe flow
+   - ⏳ Basic subscription management
+   - ⏳ Dashboard views for both user types
+
+5. **UI/UX & Testing (Week 4)**
+   - ⏳ Polish core user flows
+   - ⏳ Mobile responsiveness
+   - ⏳ Basic error handling
+   - ⏳ Initial testing
+
+## Implementation Progress
+
+### Completed
+- ✅ Project structure and repository setup
+- ✅ Database schema definition with Drizzle ORM
+- ✅ Basic API structure with Hono
+- ✅ Farm management API endpoints
+- ✅ Authentication with Clerk
+  - ✅ Email/password authentication
+  - ✅ Password reset functionality
+  - ✅ Email verification flow
+  - ✅ OAuth authentication
+- ✅ Basic frontend structure with Next.js
+- ✅ Basic dashboard UI for farmers and consumers
+- ✅ User profile management
+- ✅ User type selection and routing
+
+### In Progress
+- ⏳ CSA Share management implementation
+- ⏳ Farm discovery and browsing features
+- ⏳ Subscription management
+- ⏳ Image upload for farms
+
+### Next Steps
+1. Complete CSA Share API endpoints and frontend
+2. Implement location-based search functionality
+3. Build subscription management features
+4. Polish UI and user flows
+5. Add comprehensive testing
+
+## Project Structure
 ```
 ├── apps/
-│   ├── api/         # Bun API backend
-│   └── web/         # Next.js frontend
-└── packages/        # Shared packages, main DB
+│   ├── api/                  # Bun API backend
+│   │   ├── src/
+│   │   │   ├── modules/      # Feature modules
+│   │   │   │   ├── farms/    # Farm-related endpoints
+│   │   │   │   ├── shares/   # CSA share endpoints
+│   │   │   │   └── subscriptions/ # Subscription endpoints
+│   │   │   └── pkg/          # Shared utilities
+│   │   └── index.ts          # Main application
+│   └── web/                  # Next.js frontend
+│       ├── src/
+│       │   ├── app/
+│       │   │   ├── dashboard/      # Dashboard pages
+│       │   │   │   ├── farmer/     # Farmer dashboard
+│       │   │   │   └── consumer/   # Consumer dashboard
+│       │   │   ├── auth/           # Authentication pages
+│       │   │   │   ├── sign-up/    # Sign-up flow
+│       │   │   │   └── forgot-password/ # Password reset
+│       │   │   ├── sign-in/        # Sign-in with catch-all routes
+│       │   │   ├── farms/          # Farm discovery pages
+│       │   │   ├── shares/         # CSA share pages
+│       │   │   └── subscriptions/  # Subscription management
+│       │   └── components/         # Shared components
+└── packages/                 # Shared packages
+    └── db/                   # Database schema and utilities
+        ├── src/
+        │   ├── schema.ts     # Drizzle schema definitions
+        │   └── types.ts      # Shared TypeScript types
 ```
 
-## 🛠️ Setup & Installation
+## Tech Stack
+- Frontend: Next.js, TailwindCSS, shadcn/ui
+- Backend: Hono, Bun
+- Database: PostgreSQL with Drizzle ORM
+- Authentication: Clerk
+- Deployment: Vercel (frontend), Render (backend)
 
+## Authentication Features
+- Email/password authentication
+- OAuth providers (Google, etc.)
+- Password reset flow
+- Email verification
+- User type selection (Farmer or Consumer)
+- Protected routes with middleware
+- Session management
 
-1. **Install dependencies**
+## Development Guidelines
 
+### Code Organization
+- Follow feature-based module organization
+- Keep business logic in service layer
+- Use TypeScript for type safety across the stack
+- Follow the patterns established in the project structure
+
+### API Design
+- RESTful API endpoints grouped by resource
+- Consistent error handling and response formats
+- Proper validation using zod schemas
+- Authentication middleware for protected routes
+
+### Frontend Architecture
+- Use Next.js App Router for routing
+- Server Components for data fetching when possible
+- Client Components for interactive elements
+- Shadcn/UI for component library
+- TanStack Query for data fetching and state management
+
+### Database
+- Use Drizzle ORM for database operations
+- Follow migration patterns for schema changes
+- Create appropriate indexes for query performance
+- Leverage PostgreSQL's geometric types for location queries
+
+## Getting Started
+
+### Prerequisites
+- Node.js 22 or later
+- Bun 1.0.0 or later
+- PNPM 9.0.0 or later
+- PostgreSQL database (or a Supabase account)
+
+### Installation
+
+1. Clone the repository
+```bash
+git clone https://github.com/yourusername/local-roots.git
+cd local-roots
+```
+
+2. Install dependencies
+```bash
 pnpm install
+```
 
-2. **Bun Setup**
-You can install bun in a few ways, based on your OS.
-https://bun.sh/docs/installation
+3. Set up environment variables
+   - Create .env files in apps/api, apps/web, and packages/db
+   - Configure your database connection and Clerk authentication
 
-
+4. Run the development servers
 ```bash
-curl -fsSL https://bun.sh/install | bash # for macOS, Linux, and WSL
+pnpm dev
 ```
 
-```bash
-npm install -g bun 
-```
+This will start both the API (http://localhost:3004) and web app (http://localhost:3000).
 
-```bash
-brew install oven-sh/bun/bun # for macOS and Linux
-```
-
-3. **Environment Setup**
-
-Create .env files in both apps/api and apps/web:
-
-For `apps/api/.env`:
-
-```
-DATABASE_URL=your_database_url
-CLERK_SECRET_KEY=your_clerk_secret_key
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SIGNING_SECRET=your_clerk_webhook_secret
-```
-
-For `apps/web/.env`:
-
-```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=your_clerk_publishable_key
-CLERK_SECRET_KEY=your_clerk_secret_key
-NEXT_PUBLIC_API_URL=your_api_url
-```
-
-To run migrations and push db schema locally create a `.env` file in `packages/db` and add your database url.
-
-`packages/db/.env`
-```
-DATABASE_URL=your_database_url
-```
-
-
-
-1. **Supabase Setup (Any postgres DB will work)**
-- Create a new project on [Supabase](https://supabase.com)
-- Copy your database url to the .env file
-- Run `pnpm db:push` to initialize the database and mess around.
-- When ready, run `pnpm db:generate` to generate the schema. And then run `pnpm db:migrate` to apply the schema to the database.
-
-1. **Clerk Setup**
-- Create a new application on [Clerk](https://clerk.com)
-- Copy your API keys to the .env file
-- Configure your OAuth providers if needed
-
-#### Webhooks
-There is a webhook setup in clerk for the api to handle user creation and authentication. 
-Use this to setup a sync between clerk and the user database. Further details can be found in the [api readme](apps/api/README.md).
-
-## Development
-
-Run the development server:
-
-`turbo dev`
-
-This will start both the API and web applications in development mode:
-- API: http://localhost:3004
-- Web: http://localhost:3000
-
-## 📤 Deployment
-
-### Web (Next.js) on Vercel
-
-1. Connect your repository to [Vercel](https://vercel.com)
-2. Select the web directory as your project root
-3. Add your environment variables
-
-### API (Bun) on Render
-
-1. Create a new Web Service on [Render](https://render.com)
-2. Connect your repository
-3. Configure the service (If not using render.yaml):
-   - Build Command:  pnpm install
-   - Start Command: pnpm start
-   - Root Directory: apps/api
-4. Add your environment variables
-
-
-##  Contributing
-1. Create a new branch
-2. Make your changes
-3. Submit a pull request
+### Testing Auth Flow in Development
+When testing the authentication flow in development:
+1. Use test emails in the format `test+clerk_test@example.com`
+2. For email verification, use the code `424242`
+3. This allows testing the complete auth flow without sending real emails
 

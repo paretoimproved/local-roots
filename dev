@@ -1,0 +1,45 @@
+#!/bin/bash
+
+# Simple script to restart and run LocalRoots dev servers
+echo "🚀 Starting LocalRoots dev servers"
+
+# Kill processes on required ports
+echo "📌 Clearing ports..."
+for port in 3000 3001 3004 3005 3006; do
+  pid=$(lsof -ti:$port 2>/dev/null)
+  if [ -n "$pid" ]; then
+    echo "Freeing port $port"
+    kill $pid 2>/dev/null || echo "Could not kill process on port $port"
+    sleep 1
+  fi
+done
+
+# Clear caches
+echo "📌 Clearing caches..."
+rm -rf apps/web/.next
+rm -rf .turbo
+
+# Remove conflicting route file if it exists
+if [ -f "apps/web/src/app/sign-in/page.tsx" ]; then
+  echo "📌 Removing conflicting route file"
+  rm "apps/web/src/app/sign-in/page.tsx"
+fi
+
+# Start servers in separate terminals
+echo "📌 Starting servers..."
+
+# API server
+cd apps/api
+echo "Starting API server..."
+pnpm dev &
+API_PID=$!
+echo "API server started with PID: $API_PID"
+
+# Web server
+cd ../web
+echo "Starting web server..."
+pnpm dev
+
+# Note: The script will stay running with the web server in foreground
+# If web server exits, we'll kill the API server
+kill $API_PID 2>/dev/null 

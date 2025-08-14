@@ -1,32 +1,28 @@
 {
-  "name": "@repo/db",
-  "version": "1.0.0",
-  "description": "",
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
-  "keywords": [],
-  "scripts": {
-    "db:push": "dotenv -e .env drizzle-kit push",
-    "db:studio": "dotenv -e .env drizzle-kit studio",
-    "db:generate": "dotenv -e .env drizzle-kit generate",
-    "db:migrate": "dotenv -e .env drizzle-kit migrate",
-    "db:seed": "bun run src/seed.ts",
-    "format": "biome format --write ."
-  },
-  "devDependencies": {
-    "@repo/id": "workspace:*",
-    "@repo/typescript-config": "workspace:*",
-    "@types/node": "^22.13.4",
-    "@types/pg": "^8.11.11",
-    "dotenv": "^16.4.7",
-    "dotenv-cli": "^8.0.0",
-    "drizzle-kit": "0.30.4",
-    "postgres": "^3.4.5",
-    "typescript": "^5"
-  },
-  "dependencies": {
-    "drizzle-orm": "^0.39.3",
-    "drizzle-zod": "^0.7.0",
-    "zod": "^3.24.2"
-  }
+    "name": "@repo/db",
+    "version": "0.1.0",
+    "private": true,
+    "main": "./src/index.ts",
+    "types": "./src/index.ts",
+    "scripts": {
+        "db:generate": "drizzle-kit generate:pg",
+        "db:push": "drizzle-kit push:pg",
+        "db:migrate": "drizzle-kit migrate:pg",
+        "db:studio": "drizzle-kit studio",
+        "db:seed": "bun ./src/seed.ts",
+        "lint": "eslint . --ext .ts",
+        "clean": "rm -rf .turbo node_modules"
+    },
+    "dependencies": {
+        "drizzle-orm": "^0.28.6",
+        "postgres": "^3.4.3",
+        "drizzle-zod": "^0.5.1"
+    },
+    "devDependencies": {
+        "drizzle-kit": "^0.19.13",
+        "@types/pg": "^8.10.9",
+        "@types/node": "^20.10.6",
+        "dotenv": "^16.3.1",
+        "zod": "^3.22.4"
+    }
 }
