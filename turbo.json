@@ -1,8 +1,19 @@
 {
   "$schema": "https://turbo.build/schema.json",
   "ui": "stream",
-  "tasks": {
+  "globalDependencies": [
+    "**/.env.*local"
+  ],
+  "pipeline": {
     "build": {
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**"
+      ],
       "env": [
         "DATABASE_URL",
         "CLERK_SECRET_KEY",
@@ -10,38 +21,35 @@
         "CLERK_WEBHOOK_SECRET",
         "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
         "NEXT_PUBLIC_API_URL"
-      ],
-      "dependsOn": [
-        "^build"
-      ],
-      "inputs": [
-        "$TURBO_DEFAULT$",
-        ".env*"
-      ],
-      "outputs": [
-        ".next/**",
-        "!.next/cache/**"
       ]
     },
     "lint": {
-      "dependsOn": [
-        "^lint"
-      ]
-    },
-    "format": {},
-    "check-types": {
-      "dependsOn": [
-        "^check-types"
-      ]
+      "outputs": []
     },
     "dev": {
       "cache": false,
       "persistent": true
     },
-    "db:push": {},
-    "db:generate": {},
-    "db:migrate": {},
-    "db:studio": {},
-    "db:seed": {}
+    "start": {
+      "cache": false
+    },
+    "clean": {
+      "cache": false
+    },
+    "db:push": {
+      "cache": false
+    },
+    "db:generate": {
+      "cache": false
+    },
+    "db:migrate": {
+      "cache": false
+    },
+    "db:studio": {
+      "cache": false
+    },
+    "db:seed": {
+      "cache": false
+    }
   }
 }

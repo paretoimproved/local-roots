@@ -1,138 +1,138 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import Link from "next/link";
-import Image from "next/image";
-import { Menu, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
-import { Button } from "@/components/ui/button";
-import { SignedIn, SignedOut, UserButton } from "@clerk/nextjs";
+import Link from "next/link"
+import Image from "next/image"
+import { usePathname } from "next/navigation"
+import { MainNav } from "./main-nav"
+import { UserNav } from "./user-nav"
+import { Search, Menu } from "lucide-react"
+import { Button } from "@/components/ui/button"
+
+interface NavItem {
+  title: string
+  href: string
+}
 
 export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname()
+  const showFarmerNav = pathname?.includes("/dashboard/farmer")
+  const showConsumerNav = pathname?.includes("/dashboard/consumer") 
+  const isHomepage = pathname === "/"
+  
+  const farmerNavItems: NavItem[] = [
+    {
+      title: "Dashboard",
+      href: "/dashboard/farmer",
+    },
+    {
+      title: "My Farms",
+      href: "/dashboard/farmer/farms",
+    },
+    {
+      title: "CSA Shares",
+      href: "/dashboard/farmer/shares",
+    },
+    {
+      title: "Subscribers",
+      href: "/dashboard/farmer/subscribers",
+    },
+  ]
+  
+  const consumerNavItems: NavItem[] = [
+    {
+      title: "Dashboard",
+      href: "/dashboard/consumer",
+    },
+    {
+      title: "Find Farms",
+      href: "/dashboard/consumer/farms",
+    },
+    {
+      title: "My Subscriptions",
+      href: "/dashboard/consumer/subscriptions",
+    },
+  ]
+  
+  // Empty main nav - no links needed
+  const mainNavItems: NavItem[] = []
+  
+  let navItems = mainNavItems
+  
+  if (showFarmerNav) {
+    navItems = farmerNavItems
+  } else if (showConsumerNav) {
+    navItems = consumerNavItems
+  }
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
-  };
+  // Show search bar everywhere except farmer dashboard and non-main pages
+  const showSearch = !showFarmerNav && isHomepage
 
   return (
-    <header className="relative sticky top-0 z-50 border-b bg-background">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between py-4">
+    <header className="sticky top-0 z-40 bg-white border-b">
+      <div className="container flex h-auto py-3 px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between w-full">
           <div className="flex items-center">
-            <Link href="/" className="flex items-center space-x-2">
+            <Link href="/" className="flex items-center">
               <Image
-                src="https://placehold.co/40x40"
-                alt="Logo"
-                width={40}
-                height={40}
-                className="h-8 w-auto"
+                src="/images/local-roots-logo.png"
+                width={96}
+                height={96}
+                alt="LocalRoots Logo"
+                className="h-12 w-auto rounded-full"
+                priority
+                quality={100}
               />
-              <span className="font-bold text-xl">Logo</span>
             </Link>
-          </div>
-          <nav className="hidden space-x-4 md:flex">
-            <Link
-              href="/about"
-              className="font-medium text-muted-foreground text-sm hover:text-primary"
-            >
-              About
-            </Link>
-            <Link
-              href="/services"
-              className="font-medium text-muted-foreground text-sm hover:text-primary"
-            >
-              Services
-            </Link>
-            <Link
-              href="/contact"
-              className="font-medium text-muted-foreground text-sm hover:text-primary"
-            >
-              Contact
-            </Link>
-          </nav>
-          <div className="hidden items-center space-x-4 md:flex">
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-            <SignedOut>
-              <Link href="/signin" className={buttonVariants({ variant: "ghost", size: "sm" })}>
-                Log in
-              </Link>
-              <Link href="/signup" className={buttonVariants({ size: "sm" })}>
-                Sign up
-              </Link>
-            </SignedOut>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            onClick={toggleMenu}
-            aria-expanded={isMenuOpen}
-            aria-controls="mobile-menu"
-          >
-            <span className="sr-only">Open menu</span>
-            {isMenuOpen ? (
-              <X className="size-6" aria-hidden="true" />
-            ) : (
-              <Menu className="size-6" aria-hidden="true" />
+            
+            {!showFarmerNav && !showConsumerNav && (
+              <div className="hidden md:flex">
+                <MainNav items={navItems} />
+              </div>
             )}
-          </Button>
-        </div>
-      </div>
-
-      {/* Mobile menu */}
-      <div
-        className={cn(
-          "fixed inset-x-0 top-[68px] bottom-0 bg-background md:hidden",
-          "border-t",
-          isMenuOpen ? "block" : "hidden",
-        )}
-        id="mobile-menu"
-        aria-labelledby="mobile-menu-button"
-      >
-        <div className="flex flex-col space-y-4 p-4">
-          <div className="flex flex-col space-y-2">
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
-            <SignedOut>
-              <Link href="/signup" className={buttonVariants({ size: "sm", className: "w-full" })}>
-                Sign up
-              </Link>
-              <Link
-                href="/login"
-                className={buttonVariants({ variant: "ghost", size: "sm", className: "w-full" })}
-              >
-                Log in
-              </Link>
-            </SignedOut>
+            {(showFarmerNav || showConsumerNav) && (
+              <MainNav items={navItems} />
+            )}
           </div>
-
-          <nav className="flex flex-col space-y-4">
-            <Link
-              href="/about"
-              className="font-medium text-base text-muted-foreground hover:text-primary"
-            >
-              About
+          
+            {!showFarmerNav && !showConsumerNav && showSearch && (
+              <div className="hidden md:flex flex-1 max-w-md mx-auto">
+                <div className="flex w-full items-center rounded-full border shadow-sm overflow-hidden">
+                  <div className="flex items-center p-2 flex-1 w-full">
+                    <div className="w-full flex items-center">
+                      <input placeholder="Where are you located?" className="outline-none text-sm w-full px-2" />
+                      <Button variant="ghost" size="icon" className="rounded-full mr-1">
+                        <Search className="h-4 w-4 text-gray-500" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          
+          <div className="flex items-center">
+            <Link href="/auth" className="flex items-center border rounded-full p-1 shadow-sm hover:shadow-md transition-all" aria-label="Sign in or sign up">
+              <Menu className="h-5 w-5 mx-2" />
+              <UserNav />
             </Link>
-            <Link
-              href="/services"
-              className="font-medium text-base text-muted-foreground hover:text-primary"
-            >
-              Services
-            </Link>
-            <Link
-              href="/contact"
-              className="font-medium text-base text-muted-foreground hover:text-primary"
-            >
-              Contact
-            </Link>
-          </nav>
+          </div>
         </div>
+        
+        {/* Mobile search bar */}
+        {showSearch && (
+          <div className="md:hidden w-full mt-3">
+            <div className="flex items-center rounded-full shadow-lg border overflow-hidden bg-white">
+              <div className="flex items-center p-2 flex-1 w-full">
+                <div className="w-full flex items-center">
+                  <input placeholder="Where are you located?" className="outline-none text-sm w-full px-2" />
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <Search className="h-4 w-4 text-gray-500" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </header>
-  );
-}
+  )
+} 
