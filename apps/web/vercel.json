@@ -1,7 +1,6 @@
 {
   "framework": "nextjs",
-  "buildCommand": "pnpm build",
-  "outputDirectory": ".next",
-  "installCommand": "pnpm install --no-frozen-lockfile",
-  "devCommand": "pnpm dev"
+  "buildCommand": "./build.sh",
+  "installCommand": "echo 'Using custom build script'",
+  "outputDirectory": ".next"
 }
