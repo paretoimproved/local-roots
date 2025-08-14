@@ -29,22 +29,89 @@ export type CreateFarmInput = {
   imageUrls?: string[];
 };
 
-// Fetch all farms
-export async function getFarms(): Promise<Farm[]> {
-  const response = await apiClient.farms.getAll();
-  return response.json();
+export type GetFarmsParams = {
+  cursor?: string;
+  limit?: number;
+  search?: string;
+};
+
+export type PaginatedResponse<T> = {
+  success: boolean;
+  data: T[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  error?: string;
+};
+
+// Fetch farms with pagination and search
+export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedResponse<Farm>> {
+  const searchParams = new URLSearchParams();
+  
+  if (params.cursor) searchParams.set('cursor', params.cursor);
+  if (params.limit) searchParams.set('limit', params.limit.toString());
+  if (params.search) searchParams.set('search', params.search);
+  
+  const url = `/api/farms${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching farms:', error);
+    throw error;
+  }
 }
 
 // Fetch a farm by ID
 export async function getFarm(id: string): Promise<Farm> {
-  const response = await apiClient.farms.getById(id);
-  return response.json();
+  try {
+    const response = await fetch(`/api/farms/${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching farm:', error);
+    throw error;
+  }
 }
 
-// Fetch farms for the current user
-export async function getMyFarms(): Promise<Farm[]> {
-  const response = await apiClient.farms.getMyFarms();
-  return response.json();
+// Fetch farms for the current user  
+export async function getMyFarms(): Promise<{ success: boolean; data: Farm[] }> {
+  try {
+    const response = await fetch('/api/farms/user/me', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching user farms:', error);
+    throw error;
+  }
 }
 
 // Create a new farm

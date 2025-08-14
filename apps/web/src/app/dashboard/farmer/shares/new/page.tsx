@@ -23,10 +23,12 @@ export default function NewShare() {
   });
 
   // Fetch farmer's farms
-  const { data: farms = [], isLoading } = useQuery({
+  const { data: farmsResponse, isLoading } = useQuery({
     queryKey: ["farms", "me"],
     queryFn: getMyFarms,
   });
+  
+  const farms = farmsResponse?.data || [];
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value, type } = e.target;
