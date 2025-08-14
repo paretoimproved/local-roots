@@ -3,13 +3,41 @@ import { zValidator } from "@hono/zod-validator";
 import { farmService } from "./farms.service";
 import { farmInsertSchema } from "@repo/db";
 import { auth, getUserId, requireAuth } from "../../pkg/middleware/clerk-auth";
+import { z } from "zod";
+
+// Pagination query schema
+const paginationSchema = z.object({
+  cursor: z.string().optional(),
+  limit: z.coerce.number().min(1).max(50).default(20)
+});
 
 // Create farms routes
 export const farmRoutes = new Hono()
-  // Get all farms (public)
-  .get("/", async (c) => {
-    const farms = await farmService.getFarms();
-    return c.json(farms);
+  // Get all farms with pagination (public)
+  .get("/", zValidator("query", paginationSchema), async (c) => {
+    const { cursor, limit } = c.req.valid("query");
+    
+    try {
+      const result = await farmService.getFarms(cursor, limit);
+      return c.json({
+        success: true,
+        data: result.data,
+        nextCursor: result.nextCursor,
+        hasMore: result.hasMore
+      });
+    } catch (error) {
+      console.error('Error fetching farms:', error);
+      return c.json(
+        { 
+          success: false, 
+          error: 'Failed to fetch farms',
+          data: [],
+          nextCursor: null,
+          hasMore: false
+        }, 
+        500
+      );
+    }
   })
 
   // Get farm by ID (public)
@@ -31,7 +59,10 @@ export const farmRoutes = new Hono()
   .get("/user/me", async (c) => {
     const userId = getUserId(c);
     const farms = await farmService.getFarmsByUserId(userId);
-    return c.json(farms);
+    return c.json({
+      success: true,
+      data: farms
+    });
   })
   
   // Create a new farm
