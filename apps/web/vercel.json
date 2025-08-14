@@ -1,6 +1,0 @@
-{
-  "framework": "nextjs",
-  "buildCommand": "./build.sh",
-  "installCommand": "echo 'Using custom build script'",
-  "outputDirectory": ".next"
-}
