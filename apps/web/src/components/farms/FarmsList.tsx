@@ -38,11 +38,13 @@ export function FarmsList() {
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor || undefined,
     staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes cache time
     retry: (failureCount, error: any) => {
       // Only retry on network errors, not client errors
       if (error?.status >= 400 && error?.status < 500) return false;
       return failureCount < 2;
     },
+    refetchOnWindowFocus: false, // Prevent unnecessary refetches
   });
 
   // Auto-fetch next page when scrolling near bottom

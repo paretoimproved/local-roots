@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { Search, X, Clock } from 'lucide-react';
+import { Search, X, Clock, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useDebounce } from '@/hooks/useDebounce';
@@ -16,6 +16,7 @@ export function SearchBox() {
   const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
   
   // Debounce search input (300ms delay)
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
@@ -38,8 +39,10 @@ export function SearchBox() {
     
     if (debouncedSearchTerm.trim()) {
       params.set('search', debouncedSearchTerm.trim());
+      setIsSearching(true);
     } else {
       params.delete('search');
+      setIsSearching(false);
     }
     
     // Only update if params actually changed
@@ -49,8 +52,20 @@ export function SearchBox() {
     if (newParamsString !== currentParamsString) {
       const newUrl = `/farms${newParamsString ? `?${newParamsString}` : ''}`;
       router.push(newUrl, { scroll: false });
+      
+      // Reset searching state after a delay
+      if (debouncedSearchTerm.trim()) {
+        setTimeout(() => setIsSearching(false), 1000);
+      }
     }
   }, [debouncedSearchTerm, router, searchParams]);
+
+  // Validate search input
+  const validateSearchTerm = (term: string): boolean => {
+    // Allow letters, numbers, spaces, hyphens, and common punctuation
+    const validPattern = /^[a-zA-Z0-9\s\-,.#]+$/;
+    return validPattern.test(term) || term === '';
+  };
 
   // Save search term to history when user submits
   const saveToHistory = useCallback((term: string) => {
@@ -93,12 +108,22 @@ export function SearchBox() {
     <div className="relative w-full max-w-md">
       <form onSubmit={handleSubmit} className="relative">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          {isSearching ? (
+            <Loader2 className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground animate-spin" />
+          ) : (
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          )}
           <Input
-            type="text"
+            type="search"
+            inputMode="search"
             placeholder="Search by city, ZIP code, or farm name..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              const value = e.target.value;
+              if (validateSearchTerm(value)) {
+                setSearchTerm(value);
+              }
+            }}
             onFocus={() => setShowHistory(true)}
             className="pl-10 pr-12 py-3"
             autoComplete="off"
