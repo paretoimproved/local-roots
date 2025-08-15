@@ -1,0 +1,18 @@
+{
+  "timestamp": "20250814_165017",
+  "url": "https://local-roots-hqjlefvzu-brandonqueener-cbs-projects.vercel.app",
+  "deployment_status": "https://local-roots-j0byuqcgh-brandonqueener-cbs-projects.vercel.app",
+  "console_errors": [],
+  "performance_scores": {
+    "performance": ,
+    "accessibility": ,
+    "fcp": "",
+    "lcp": ""
+  },
+  "claude_code_actions": [
+    "Review console errors for critical issues",
+    "Analyze performance bottlenecks", 
+    "Check deployment configuration",
+    "Verify functional testing requirements"
+  ]
+}

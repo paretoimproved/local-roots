@@ -145,11 +145,56 @@ pnpm typecheck
 pnpm lint
 ```
 
-#### Deployment Process
-1. **Push to main** → Automatic Vercel deployment
-2. **Create PR** → Automatic preview environment
-3. **Functional testing** on preview URL
-4. **Merge PR** → Deploy to production
+#### 🚀 Deployment Pipeline (staging → production)
+
+**⚠️ CRITICAL RULE: No Direct Production Deploys**
+All code MUST go through the staging → production pipeline.
+
+##### Stage 1: Continuous Integration (All Branches)
+```bash
+# Runs on every push/PR
+1. Type checking (TypeScript)
+2. Code linting (ESLint) 
+3. Unit tests (Vitest, ≥70% coverage)
+4. Build verification
+```
+
+##### Stage 2: Staging Deployment (PR Branches)
+```bash
+# Automatic on PR creation
+1. Deploy to Vercel preview environment
+2. Comment PR with staging URL
+3. Manual testing checklist provided
+4. E2E tests (when implemented)
+```
+
+##### Stage 3: Production Deployment (Main Branch Only)
+```bash
+# Automatic on merge to main
+1. Deploy to production Vercel environment
+2. Run smoke tests on production URL
+3. Notify team of successful deployment
+```
+
+#### 🧪 Testing Requirements
+
+**Unit Test Coverage Thresholds:**
+- Branches: ≥70% | Functions: ≥70% | Lines: ≥70% | Statements: ≥70%
+
+**Definition of Done (MANDATORY):**
+- [ ] **Code reviewed and approved** (GitHub PR review required)
+- [ ] **All automated tests passing** (Unit tests ≥70% coverage)
+- [ ] **Deployed to staging environment** (Vercel preview deployment)
+- [ ] **Manual testing completed** on staging (mobile/desktop)
+- [ ] **Performance benchmarks met** (<2s load, <500ms search)
+- [ ] **Error handling tested** and documented
+- [ ] **Accessibility requirements verified** (WCAG 2.1 AA)
+
+**❌ NEVER:**
+- Deploy directly to production
+- Skip staging testing
+- Merge PRs without staging verification
+- Move Linear tickets to "Done" without full pipeline completion
 
 ### Next Steps
 
