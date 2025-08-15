@@ -49,17 +49,21 @@ jobs:
 
       - name: Type check
         run: pnpm typecheck
+        working-directory: ./apps/web
 
       - name: Lint
         run: pnpm lint
+        working-directory: ./apps/web
 
       - name: Run tests
         run: pnpm test
+        working-directory: ./apps/web
         env:
           DATABASE_URL: postgresql://test:test@localhost:5432/test_db
 
       - name: Build
         run: pnpm build
+        working-directory: ./apps/web
         env:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
