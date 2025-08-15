@@ -190,11 +190,49 @@ All code MUST go through the staging → production pipeline.
 - [ ] **Error handling tested** and documented
 - [ ] **Accessibility requirements verified** (WCAG 2.1 AA)
 
+### 🧪 **MANDATORY TESTING RULES FOR LINEAR FEATURES**
+
+#### Every Linear Story MUST Include Testing:
+```markdown
+## Testing Requirements (MANDATORY)
+- [ ] Unit tests written covering all public methods/props
+- [ ] Integration tests for API calls (if applicable)  
+- [ ] Error scenarios tested
+- [ ] Accessibility tested (for UI components)
+- [ ] Coverage threshold met (≥70%)
+- [ ] All tests passing in CI
+
+## Test Cases to Implement
+1. **Happy Path**: [Describe main functionality]
+2. **Error Cases**: [List error scenarios to test]  
+3. **Edge Cases**: [List boundary conditions]
+4. **Accessibility**: [List a11y requirements]
+```
+
+#### Testing Requirements by Feature Type:
+- **Frontend Components**: Unit tests for rendering, props, interactions, state, errors
+- **API Endpoints**: Unit tests for success/error responses, validation, auth
+- **Utility Functions**: 100% coverage for pure functions + edge cases
+- **UI/UX Features**: Accessibility tests for interactive components
+
+#### Test File Structure:
+```
+src/components/farms/
+├── FarmsList.tsx
+├── SearchBox.tsx  
+└── __tests__/
+    ├── FarmsList.test.tsx
+    └── SearchBox.test.tsx
+```
+
 **❌ NEVER:**
 - Deploy directly to production
 - Skip staging testing
 - Merge PRs without staging verification
 - Move Linear tickets to "Done" without full pipeline completion
+- **Create Linear features without corresponding tests**
+- **Mark stories "Done" with test coverage below 70%**
+- **Skip testing requirements in story estimation**
 
 ### Next Steps
 
