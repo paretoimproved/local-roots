@@ -1,5 +1,6 @@
 import '@testing-library/jest-dom';
 import { beforeAll, afterAll, vi } from 'vitest';
+import React from 'react';
 
 // Mock Next.js router
 vi.mock('next/router', () => ({
@@ -40,7 +41,7 @@ vi.mock('@clerk/nextjs', () => ({
   }),
   SignInButton: ({ children }: { children: React.ReactNode }) => children,
   SignUpButton: ({ children }: { children: React.ReactNode }) => children,
-  UserButton: () => <div data-testid="user-button">User Button</div>,
+  UserButton: () => React.createElement('div', { 'data-testid': 'user-button' }, 'User Button'),
 }));
 
 beforeAll(() => {

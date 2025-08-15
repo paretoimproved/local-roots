@@ -1,47 +1,40 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { SearchBox } from '../SearchBox'
 
 // Mock Next.js navigation hooks
+const mockPush = vi.fn()
+const mockSearchParams = {
+  get: vi.fn(() => ''),
+  toString: vi.fn(() => ''),
+}
+
 vi.mock('next/navigation', () => ({
-  useRouter: vi.fn(),
-  useSearchParams: vi.fn(),
+  useRouter: () => ({
+    push: mockPush,
+  }),
+  useSearchParams: () => mockSearchParams,
 }))
 
-// Mock the useDebounce hook
+// Mock the useDebounce hook to return value immediately
 vi.mock('@/hooks/useDebounce', () => ({
-  useDebounce: vi.fn((value) => value), // Return value immediately for testing
+  useDebounce: (value: string) => value,
 }))
 
 describe('SearchBox', () => {
-  const mockPush = vi.fn()
-  const mockSearchParams = {
-    get: vi.fn(),
-    toString: vi.fn(() => ''),
-  }
-
   beforeEach(() => {
-    vi.mocked(useRouter).mockReturnValue({
-      push: mockPush,
-    } as any)
-    
-    vi.mocked(useSearchParams).mockReturnValue(mockSearchParams as any)
+    vi.clearAllMocks()
+    mockSearchParams.get.mockReturnValue('')
     
     // Mock localStorage
-    const localStorageMock = {
-      getItem: vi.fn(),
-      setItem: vi.fn(),
-      removeItem: vi.fn(),
-    }
     Object.defineProperty(window, 'localStorage', {
-      value: localStorageMock,
+      value: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      },
       writable: true,
     })
-  })
-
-  afterEach(() => {
-    vi.clearAllMocks()
   })
 
   it('renders search input with correct placeholder', () => {
@@ -51,82 +44,59 @@ describe('SearchBox', () => {
     expect(searchInput).toBeInTheDocument()
   })
 
-  it('displays search icon when not searching', () => {
+  it('has correct input attributes', () => {
     render(<SearchBox />)
     
-    const searchIcon = screen.getByTestId('search-icon') || document.querySelector('[data-testid="search-icon"]')
-    // Since we don't have data-testid, let's check for the Search component from lucide-react
-    const searchElement = document.querySelector('svg')
-    expect(searchElement).toBeInTheDocument()
+    const searchInput = screen.getByRole('searchbox')
+    expect(searchInput).toHaveAttribute('type', 'search')
+    expect(searchInput).toHaveAttribute('inputMode', 'search')
+    expect(searchInput).toHaveAttribute('autoComplete', 'off')
   })
 
-  it('shows clear button when search term exists', async () => {
-    mockSearchParams.get.mockReturnValue('test search')
+  it('updates input value when user types', () => {
+    render(<SearchBox />)
     
+    const searchInput = screen.getByRole('searchbox') as HTMLInputElement
+    fireEvent.change(searchInput, { target: { value: 'brooklyn' } })
+    
+    expect(searchInput.value).toBe('brooklyn')
+  })
+
+  it('shows clear button when search term exists', () => {
     render(<SearchBox />)
     
     const searchInput = screen.getByRole('searchbox')
     fireEvent.change(searchInput, { target: { value: 'brooklyn' } })
     
-    await waitFor(() => {
-      const clearButton = screen.getByRole('button', { name: /clear search/i })
-      expect(clearButton).toBeInTheDocument()
-    })
+    const clearButton = screen.getByRole('button')
+    expect(clearButton).toBeInTheDocument()
+    
+    // Check for sr-only text content
+    expect(screen.getByText('Clear search')).toBeInTheDocument()
   })
 
-  it('clears search when clear button is clicked', async () => {
+  it('clears search when clear button is clicked', () => {
     render(<SearchBox />)
     
-    const searchInput = screen.getByRole('searchbox')
+    const searchInput = screen.getByRole('searchbox') as HTMLInputElement
     fireEvent.change(searchInput, { target: { value: 'brooklyn' } })
     
-    await waitFor(() => {
-      const clearButton = screen.getByRole('button', { name: /clear search/i })
-      fireEvent.click(clearButton)
-    })
+    const clearButton = screen.getByRole('button')
+    fireEvent.click(clearButton)
     
-    expect(searchInput).toHaveValue('')
+    expect(searchInput.value).toBe('')
   })
 
   it('validates search input and rejects invalid characters', () => {
     render(<SearchBox />)
     
-    const searchInput = screen.getByRole('searchbox')
+    const searchInput = screen.getByRole('searchbox') as HTMLInputElement
     
-    // Try to input invalid characters
-    fireEvent.change(searchInput, { target: { value: 'test<script>' } })
+    // Try to input invalid characters (the validation should prevent this)
+    fireEvent.change(searchInput, { target: { value: 'test<script>alert("xss")</script>' } })
     
-    // Should not contain the invalid characters
-    expect(searchInput).not.toHaveValue('test<script>')
-  })
-
-  it('handles form submission correctly', () => {
-    render(<SearchBox />)
-    
-    const searchInput = screen.getByRole('searchbox')
-    fireEvent.change(searchInput, { target: { value: 'brooklyn' } })
-    
-    const form = searchInput.closest('form')
-    expect(form).toBeInTheDocument()
-    
-    if (form) {
-      fireEvent.submit(form)
-      // Form submission should not cause page reload
-      expect(mockPush).not.toHaveBeenCalled()
-    }
-  })
-
-  it('has proper accessibility attributes', () => {
-    render(<SearchBox />)
-    
-    const searchInput = screen.getByRole('searchbox')
-    expect(searchInput).toHaveAttribute('type', 'search')
-    expect(searchInput).toHaveAttribute('autoComplete', 'off')
-    
-    const clearButton = document.querySelector('[aria-label="Clear search"]')
-    if (clearButton) {
-      expect(clearButton).toHaveAttribute('aria-label')
-    }
+    // The validation function should have prevented the invalid input
+    expect(searchInput.value).not.toContain('<script>')
   })
 
   it('preserves search term from URL parameters', () => {
@@ -134,7 +104,24 @@ describe('SearchBox', () => {
     
     render(<SearchBox />)
     
+    const searchInput = screen.getByRole('searchbox') as HTMLInputElement
+    expect(searchInput.value).toBe('existing-search')
+  })
+
+  it('handles form submission without page reload', () => {
+    render(<SearchBox />)
+    
     const searchInput = screen.getByRole('searchbox')
-    expect(searchInput).toHaveValue('existing-search')
+    const form = searchInput.closest('form')
+    
+    expect(form).toBeInTheDocument()
+    
+    if (form) {
+      const submitEvent = new Event('submit', { bubbles: true, cancelable: true })
+      const preventDefaultSpy = vi.spyOn(submitEvent, 'preventDefault')
+      
+      form.dispatchEvent(submitEvent)
+      expect(preventDefaultSpy).toHaveBeenCalled()
+    }
   })
 })
