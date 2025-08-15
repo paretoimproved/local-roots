@@ -10,6 +10,11 @@ import { useDebounce } from '@/hooks/useDebounce';
 const SEARCH_HISTORY_KEY = 'local-roots-search-history';
 const MAX_HISTORY_ITEMS = 5;
 
+/**
+ * SearchBox component for LOC-7: Location-Based Search
+ * Implements real-time search with debouncing, URL state persistence,
+ * search history, and mobile optimization.
+ */
 export function SearchBox() {
   const router = useRouter();
   const searchParams = useSearchParams();
