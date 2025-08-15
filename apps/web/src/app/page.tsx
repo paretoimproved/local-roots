@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 import { FarmImage } from "./placeholder-fix";
 
 const farmCategories = [
-  { name: "Vegetables", icon: "🥬", href: "/dashboard/consumer?category=vegetables" },
-  { name: "Fruits", icon: "🍎", href: "/dashboard/consumer?category=fruits" },
-  { name: "Meats", icon: "🥩", href: "/dashboard/consumer?category=meats" },
-  { name: "Dairy", icon: "🧀", href: "/dashboard/consumer?category=dairy" },
-  { name: "CSA Boxes", icon: "📦", href: "/dashboard/consumer?category=csa" },
-  { name: "Organic", icon: "🌱", href: "/dashboard/consumer?category=organic" },
-  { name: "Seasonal", icon: "🍂", href: "/dashboard/consumer?category=seasonal" },
-  { name: "Local Pickup", icon: "🚚", href: "/dashboard/consumer?category=pickup" },
+  { name: "Vegetables", icon: "🥬", href: "/farms?search=vegetables" },
+  { name: "Fruits", icon: "🍎", href: "/farms?search=fruits" },
+  { name: "Meats", icon: "🥩", href: "/farms?search=meat" },
+  { name: "Dairy", icon: "🧀", href: "/farms?search=dairy" },
+  { name: "CSA Boxes", icon: "📦", href: "/farms?search=csa" },
+  { name: "Organic", icon: "🌱", href: "/farms?search=organic" },
+  { name: "Seasonal", icon: "🍂", href: "/farms?search=seasonal" },
+  { name: "Local Pickup", icon: "🚚", href: "/farms?search=pickup" },
 ];
 
 const featuredFarms = [
@@ -91,7 +91,7 @@ export default function Home() {
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-2xl md:text-3xl font-bold text-farm-green-dark">Featured farms</h2>
           <Link 
-            href="/dashboard/consumer/farms" 
+            href="/farms" 
             className="text-farm-green font-medium flex items-center hover:text-farm-green-dark"
           >
             See all <ArrowRight size={16} className="ml-1" />
@@ -102,7 +102,7 @@ export default function Home() {
           {featuredFarms.map((farm) => (
             <div className="farm-item group" key={farm.id}>
               <Link 
-                href={`/dashboard/consumer/farms/${farm.id}`} 
+                href={`/farms?farm=${farm.id}`} 
                 className="block"
               >
                 <div className="relative aspect-square rounded-xl overflow-hidden mb-2 bg-gray-100 shadow-sm">
