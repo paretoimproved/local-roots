@@ -1,9 +1,8 @@
 'use client';
 
 import Image from 'next/image';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Users } from 'lucide-react';
+import { Heart } from 'lucide-react';
+
 // Using the API response type instead of the database type
 interface Farm {
   id: string;
@@ -25,9 +24,19 @@ interface FarmCardProps {
   farm: Farm;
   priority?: boolean;
   onClick?: () => void;
+  isFavorite?: boolean;
+  rating?: number;
+  priceRange?: string;
 }
 
-export function FarmCard({ farm, priority = false, onClick }: FarmCardProps) {
+export function FarmCard({ 
+  farm, 
+  priority = false, 
+  onClick,
+  isFavorite = false,
+  rating = 4.8,
+  priceRange = "$25-35/week"
+}: FarmCardProps) {
   const handleClick = () => {
     if (onClick) {
       onClick();
@@ -44,78 +53,87 @@ export function FarmCard({ farm, priority = false, onClick }: FarmCardProps) {
     }
   };
 
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // TODO: Implement favorite functionality
+  };
+
   // Get primary image or fallback
   const primaryImage = farm.imageUrls?.[0];
   const location = [farm.city, farm.state].filter(Boolean).join(', ');
 
   return (
-    <Card 
-      className="group cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]"
-      onClick={handleClick}
-    >
-      {/* Farm Image */}
-      <div className="relative aspect-[4/3] overflow-hidden rounded-t-lg bg-muted">
-        {primaryImage ? (
-          <Image
-            src={primaryImage}
-            alt={`${farm.name} farm`}
-            fill
-            className="object-cover transition-transform duration-200 group-hover:scale-105"
-            priority={priority}
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full bg-muted">
-            <div className="text-center text-muted-foreground">
-              <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No image available</p>
-            </div>
+    <div className="farm-item group cursor-pointer" onClick={handleClick}>
+      <div className="relative aspect-square rounded-xl overflow-hidden mb-2 bg-gray-100 shadow-sm">
+        {/* Customer Favorite Badge */}
+        {isFavorite && (
+          <div className="absolute top-3 left-3 z-10 bg-white py-1 px-2 rounded-full text-xs font-semibold shadow-md flex items-center">
+            <span className="text-farm-green mr-1">🌟</span>
+            Customer Favorite
           </div>
         )}
         
-        {/* Farm status badge */}
-        <div className="absolute top-2 right-2">
-          <Badge variant="secondary" className="bg-white/90 text-black">
-            Active
-          </Badge>
+        {/* Favorite Heart Button */}
+        <div className="absolute top-3 right-3 z-10">
+          <button 
+            className="bg-white p-2 rounded-full shadow-md hover:scale-105 transition-transform"
+            onClick={handleFavoriteClick}
+          >
+            <Heart 
+              size={16} 
+              className={isFavorite ? "fill-farm-green text-farm-green" : "text-gray-600"} 
+            />
+          </button>
         </div>
+        
+        {/* Farm Image */}
+        {primaryImage ? (
+          <Image
+            src={primaryImage}
+            alt={farm.name}
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            priority={priority}
+            sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          />
+        ) : (
+          <div className="flex items-center justify-center h-full bg-gray-100">
+            <div className="text-center text-gray-400">
+              <div className="text-4xl mb-2">🚜</div>
+              <p className="text-sm">Farm Photo</p>
+            </div>
+          </div>
+        )}
       </div>
-
-      <CardHeader className="pb-2">
-        <div className="space-y-1">
-          <h3 className="font-semibold text-lg line-clamp-1 group-hover:text-primary transition-colors">
+      
+      {/* Farm Information */}
+      <div>
+        <div className="flex justify-between items-start mb-1">
+          <h3 className="font-medium text-gray-900 line-clamp-1 pr-2">
             {farm.name}
           </h3>
-          
-          {location && (
-            <div className="flex items-center text-sm text-muted-foreground">
-              <MapPin className="h-4 w-4 mr-1 flex-shrink-0" />
-              <span className="line-clamp-1">{location}</span>
-            </div>
-          )}
+          <div className="flex items-center flex-shrink-0">
+            <span className="text-farm-green text-xs">★</span>
+            <span className="text-sm ml-1">{rating}</span>
+          </div>
         </div>
-      </CardHeader>
-
-      <CardContent className="pt-0">
+        
+        {location && (
+          <p className="text-gray-600 text-sm mb-1 line-clamp-1">
+            {location}
+          </p>
+        )}
+        
         {farm.description && (
-          <p className="text-sm text-muted-foreground line-clamp-3 mb-3">
+          <p className="text-gray-600 text-sm mb-1 line-clamp-1">
             {farm.description}
           </p>
         )}
         
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-primary">
-            View Details
-          </span>
-          <div className="text-xs text-muted-foreground">
-            {farm.createdAt && (
-              <span>
-                Since {new Date(farm.createdAt).getFullYear()}
-              </span>
-            )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+        <p className="font-semibold text-farm-green">
+          {priceRange}
+        </p>
+      </div>
+    </div>
   );
 }

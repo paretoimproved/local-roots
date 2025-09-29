@@ -1,18 +1,20 @@
 import { db, eq, and, desc, farms, newId, type Farm, type NewFarm } from "@repo/db";
-import { lt, or } from "drizzle-orm";
+import { ilike, lt, or } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 
 export const farmService = {
   // Get all farms with cursor pagination
-  async getFarms(cursor?: string, limit: number = 20) {
+  async getFarms(cursor?: string, limit: number = 20, search?: string) {
     let query = db.select().from(farms).orderBy(desc(farms.createdAt), desc(farms.id)).limit(limit + 1);
-    
+    const whereConditions: SQL[] = [];
+
     if (cursor) {
       // Decode cursor to get createdAt and id
       const decodedCursor = this.decodeCursor(cursor);
       if (decodedCursor) {
         const { createdAt, id } = decodedCursor;
         // Cursor pagination: get items before the cursor (since we order DESC)
-        query = query.where(
+        whereConditions.push(
           or(
             lt(farms.createdAt, createdAt),
             and(
@@ -22,6 +24,22 @@ export const farmService = {
           )
         );
       }
+    }
+
+    if (search && search.trim().length > 0) {
+      const normalizedSearch = `%${search.trim()}%`;
+      whereConditions.push(
+        or(
+          ilike(farms.name, normalizedSearch),
+          ilike(farms.city, normalizedSearch),
+          ilike(farms.state, normalizedSearch),
+          ilike(farms.description, normalizedSearch)
+        )
+      );
+    }
+
+    if (whereConditions.length > 0) {
+      query = query.where(and(...whereConditions));
     }
     
     const results = await query;
@@ -105,4 +123,4 @@ export const farmService = {
     await db.delete(farms).where(eq(farms.id, id));
     return { success: true };
   },
-}; 
+};

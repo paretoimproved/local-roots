@@ -8,17 +8,18 @@ import { z } from "zod";
 // Pagination query schema
 const paginationSchema = z.object({
   cursor: z.string().optional(),
-  limit: z.coerce.number().min(1).max(50).default(20)
+  limit: z.coerce.number().min(1).max(50).default(20),
+  search: z.string().trim().max(100).optional(),
 });
 
 // Create farms routes
 export const farmRoutes = new Hono()
   // Get all farms with pagination (public)
   .get("/", zValidator("query", paginationSchema), async (c) => {
-    const { cursor, limit } = c.req.valid("query");
+    const { cursor, limit, search } = c.req.valid("query");
     
     try {
-      const result = await farmService.getFarms(cursor, limit);
+      const result = await farmService.getFarms(cursor, limit, search);
       return c.json({
         success: true,
         data: result.data,

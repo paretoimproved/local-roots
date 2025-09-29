@@ -12,7 +12,7 @@ import { ErrorBoundary } from './ErrorBoundary';
 
 export function FarmsList() {
   const searchParams = useSearchParams();
-  const searchQuery = searchParams.get('search') || '';
+  const searchQuery = (searchParams.get('search') || '').trim();
   
   const { ref, inView } = useInView({
     threshold: 0.1,
@@ -29,7 +29,7 @@ export function FarmsList() {
     isLoading,
     isError,
   } = useInfiniteQuery({
-    queryKey: ['farms', { search: searchQuery }],
+    queryKey: ['farms', { search: searchQuery || undefined }],
     queryFn: ({ pageParam }) => getFarms({ 
       cursor: pageParam, 
       limit: 20,
@@ -49,10 +49,14 @@ export function FarmsList() {
 
   // Auto-fetch next page when scrolling near bottom
   useEffect(() => {
+    if (isError) {
+      return;
+    }
+
     if (inView && hasNextPage && !isFetchingNextPage) {
       fetchNextPage();
     }
-  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage, isError]);
 
   // Get all farms from all pages
   const farms = data?.pages.flatMap(page => page.data) ?? [];
@@ -69,8 +73,8 @@ export function FarmsList() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {Array.from({ length: 6 }).map((_, i) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 8 }).map((_, i) => (
           <FarmCardSkeleton key={i} />
         ))}
       </div>
@@ -92,15 +96,25 @@ export function FarmsList() {
         )}
       </div>
 
-      {/* Farms grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {farms.map((farm, index) => (
-          <FarmCard 
-            key={farm.id} 
-            farm={farm}
-            priority={index < 6} // Prioritize loading first 6 images
-          />
-        ))}
+      {/* Farms grid - Airbnb style */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        {farms.map((farm, index) => {
+          // Generate some realistic sample data for now
+          const sampleRatings = [4.6, 4.7, 4.8, 4.9, 5.0];
+          const samplePrices = ["$22/week", "$28/week", "$35/week", "$42/week", "$25/week"];
+          const isFavorite = index % 4 === 0; // Every 4th farm is a favorite
+          
+          return (
+            <FarmCard 
+              key={farm.id} 
+              farm={farm}
+              priority={index < 8} // Prioritize loading first 8 images
+              isFavorite={isFavorite}
+              rating={sampleRatings[index % sampleRatings.length]}
+              priceRange={samplePrices[index % samplePrices.length]}
+            />
+          );
+        })}
       </div>
 
       {/* Loading more indicator */}

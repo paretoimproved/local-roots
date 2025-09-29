@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { FarmsList } from '../FarmsList'
+import { getFarms } from '@/api/farms.api'
 
 // Mock Next.js navigation
 const mockSearchParams = {
@@ -44,12 +45,6 @@ vi.mock('../EmptyState', () => ({
   ),
 }))
 
-vi.mock('../ErrorBoundary', () => ({
-  ErrorBoundary: ({ children }: { children: React.ReactNode }) => (
-    <div data-testid="error-boundary">{children}</div>
-  ),
-}))
-
 describe('FarmsList', () => {
   let queryClient: QueryClient
 
@@ -63,6 +58,12 @@ describe('FarmsList', () => {
       },
     })
     mockSearchParams.get.mockReturnValue(null)
+    vi.mocked(getFarms).mockResolvedValue({
+      success: true,
+      data: [],
+      nextCursor: null,
+      hasMore: false,
+    })
   })
 
   const renderWithQuery = (component: React.ReactElement) => {
@@ -73,54 +74,81 @@ describe('FarmsList', () => {
     )
   }
 
-  it('renders loading skeletons initially', () => {
+  it('renders loading skeletons while data is fetching', () => {
+    vi.mocked(getFarms).mockImplementation(() => new Promise(() => {}))
+
     renderWithQuery(<FarmsList />)
     
-    // Should show 6 skeleton cards while loading
     const skeletons = screen.getAllByTestId('farm-card-skeleton')
-    expect(skeletons).toHaveLength(6)
+    expect(skeletons).toHaveLength(8)
   })
 
-  it('displays search query in results count', () => {
-    mockSearchParams.get.mockReturnValue('brooklyn')
-    
+  it('renders farms after data loads and shows results message', async () => {
+    vi.mocked(getFarms).mockResolvedValue({
+      success: true,
+      data: [
+        { id: 'farm_1', name: 'Green Acres', userId: 'user_1', createdAt: '', updatedAt: '' },
+        { id: 'farm_2', name: 'Fresh Fields', userId: 'user_2', createdAt: '', updatedAt: '' },
+      ],
+      nextCursor: null,
+      hasMore: false,
+    })
+
     renderWithQuery(<FarmsList />)
-    
-    // Should show loading skeletons first
-    expect(screen.getAllByTestId('farm-card-skeleton')).toHaveLength(6)
+
+    const farmCards = await screen.findAllByTestId('farm-card')
+    expect(farmCards).toHaveLength(2)
+
+    await waitFor(() => {
+      expect(screen.getByText('Showing 2 local farms')).toBeInTheDocument()
+    })
   })
 
   it('has correct responsive grid classes', () => {
+    vi.mocked(getFarms).mockImplementation(() => new Promise(() => {}))
+
     const { container } = renderWithQuery(<FarmsList />)
     
     // Check that the grid container has correct classes
     const gridContainer = container.querySelector('.grid')
-    expect(gridContainer).toHaveClass('grid-cols-1', 'md:grid-cols-2', 'lg:grid-cols-3')
+    expect(gridContainer).toHaveClass('grid-cols-1')
+    expect(gridContainer?.className).toContain('sm:grid-cols-2')
+    expect(gridContainer).toHaveClass('md:grid-cols-3')
+    expect(gridContainer?.className).toContain('lg:grid-cols-4')
   })
 
-  it('configures React Query with correct parameters', () => {
+  it('passes trimmed search query to the API', async () => {
+    mockSearchParams.get.mockReturnValue('  brooklyn  ')
+    vi.mocked(getFarms).mockResolvedValue({
+      success: true,
+      data: [],
+      nextCursor: null,
+      hasMore: false,
+    })
+
     renderWithQuery(<FarmsList />)
-    
-    // The component should render without throwing errors
-    // This tests that the useInfiniteQuery is properly configured
-    expect(screen.getAllByTestId('farm-card-skeleton')).toHaveLength(6)
+
+    await waitFor(() => {
+      expect(getFarms).toHaveBeenCalledWith({
+        cursor: undefined,
+        limit: 20,
+        search: 'brooklyn',
+      })
+    })
   })
 
-  it('handles search query from URL params', () => {
-    const searchQuery = 'organic farms'
-    mockSearchParams.get.mockReturnValue(searchQuery)
-    
+  it('renders empty state when no farms are returned', async () => {
+    vi.mocked(getFarms).mockResolvedValue({
+      success: true,
+      data: [],
+      nextCursor: null,
+      hasMore: false,
+    })
+
     renderWithQuery(<FarmsList />)
-    
-    // Component should render loading state with search query
-    expect(screen.getAllByTestId('farm-card-skeleton')).toHaveLength(6)
+
+    const emptyState = await screen.findByTestId('empty-state')
+    expect(emptyState).toBeInTheDocument()
   })
 
-  it('shows proper ARIA labels for accessibility', () => {
-    const { container } = renderWithQuery(<FarmsList />)
-    
-    // Check for semantic structure
-    expect(container.querySelector('.space-y-8')).toBeInTheDocument()
-    expect(container.querySelector('.grid')).toBeInTheDocument()
-  })
 })

@@ -33,7 +33,7 @@ export function ErrorBoundary({ error, reset }: ErrorBoundaryProps) {
   };
 
   return (
-    <div className="text-center py-12">
+    <div className="text-center py-12" data-testid="farms-error-state">
       <AlertTriangle className="h-16 w-16 mx-auto text-destructive mb-4" />
       <h2 className="text-2xl font-semibold mb-2">{getErrorTitle()}</h2>
       <p className="text-muted-foreground mb-6 max-w-md mx-auto">
