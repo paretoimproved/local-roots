@@ -1,367 +1,343 @@
-# Local-Roots Engineering Management Playbook
+# CODEX.md
 
-## Sprint 1: Consumer Farm Discovery (Aug 14-20, 2025) - COMPLETED ✅
+This file provides guidance to Codex (GPT-5 via the Codex CLI) when working with code in this repository. The filename remains `CLAUDE.md` for compatibility with existing automation that expects it to live at the repo root.
 
-### Sprint Goal
-"Enable consumers to discover and browse local farms through an intuitive, mobile-first experience"
+# Local-Roots: CSA Marketplace Platform
 
-### Team Structure
-- **AI Agent (Claude)** - Full-stack development, deployment automation
-- **Engineering Manager (Brandon)** - Functional testing, code review, deployment approval
+## Overview
 
-### Sprint Commitment: 13 Story Points - ACHIEVED ✅
+LocalRoots is a Community Supported Agriculture (CSA) marketplace connecting local farmers with consumers. Built as a modern monorepo with React/Next.js frontend, Hono/Bun API backend, and PostgreSQL database using Drizzle ORM.
 
-## Epic: Consumer Farm Discovery (LR-1)
-**Status:** COMPLETED ✅  
-**Business Value:** Foundation for marketplace revenue - consumers must discover farms before subscribing to CSA shares.
+## Codex Assistant Setup
+- Use Codex CLI with the repository root as the working directory so path references resolve correctly.
+- Prefer `pnpm` for any workspace commands; avoid `npm` or `yarn` unless the task explicitly calls for them.
+- Default to ASCII when editing files and document code references with `relative/path.ts:42` formatting.
+- Break multi-step tasks into an explicit plan and update it as you complete steps.
+- Run the most relevant `pnpm` checks (`pnpm test`, `pnpm lint`, `pnpm typecheck`) before handing over substantial changes.
+- Follow the standards in `docs/ENGINEERING.md`—treat the Definition of Done, review expectations, and testing/deployment gates as mandatory checkpoints before calling work complete.
 
-## Deployment Status
+## Engineering Standards Alignment
+- Review `docs/ENGINEERING.md` before starting a task and call out any acceptance criteria or review requirements in your plan.
+- Maintain the Definition of Done checklist: ensure Linear ticket hygiene, pass lint/type/test commands, and document results in the hand-off.
+- For collaborative work, reference the required engineering-manager approval flow and verify CI status before requesting merge.
+- When operating solo, complete the self-review checklist (responsiveness, accessibility, error handling, performance) and note the outcomes in updates.
+- Treat deployment steps as part of completion—include staging verification, production approval, and ticket status updates when relevant.
 
-### Production Environment
-- **Platform:** Vercel  
-- **Repository:** https://github.com/paretoimproved/local-roots
-- **Production URL:** https://web-[hash]-brandonqueener-cbs-projects.vercel.app
-- **Deployment Strategy:** Auto-deploy from main branch
-- **Framework:** Next.js 14.1.0 with React 18
+## Project Structure
 
-### Linear Project Management
-- **Project:** Local-Roots Consumer Platform
-- **Workflow:** Backlog → In Progress → Testing → In Review → Done
-- **Stories:** LOC-6, LOC-7, LOC-8 - All implemented and ready for testing
+```
+├── apps/
+│   ├── api/          # Hono API server (Bun runtime)
+│   └── web/          # Next.js 14 frontend (React 18)
+├── packages/
+│   └── db/           # Shared database schema (Drizzle ORM)
+└── .cursor/rules/    # Development guidelines for API, frontend, and database
+```
 
-### GitHub Integration
-- **Main Branch:** Production deployments
-- **PR Strategy:** Individual PRs per Linear story for code review
-- **PR Previews:** Automatic staging environments per feature branch
+## Development Commands
 
-**Success Criteria:**
-- Consumers can view all available farms in organized layout
-- Location-based search returns relevant results
-- Farm details provide comprehensive information for decision-making
-- 100% mobile responsive experience
-- Page load performance <2s, search results <500ms
+### Root Level (Monorepo)
+```bash
+# Start all services
+pnpm dev
 
----
+# Build all packages
+pnpm build
 
-## User Stories & Implementation Status
+# Run all tests
+pnpm test
 
-### LOC-6: Farm Discovery Page (5 Points) ✅ COMPLETED
-**Status:** Testing → Ready for Review
-**GitHub PR:** https://github.com/paretoimproved/local-roots/pull/1
-**Linear Story:** LOC-6
-**Functional Testing:** LOC-9 (assigned to EM)
+# Type checking across all packages
+pnpm typecheck
 
-**User Story:**
-As a consumer, I want to see all available farms in an organized list so that I can discover local farming options.
+# Lint all code
+pnpm lint
 
-**Acceptance Criteria:** ✅ ALL IMPLEMENTED
-- ✅ Display farms in responsive grid layout (mobile: 1 col, tablet: 2 col, desktop: 3 col)
-- ✅ Farm cards show: name, location, description, primary image
-- ✅ Implement cursor-based pagination (20 farms per page)
-- ✅ Loading states with skeleton components for all screen sizes
-- ✅ Empty state with helpful messaging when no farms exist
-- ✅ Comprehensive error handling for API failures with retry options
-- ✅ Image optimization through Cloudinary integration
-- ✅ Infinite scroll with React Query infinite queries
-- ✅ Core Web Vitals: LCP <2.5s, FID <100ms, CLS <0.1
+# Clean all build artifacts
+pnpm clean
+```
 
-**Technical Architecture:**
+### Frontend (apps/web)
+```bash
+# Development server
+pnpm dev
+
+# Production build
+pnpm build
+
+# Start production server
+pnpm start
+
+# Run tests with Vitest
+pnpm test
+pnpm test:coverage
+pnpm test:ui
+
+# Type checking
+pnpm typecheck
+
+# Linting
+pnpm lint
+```
+
+### API (apps/api)
+```bash
+# Development server with hot reload
+pnpm dev
+
+# Production build
+pnpm build
+
+# Start production server
+pnpm start
+
+# Run tests with Vitest
+pnpm test
+pnpm test:coverage
+pnpm test:ui
+
+# Type checking
+pnpm typecheck
+```
+
+### Database (packages/db)
+```bash
+# Generate migrations
+pnpm db:generate
+
+# Push schema to database
+pnpm db:push
+
+# Run migrations
+pnpm db:migrate
+
+# Open Drizzle Studio
+pnpm db:studio
+
+# Seed development data
+pnpm db:seed
+```
+
+## MCP & External Integrations
+
+### Linear MCP Server
+- Create a Linear personal API key with the required scopes and export it as `LINEAR_API_KEY` before launching Codex.
+- Start the Linear MCP server in a separate terminal (`npx @modelcontextprotocol/server-linear`) and note the websocket URL it prints.
+- In Codex CLI, add that MCP endpoint so tools like `linear.list_issues`, `linear.get_issue`, and `linear.update_issue` become available.
+- Keep Linear issues in sync with repo activity—move tickets from In Progress to Review/Done as you open PRs or land changes.
+- **State IDs:**
+  - Todo — `1f8bc22a-2353-46df-af48-a7fe2aa10f9b`
+  - In Progress — `3fccf72f-aa21-468f-a936-dc9778b39748`
+  - Testing — `e6d4f2c3-cdcd-4e0f-8476-8ff661639c9e`
+  - In Review — `1b1f3dd9-3b0c-4764-982f-2ee673c33a93`
+  - Done — `6da635fe-eed9-44fb-afbc-ec90673d9cbc`
+  - Duplicate — `cb0dbc6a-347a-4751-85fe-9d91d6ed35fe`
+  - Canceled — `eb3c5d74-47b5-4e72-8ac8-94a79e5deca6`
+
+### Vercel Deployment Workflow
+- Install the Vercel CLI and authenticate once with `vercel login`; verify access using `vercel whoami`.
+- Link this repo to the Local-Roots Vercel project via `vercel link` and pull env vars locally with `vercel env pull .env.local` when needed.
+- Run `pnpm build` (or the relevant app-level build) locally before shipping a deployment.
+- Use `vercel --prod` for production deploys and `vercel --prebuilt --ship` if you are pushing an optimized build artifact.
+- Monitor deployments with `vercel ls` and `vercel logs <deployment-url>` to catch issues early.
+
+## Technology Stack
+
+### Frontend (apps/web)
+- **Framework:** Next.js 14.1.0 with App Router
+- **UI Library:** shadcn/ui with Radix primitives
+- **Styling:** TailwindCSS with custom design system
+- **State Management:** TanStack Query (React Query)
+- **Authentication:** Clerk
+- **Testing:** Vitest + React Testing Library
+- **Type Safety:** TypeScript with strict configuration
+
+### Backend (apps/api)
+- **Runtime:** Bun (JavaScript runtime & package manager)
+- **Framework:** Hono (lightweight web framework)
+- **Database:** PostgreSQL with Drizzle ORM
+- **Authentication:** Clerk backend integration
+- **Validation:** Zod schemas
+- **Testing:** Vitest with Supertest for API testing
+
+### Database (packages/db)
+- **ORM:** Drizzle with PostgreSQL driver
+- **Schema Management:** Drizzle Kit for migrations
+- **Type Generation:** Automatic TypeScript types from schema
+- **Development Tools:** Drizzle Studio for database exploration
+
+## Architecture Patterns
+
+### API Module Structure
+```
+apps/api/src/modules/[feature]/
+├── [feature].routes.ts     # Hono route definitions
+├── [feature].service.ts    # Business logic & database operations
+└── [feature].test.ts       # Unit tests
+```
+
+### Frontend Component Organization
+```
+apps/web/src/
+├── app/                    # Next.js App Router pages
+│   └── [feature]/
+│       ├── page.tsx        # Route component
+│       └── _components/    # Feature-specific components
+├── components/
+│   ├── ui/                 # shadcn/ui components
+│   ├── [feature]/          # Shared feature components
+│   └── shared/             # Cross-feature components
+└── api/                    # API client functions
+    └── [feature].api.ts    # Type-safe API calls
+```
+
+### Database Schema Pattern
 ```typescript
-// Frontend Structure
-pages/farms/index.tsx
-├── FarmsList (Container)
-├── FarmCard (Presentational)  
-├── LoadingGrid (Skeleton)
-├── EmptyState (No farms)
-└── ErrorBoundary
+// Define table schema
+export const tableName = pgTable('table_name', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  // ... other fields
+});
 
-// State Management
-- React Query infinite queries for data fetching/caching
-- URL state for pagination
-- TanStack Virtual for performance with large datasets
+// Export TypeScript types
+export type TableName = InferSelectModel<typeof tableName>;
+export type NewTableName = InferInsertModel<typeof tableName>;
 
-// API Integration
-GET /api/farms?cursor=xxx&limit=20
-Response: { data: Farm[], nextCursor: string | null, hasMore: boolean }
+// Create Zod validation schemas
+export const tableInsertSchema = createInsertSchema(tableName);
+export const tableSelectSchema = createSelectSchema(tableName);
 ```
 
-**Backend Architecture:**
-```typescript
-// Database
-- Add index: CREATE INDEX farms_cursor_idx ON farms (created_at DESC, id DESC)
-- Cursor format: base64(created_at|id)
-- Pagination: LIMIT 20 OFFSET cursor_position
+## Development Guidelines
 
-// Error Handling
-- 400: Invalid cursor format
-- 404: No farms found
-- 500: Database errors with retry logic
+### API Development
+- Use feature-based modules in `apps/api/src/modules/`
+- Implement business logic in service layers
+- Apply Clerk authentication middleware for protected routes
+- Use Zod validation for request/response schemas
+- Follow RESTful conventions for endpoint design
+- Write unit tests for all service functions
+
+### Frontend Development
+- Prefer Server Components over Client Components when possible
+- Use TanStack Query for all data fetching operations
+- Co-locate feature-specific components in `_components/` directories
+- Use shadcn/ui components with TailwindCSS for styling
+- Implement proper error boundaries and loading states
+- Write unit tests for complex component logic
+
+### Database Development
+- Define all schemas in `packages/db/src/schema.ts`
+- Use Drizzle migrations for schema changes
+- Implement proper indexing for performance-critical queries
+- Export TypeScript types for frontend/backend consumption
+- Use descriptive naming conventions for tables and columns
+
+### Type Safety
+- Share types between frontend and backend via `packages/db`
+- Use RPC-style API client for type-safe frontend calls
+- Leverage `InferRequestType` and `InferResponseType` for API types
+- Validate all API inputs with Zod schemas
+- Use strict TypeScript configuration across all packages
+
+## Testing Strategy
+
+### Unit Testing
+- **Frontend:** React Testing Library with Vitest
+- **Backend:** Vitest with Supertest for API endpoints
+- **Database:** Test service layer functions with test database
+- **Coverage:** Maintain >70% test coverage across all packages
+
+### Integration Testing
+- Test complete API flows from request to database
+- Test React Query integration with API endpoints
+- Verify error handling and edge cases
+- Test authentication flows with Clerk
+
+## Deployment
+
+### Production Stack
+- **Frontend:** Vercel (auto-deploy from main branch)
+- **API:** Railway/Render (containerized deployment)
+- **Database:** PostgreSQL on Railway/Supabase
+- **Authentication:** Clerk (production environment)
+
+### Environment Variables
+```bash
+# Database
+DATABASE_URL=postgresql://...
+
+# Clerk Authentication
+CLERK_SECRET_KEY=sk_...
+CLERK_PUBLISHABLE_KEY=pk_...
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
+
+# API Configuration
+NEXT_PUBLIC_API_URL=https://api.localroots.com
 ```
 
----
+## Key Features Implemented
 
-### LOC-7: Location-Based Search (5 Points) ✅ COMPLETED
-**Status:** Testing → Ready for Review
-**GitHub PR:** https://github.com/paretoimproved/local-roots/pull/2
-**Linear Story:** LOC-7
-**Functional Testing:** LOC-10 (assigned to EM)
-**Implementation Note:** Integrated with LOC-6 due to tight coupling
+### Sprint 1 (COMPLETED)
+- **Farm Discovery:** Infinite scroll listing with cursor pagination
+- **Location Search:** Real-time search with debouncing and URL state
+- **Farm Details:** Drawer component with image gallery and farm information
+- **Authentication:** Clerk integration with user type selection
+- **Database:** PostgreSQL schema with performance indexes
+- **Testing:** Unit test coverage for core functionality
 
-**User Story:**
-As a consumer, I want to search farms by ZIP code or city name so that I can find farms near my location.
+### Current Development Focus
+- **CSA Share Management:** Create/edit share offerings
+- **Subscription System:** Consumer subscription management
+- **Payment Integration:** Stripe integration for subscriptions
+- **Enhanced Search:** Location-based filtering and advanced search
 
-**Acceptance Criteria:** ✅ ALL IMPLEMENTED
-- ✅ Search input accepts ZIP codes and city names
-- ✅ Real-time search with 300ms debouncing
-- ✅ Results update without page reload using existing farm grid
-- ✅ Clear search functionality with 'X' button
-- ✅ "No results found" state with helpful messaging and search tips
-- ✅ Search terms persist in URL for sharing (?search=brooklyn)
-- ✅ Search history stored in localStorage (last 5 searches)
-- ✅ Mobile-optimized search input with appropriate keyboard
-- ✅ Search performance: Results in <500ms
-- [ ] Mobile-optimized search input with appropriate keyboard
-- [ ] Search performance: Results in <500ms
+## Performance Considerations
 
-**Technical Architecture:**
-```typescript
-// Frontend
-components/SearchBox.tsx
-├── useDebounce(searchTerm, 300ms)
-├── useSearchParams for URL sync
-├── localStorage for search history
-└── Integration with existing FarmsList
+### Frontend Optimizations
+- React Query for data caching and background updates
+- Image optimization through Cloudinary integration
+- Code splitting at route level with Next.js
+- Lazy loading for non-critical components
+- Core Web Vitals optimization (LCP <2.5s, FID <100ms, CLS <0.1)
 
-// Backend  
-GET /api/farms?search=term&cursor=xxx
-// Query: ILIKE pattern matching on name and description
-WHERE (name ILIKE %$1% OR description ILIKE %$1%)
-// Index: CREATE INDEX farms_search_idx ON farms USING GIN(to_tsvector('english', name || ' ' || description))
-```
+### Backend Optimizations
+- Cursor-based pagination for large datasets
+- Database indexing for search and location queries
+- Connection pooling for PostgreSQL
+- Response compression and caching headers
+- API rate limiting and request validation
 
-**Key Decisions:**
-- Simple ILIKE search over full-text search for MVP
-- 300ms debounce for optimal UX
-- URL state persistence for sharing
-- Request cancellation via React Query
+### Database Performance
+- Strategic indexing for cursor pagination and search
+- Efficient foreign key relationships
+- Query optimization with Drizzle ORM
+- Regular performance monitoring and optimization
 
----
+## Security Best Practices
 
-### LOC-8: Farm Detail Drawer (3 Points) ✅ COMPLETED
-**Status:** Testing → Ready for Review
-**GitHub PR:** https://github.com/paretoimproved/local-roots/pull/3
-**Linear Story:** LOC-8
-**Functional Testing:** LOC-11 (assigned to EM)
+- Clerk authentication for all user management
+- Input validation with Zod schemas
+- SQL injection protection via Drizzle ORM
+- Environment variable management for secrets
+- CORS configuration for API endpoints
+- Rate limiting on public endpoints
+- Secure cookie configuration for authentication
 
-**User Story:**
-As a consumer, I want to click on a farm to see detailed information so that I can learn about their practices and CSA offerings.
+## Troubleshooting
 
-**Acceptance Criteria:** ✅ ALL IMPLEMENTED
-- ✅ Drawer component slides in from right on farm card click
-- ✅ Display comprehensive farm details: full description, contact info, location
-- ✅ Image gallery with multiple farm photos and smooth navigation
-- ✅ List available CSA shares with pricing information
-- ✅ Mobile-optimized drawer with swipe-to-close gesture
-- ✅ Keyboard navigation (Escape to close, Tab for focus management)
-- ✅ URL updates to reflect open drawer (?farm=farm-id)
-- ✅ Close drawer returns user to exact previous scroll position
-- ✅ Accessibility compliance (ARIA labels, screen reader support)
+### Common Issues
+- **Build failures:** Check TypeScript errors and dependency conflicts
+- **Database connections:** Verify DATABASE_URL and network connectivity
+- **Authentication errors:** Confirm Clerk environment variables
+- **API type mismatches:** Ensure shared types are exported from packages/db
+- **Test failures:** Check test database configuration and mocking
 
-**Technical Architecture:**
-```typescript
-// Component Structure
-components/FarmDetailDrawer.tsx
-├── shadcn/ui Drawer (base component)
-├── ImageGallery (Embla Carousel)
-├── FarmInfo (Details)
-├── CSAShares (Pricing list)
-└── ContactInfo
+### Development Tools
+- **Drizzle Studio:** Visual database explorer
+- **React Query Devtools:** Debug data fetching and caching
+- **Turbo:** Monorepo build system with caching
+- **Biome:** Fast linting and formatting
+- **Vitest:** Test runner with hot reload
 
-// API
-GET /api/farms/:id
-Response: {
-  farm: Farm,
-  csaShares: Share[],
-  images: CloudinaryUrl[]
-}
-```
-
----
-
-## Architecture Decisions Record (ADR)
-
-### ADR-001: Pagination Strategy
-**Decision:** Cursor-based pagination with infinite scroll
-**Rationale:** Better performance, no offset limitations, seamless UX
-**Alternatives Rejected:** Offset pagination (doesn't scale), client-side pagination (poor performance)
-
-### ADR-002: Search Implementation  
-**Decision:** PostgreSQL ILIKE with GIN indexes
-**Rationale:** Simple, fast for MVP, easily upgradeable to full-text search
-**Alternatives Rejected:** Full-text search (over-engineered for MVP), external search service (additional complexity)
-
-### ADR-003: Image Management
-**Decision:** Cloudinary for image hosting and optimization
-**Rationale:** Automatic optimization, CDN delivery, generous free tier, reduces server load
-**Alternatives Rejected:** Local storage (no CDN, scaling issues), S3 (requires custom optimization)
-
-### ADR-004: Component Architecture
-**Decision:** Drawer component for farm details
-**Rationale:** Better mobile UX than modals, maintains browsing context, good accessibility
-**Alternatives Rejected:** Modal (accessibility issues), separate page (breaks UX flow)
-
----
-
-## Development Workflow
-
-### Definition of Done
-- [ ] Code reviewed and approved
-- [ ] Unit and integration tests passing
-- [ ] Manual testing on mobile/desktop completed
-- [ ] Performance benchmarks met (<2s load, <500ms search)
-- [ ] Error handling tested and documented
-- [ ] Accessibility requirements verified
-- [ ] Deployed to staging environment
-
-### Testing Strategy
-- **Unit Tests:** Component logic, API endpoints, utility functions
-- **Integration Tests:** Full user flows, API + Frontend integration
-- **E2E Tests:** Critical path automation (farm discovery → detail view)
-- **Performance Tests:** Load time benchmarks, search responsiveness
-
-### CI/CD Pipeline (GitHub Actions)
-```yaml
-# Triggers: Push to main, PR to main
-jobs:
-  - Type check (TypeScript)
-  - Lint (ESLint + Prettier)
-  - Test (Vitest unit + integration)
-  - Build (Next.js + API)
-  - Deploy to staging (auto)
-  - Deploy to production (manual approval)
-```
-
----
-
-## Sprint 1 Execution Plan
-
-### Week Breakdown
-**Day 1-2:** Setup + LR-2 Backend (Jordan) | LR-2 Frontend scaffolding (Alex)
-**Day 3-4:** LR-2 completion + LR-3 Backend (Jordan) | LR-3 Frontend (Alex) 
-**Day 5:** LR-4 implementation (Alex) | Testing & QA (Sam)
-**Day 6-7:** Integration, testing, deployment prep
-
-### Parallel Work Strategy
-1. **Backend APIs first** → Frontend can mock initially
-2. **React Query setup** → Enables parallel frontend/backend development
-3. **Shared component library** → Reduces duplication across stories
-
-### Risk Mitigation
-- **Technical Risk:** Cursor pagination complexity → Use React Query infinite queries
-- **Performance Risk:** Image loading → Cloudinary auto-optimization + lazy loading  
-- **Integration Risk:** API changes → API-first development with OpenAPI specs
-- **Timeline Risk:** Scope creep → Fixed story points, defer enhancements to Sprint 2
-
----
-
-## Stakeholder Communication
-
-### Daily Standup Template
-- **Yesterday:** What was completed
-- **Today:** Current focus and blockers
-- **Blockers:** Technical or process impediments
-
-### Sprint Review Preparation
-- **Demo:** Farm discovery → search → detail flow
-- **Metrics:** Performance benchmarks, test coverage
-- **Feedback:** User experience and technical feedback
-- **Next Sprint:** Backlog grooming for subscription flow
-
----
-
-## Tools & Configuration
-
-### Development Stack
-- **Frontend:** Next.js, React Query, TailwindCSS, shadcn/ui
-- **Backend:** Node.js, Hono, PostgreSQL, Drizzle ORM
-- **Testing:** Vitest, React Testing Library, Playwright (E2E)
-- **Infrastructure:** GitHub Actions, Cloudinary, Vercel/Railway
-
-### Project Management
-- **Linear:** https://linear.app/local-roots-engineering/
-- **GitHub:** Local-Roots repository
-- **Communication:** Sprint planning, daily standups, retrospectives
-
-### Monitoring & Observability
-- **Performance:** Core Web Vitals, API response times
-- **Errors:** Frontend error boundaries, API error logging
-- **Usage:** Farm discovery analytics, search query analysis
-
----
-
-## Current Deployment Status (Aug 14, 2025)
-
-### ✅ COMPLETED IMPLEMENTATION
-- **All 3 Sprint 1 stories implemented** and deployed to main branch
-- **GitHub PRs created** for individual code review and testing
-- **Linear stories** moved to Testing status with functional testing assignments
-- **Vercel deployment configured** with auto-deploy from main branch
-
-### 🔄 IN PROGRESS - DEPLOYMENT VERIFICATION
-- **Vercel Build Status:** Latest deployment in progress
-- **Production URL:** Pending successful deployment
-- **PR Preview URLs:** Will be available once main deployment succeeds
-
-### ⏳ PENDING - FUNCTIONAL TESTING
-- **LOC-9:** Farm Discovery Page functional testing (assigned to EM)
-- **LOC-10:** Location-Based Search functional testing (assigned to EM)  
-- **LOC-11:** Farm Detail Drawer functional testing (assigned to EM)
-
-### 🎯 READY FOR REVIEW
-- All PR branches ready for staging deployment testing
-- Code review can proceed in parallel with deployment verification
-- Sprint 1 goals achieved, awaiting final verification and approval
-
----
-
-## Sprint 1 Success Metrics
-
-### Technical Metrics
-- [ ] Farm discovery page loads <2s (LCP)
-- [ ] Search results appear <500ms
-- [ ] 95% uptime for all API endpoints
-- [ ] >90 Lighthouse score (mobile)
-- [ ] Zero critical accessibility violations
-
-### Business Metrics
-- [ ] 100% of farms display correctly
-- [ ] Search finds relevant results
-- [ ] Farm detail drawer provides comprehensive information
-- [ ] Mobile experience is fully functional
-
-### Quality Metrics  
-- [ ] >80% test coverage (unit + integration)
-- [ ] All acceptance criteria verified
-- [ ] Cross-browser compatibility (Chrome, Safari, Firefox)
-- [ ] Mobile responsiveness verified (iOS + Android)
-
----
-
-## Next Sprint Planning
-
-### Sprint 2 Candidates (Post-Discovery)
-- **LR-5:** CSA Share subscription flow
-- **LR-6:** User authentication and profiles  
-- **LR-7:** Farm owner dashboard enhancements
-- **LR-8:** Payment processing integration
-
-### Technical Debt
-- Upgrade to full-text search if needed
-- Performance optimizations based on Sprint 1 metrics
-- Enhanced error handling and monitoring
-- Accessibility improvements
-
----
-
-**Last Updated:** August 14, 2025  
-**Next Review:** Sprint 1 Retrospective (August 20, 2025)
+This project follows modern TypeScript development practices with strong type safety, comprehensive testing, and performance optimization throughout the stack.

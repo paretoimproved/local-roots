@@ -22,8 +22,9 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Temporarily disable ClerkProvider for Sprint 1 testing without environment variables
-  const hasClerkKeys = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY && process.env.CLERK_SECRET_KEY;
+  const publishableKey =
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY;
+  const hasClerkFrontendKey = Boolean(publishableKey);
   
   const content = (
     <html lang="en">
@@ -55,9 +56,10 @@ export default function RootLayout({
   );
 
   // Only use ClerkProvider if environment variables are configured
-  if (hasClerkKeys) {
+  if (hasClerkFrontendKey && publishableKey) {
     return (
       <ClerkProvider 
+        publishableKey={publishableKey}
         appearance={{
           baseTheme: undefined, // Use light theme
           variables: {

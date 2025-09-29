@@ -1,8 +1,10 @@
 'use client';
 
+import { Suspense } from 'react';
 import { FarmsList } from '@/components/farms/FarmsList';
 import { SearchBox } from '@/components/farms/SearchBox';
 import { FarmDetailDrawer } from '@/components/farms/FarmDetailDrawer';
+import { FarmCardSkeleton } from '@/components/farms/FarmCardSkeleton';
 
 export default function FarmsPage() {
   return (
@@ -24,7 +26,17 @@ export default function FarmsPage() {
         </div>
 
         {/* Farms List */}
-        <FarmsList />
+        <Suspense
+          fallback={(
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 8 }).map((_, index) => (
+                <FarmCardSkeleton key={index} />
+              ))}
+            </div>
+          )}
+        >
+          <FarmsList />
+        </Suspense>
       </div>
       
       {/* Farm Detail Drawer */}
