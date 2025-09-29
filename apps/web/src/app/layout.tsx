@@ -12,6 +12,9 @@ const quicksand = Quicksand({
   variable: "--font-quicksand",
 });
 
+export const dynamic = 'force-dynamic';
+export const fetchCache = 'force-no-store';
+
 export const metadata: Metadata = {
   title: "LocalRoots - CSA Marketplace",
   description: "Find and subscribe to local farm CSA shares near you.",

@@ -1,5 +1,7 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import { Suspense } from 'react';
 import { FarmsList } from '@/components/farms/FarmsList';
 import { SearchBox } from '@/components/farms/SearchBox';
