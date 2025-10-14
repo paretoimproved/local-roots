@@ -35,6 +35,10 @@ export type GetFarmsParams = {
   search?: string;
 };
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+const buildUrl = (path: string) => (API_BASE_URL ? `${API_BASE_URL}${path}` : path);
+
 export type PaginatedResponse<T> = {
   success: boolean;
   data: T[];
@@ -51,7 +55,7 @@ export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedRe
   if (params.limit) searchParams.set('limit', params.limit.toString());
   if (params.search) searchParams.set('search', params.search);
   
-  const url = `/api/farms${searchParams.toString() ? `?${searchParams.toString()}` : ''}`;
+  const url = buildUrl(`/farms${searchParams.toString() ? `?${searchParams.toString()}` : ''}`);
   
   try {
     const response = await fetch(url, {
@@ -75,7 +79,7 @@ export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedRe
 // Fetch a farm by ID
 export async function getFarm(id: string): Promise<Farm> {
   try {
-    const response = await fetch(`/api/farms/${id}`, {
+    const response = await fetch(buildUrl(`/farms/${id}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -96,7 +100,7 @@ export async function getFarm(id: string): Promise<Farm> {
 // Fetch farms for the current user  
 export async function getMyFarms(): Promise<{ success: boolean; data: Farm[] }> {
   try {
-    const response = await fetch('/api/farms/user/me', {
+    const response = await fetch(buildUrl('/farms/user/me'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
