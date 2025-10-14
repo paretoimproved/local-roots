@@ -1,0 +1,74 @@
+[
+  {
+    "id": "farm_demo_1",
+    "userId": "demo_user",
+    "name": "Sunrise Valley Farm",
+    "description": "Organic vegetables and seasonal produce from the Willamette Valley.",
+    "address": "123 Harvest Lane",
+    "city": "Portland",
+    "state": "OR",
+    "zipCode": "97205",
+    "latitude": "45.5231",
+    "longitude": "-122.6765",
+    "imageUrls": [
+      "https://images.unsplash.com/photo-1501004318641-b39e6451bec6",
+      "https://images.unsplash.com/photo-1524592726003-79b9dc10d39f"
+    ],
+    "createdAt": "2025-08-01T08:00:00.000Z",
+    "updatedAt": "2025-08-21T08:00:00.000Z"
+  },
+  {
+    "id": "farm_demo_2",
+    "userId": "demo_user",
+    "name": "Cedar Grove Orchard",
+    "description": "Family-owned orchard offering fruit CSA shares and u-pick weekends.",
+    "address": "88 Orchard Way",
+    "city": "Salem",
+    "state": "OR",
+    "zipCode": "97301",
+    "latitude": "44.9429",
+    "longitude": "-123.0351",
+    "imageUrls": [
+      "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce",
+      "https://images.unsplash.com/photo-1502741338009-cac2772e18bc"
+    ],
+    "createdAt": "2025-08-05T08:00:00.000Z",
+    "updatedAt": "2025-08-22T08:00:00.000Z"
+  },
+  {
+    "id": "farm_demo_3",
+    "userId": "demo_user",
+    "name": "Riverbend Dairy",
+    "description": "Grass-fed dairy products delivered weekly across the metro area.",
+    "address": "412 River Road",
+    "city": "Vancouver",
+    "state": "WA",
+    "zipCode": "98660",
+    "latitude": "45.6387",
+    "longitude": "-122.6615",
+    "imageUrls": [
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee",
+      "https://images.unsplash.com/photo-1542838132-92c53300491e"
+    ],
+    "createdAt": "2025-08-07T08:00:00.000Z",
+    "updatedAt": "2025-08-24T08:00:00.000Z"
+  },
+  {
+    "id": "farm_demo_4",
+    "userId": "demo_user",
+    "name": "Evergreen Herb Collective",
+    "description": "CSA shares focused on culinary and medicinal herbs from small growers.",
+    "address": "77 Evergreen Terrace",
+    "city": "Beaverton",
+    "state": "OR",
+    "zipCode": "97005",
+    "latitude": "45.4871",
+    "longitude": "-122.8037",
+    "imageUrls": [
+      "https://images.unsplash.com/photo-1506806732259-39c2d0268443",
+      "https://images.unsplash.com/photo-1514996937319-344454492b37"
+    ],
+    "createdAt": "2025-08-10T08:00:00.000Z",
+    "updatedAt": "2025-08-24T08:00:00.000Z"
+  }
+]

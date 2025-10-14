@@ -1,5 +1,8 @@
 import apiClient from "./client";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
+const USE_DEMO_DATA = process.env.NEXT_PUBLIC_USE_DEMO_DATA === "true";
+
 // Types
 export type Farm = {
   id: string;
@@ -35,8 +38,6 @@ export type GetFarmsParams = {
   search?: string;
 };
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || '';
-
 const buildUrl = (path: string) => (API_BASE_URL ? `${API_BASE_URL}${path}` : path);
 
 export type PaginatedResponse<T> = {
@@ -49,6 +50,29 @@ export type PaginatedResponse<T> = {
 
 // Fetch farms with pagination and search
 export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedResponse<Farm>> {
+  if (USE_DEMO_DATA) {
+    const res = await fetch("/demo/farms.json");
+    const farms = (await res.json()) as Farm[];
+
+    const limit = params.limit ?? 20;
+    const searchTerm = params.search?.toLowerCase().trim();
+
+    const filtered = searchTerm
+      ? farms.filter((farm) =>
+          [farm.name, farm.city, farm.state, farm.description]
+            .filter(Boolean)
+            .some((value) => value!.toLowerCase().includes(searchTerm))
+        )
+      : farms;
+
+    return {
+      success: true,
+      data: filtered.slice(0, limit),
+      nextCursor: null,
+      hasMore: filtered.length > limit,
+    };
+  }
+
   const searchParams = new URLSearchParams();
   
   if (params.cursor) searchParams.set('cursor', params.cursor);
