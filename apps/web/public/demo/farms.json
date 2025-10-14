@@ -10,9 +10,14 @@
     "zipCode": "97205",
     "latitude": "45.5231",
     "longitude": "-122.6765",
+    "categories": ["vegetables", "herbs"],
+    "pricePerWeek": 28,
+    "deliveryOptions": ["delivery", "pickup"],
+    "rating": 4.8,
+    "distanceMiles": 6.2,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1506806732259-39c2d0268443",
-      "https://images.unsplash.com/photo-1464226184884-fa280b87c399"
+      "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-01T08:00:00.000Z",
     "updatedAt": "2025-08-21T08:00:00.000Z"
@@ -28,9 +33,14 @@
     "zipCode": "97301",
     "latitude": "44.9429",
     "longitude": "-123.0351",
+    "categories": ["fruit", "honey"],
+    "pricePerWeek": 32,
+    "deliveryOptions": ["pickup"],
+    "rating": 4.6,
+    "distanceMiles": 38.4,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce",
-      "https://images.unsplash.com/photo-1502741338009-cac2772e18bc"
+      "https://images.unsplash.com/photo-1567306226416-28f0efdc88ce?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1502741338009-cac2772e18bc?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-05T08:00:00.000Z",
     "updatedAt": "2025-08-22T08:00:00.000Z"
@@ -46,9 +56,14 @@
     "zipCode": "98660",
     "latitude": "45.6387",
     "longitude": "-122.6615",
+    "categories": ["dairy"],
+    "pricePerWeek": 40,
+    "deliveryOptions": ["delivery"],
+    "rating": 4.9,
+    "distanceMiles": 12.3,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1542838132-92c53300491e",
-      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee"
+      "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-07T08:00:00.000Z",
     "updatedAt": "2025-08-24T08:00:00.000Z"
@@ -64,9 +79,14 @@
     "zipCode": "97005",
     "latitude": "45.4871",
     "longitude": "-122.8037",
+    "categories": ["herbs"],
+    "pricePerWeek": 26,
+    "deliveryOptions": ["pickup"],
+    "rating": 4.7,
+    "distanceMiles": 9.1,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1514996937319-344454492b37",
-      "https://images.unsplash.com/photo-1470043201067-764129f9d2d5"
+      "https://images.unsplash.com/photo-1514996937319-344454492b37?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1470043201067-764129f9d2d5?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-10T08:00:00.000Z",
     "updatedAt": "2025-08-24T08:00:00.000Z"
@@ -82,9 +102,14 @@
     "zipCode": "97031",
     "latitude": "45.7054",
     "longitude": "-121.5215",
+    "categories": ["fruit"],
+    "pricePerWeek": 34,
+    "deliveryOptions": ["delivery", "pickup"],
+    "rating": 4.5,
+    "distanceMiles": 62.5,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1465495982724-68c11e4c04b0",
-      "https://images.unsplash.com/photo-1447175008436-054170c2e979"
+      "https://images.unsplash.com/photo-1465495982724-68c11e4c04b0?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1447175008436-054170c2e979?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-12T08:00:00.000Z",
     "updatedAt": "2025-08-24T08:00:00.000Z"
@@ -100,9 +125,14 @@
     "zipCode": "97401",
     "latitude": "44.0521",
     "longitude": "-123.0868",
+    "categories": ["vegetables", "herbs"],
+    "pricePerWeek": 31,
+    "deliveryOptions": ["delivery"],
+    "rating": 4.4,
+    "distanceMiles": 109.2,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1580910051074-7b37e45ed4c5",
-      "https://images.unsplash.com/photo-1528825871115-3581a5387919"
+      "https://images.unsplash.com/photo-1580910051074-7b37e45ed4c5?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1528825871115-3581a5387919?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-13T08:00:00.000Z",
     "updatedAt": "2025-08-24T08:00:00.000Z"
@@ -118,9 +148,14 @@
     "zipCode": "97756",
     "latitude": "44.2726",
     "longitude": "-121.1739",
+    "categories": ["meat"],
+    "pricePerWeek": 44,
+    "deliveryOptions": ["delivery"],
+    "rating": 4.3,
+    "distanceMiles": 125.7,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1500534623283-312aade485b7",
-      "https://images.unsplash.com/photo-1517154421773-0529f29ea451"
+      "https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1517154421773-0529f29ea451?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-14T08:00:00.000Z",
     "updatedAt": "2025-08-25T08:00:00.000Z"
@@ -136,9 +171,14 @@
     "zipCode": "97330",
     "latitude": "44.5646",
     "longitude": "-123.2620",
+    "categories": ["flowers"],
+    "pricePerWeek": 29,
+    "deliveryOptions": ["pickup"],
+    "rating": 4.6,
+    "distanceMiles": 84.1,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1438109491414-7198515b166b",
-      "https://images.unsplash.com/photo-1468327768560-75b778cbb551"
+      "https://images.unsplash.com/photo-1438109491414-7198515b166b?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1468327768560-75b778cbb551?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-15T08:00:00.000Z",
     "updatedAt": "2025-08-25T08:00:00.000Z"
@@ -154,9 +194,14 @@
     "zipCode": "97477",
     "latitude": "44.0462",
     "longitude": "-123.0220",
+    "categories": ["honey", "fruit"],
+    "pricePerWeek": 27,
+    "deliveryOptions": ["delivery", "pickup"],
+    "rating": 4.5,
+    "distanceMiles": 111.5,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1469041797191-50ace28483c3",
-      "https://images.unsplash.com/photo-1509099836639-18ba1795216d"
+      "https://images.unsplash.com/photo-1469041797191-50ace28483c3?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-16T08:00:00.000Z",
     "updatedAt": "2025-08-25T08:00:00.000Z"
@@ -172,9 +217,14 @@
     "zipCode": "97702",
     "latitude": "44.0582",
     "longitude": "-121.3153",
+    "categories": ["vegetables"],
+    "pricePerWeek": 33,
+    "deliveryOptions": ["pickup"],
+    "rating": 4.7,
+    "distanceMiles": 135.8,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1591270551313-d858dbdb3073",
-      "https://images.unsplash.com/photo-1518684079-04e3f16a5b16"
+      "https://images.unsplash.com/photo-1591270551313-d858dbdb3073?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1518684079-04e3f16a5b16?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-17T08:00:00.000Z",
     "updatedAt": "2025-08-26T08:00:00.000Z"
@@ -190,9 +240,14 @@
     "zipCode": "97321",
     "latitude": "44.6365",
     "longitude": "-123.1059",
+    "categories": ["meat"],
+    "pricePerWeek": 42,
+    "deliveryOptions": ["delivery"],
+    "rating": 4.4,
+    "distanceMiles": 70.4,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1508873696983-2dfd5898f08b",
-      "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f"
+      "https://images.unsplash.com/photo-1508873696983-2dfd5898f08b?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-18T08:00:00.000Z",
     "updatedAt": "2025-08-26T08:00:00.000Z"
@@ -208,9 +263,14 @@
     "zipCode": "97103",
     "latitude": "46.1879",
     "longitude": "-123.8313",
+    "categories": ["vegetables", "herbs"],
+    "pricePerWeek": 36,
+    "deliveryOptions": ["delivery", "pickup"],
+    "rating": 4.6,
+    "distanceMiles": 98.2,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1500989145603-8e7ef71d639e",
-      "https://images.unsplash.com/photo-1528821154947-1aa3d1b7495b"
+      "https://images.unsplash.com/photo-1500989145603-8e7ef71d639e?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1528821154947-1aa3d1b7495b?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-19T08:00:00.000Z",
     "updatedAt": "2025-08-27T08:00:00.000Z"
@@ -226,9 +286,14 @@
     "zipCode": "97138",
     "latitude": "45.9930",
     "longitude": "-123.9226",
+    "categories": ["vegetables"],
+    "pricePerWeek": 24,
+    "deliveryOptions": ["delivery"],
+    "rating": 4.2,
+    "distanceMiles": 79.5,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1505944357430-921d9380cde4",
-      "https://images.unsplash.com/photo-1504593811423-6dd665756598"
+      "https://images.unsplash.com/photo-1505944357430-921d9380cde4?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1504593811423-6dd665756598?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-20T08:00:00.000Z",
     "updatedAt": "2025-08-27T08:00:00.000Z"
@@ -244,9 +309,14 @@
     "zipCode": "97759",
     "latitude": "44.2907",
     "longitude": "-121.5495",
+    "categories": ["flowers"],
+    "pricePerWeek": 30,
+    "deliveryOptions": ["pickup"],
+    "rating": 4.5,
+    "distanceMiles": 138.4,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1501004318641-b39e6451bec6",
-      "https://images.unsplash.com/photo-1501004318641-b5c7f4070f86"
+      "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1501004318641-b5c7f4070f86?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-21T08:00:00.000Z",
     "updatedAt": "2025-08-27T08:00:00.000Z"
@@ -262,9 +332,14 @@
     "zipCode": "97132",
     "latitude": "45.3009",
     "longitude": "-122.9733",
+    "categories": ["fruit"],
+    "pricePerWeek": 45,
+    "deliveryOptions": ["delivery"],
+    "rating": 4.7,
+    "distanceMiles": 26.8,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1500043209013-1763beab0c82",
-      "https://images.unsplash.com/photo-1453974336165-b5c58464f1ed"
+      "https://images.unsplash.com/photo-1500043209013-1763beab0c82?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1453974336165-b5c58464f1ed?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-22T08:00:00.000Z",
     "updatedAt": "2025-08-28T08:00:00.000Z"
@@ -280,9 +355,14 @@
     "zipCode": "97141",
     "latitude": "45.4561",
     "longitude": "-123.8420",
+    "categories": ["seafood", "vegetables"],
+    "pricePerWeek": 38,
+    "deliveryOptions": ["pickup"],
+    "rating": 4.1,
+    "distanceMiles": 74.9,
     "imageUrls": [
-      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e",
-      "https://images.unsplash.com/photo-1483683804023-6ccdb62f86ef"
+      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1483683804023-6ccdb62f86ef?auto=format&fit=crop&w=800&q=80"
     ],
     "createdAt": "2025-08-23T08:00:00.000Z",
     "updatedAt": "2025-08-28T08:00:00.000Z"

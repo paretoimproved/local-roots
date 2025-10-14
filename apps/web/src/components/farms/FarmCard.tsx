@@ -16,6 +16,11 @@ interface Farm {
   latitude?: string;
   longitude?: string;
   imageUrls?: string[] | null;
+  categories?: string[] | null;
+  pricePerWeek?: number | null;
+  deliveryOptions?: string[] | null;
+  rating?: number | null;
+  distanceMiles?: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -25,17 +30,13 @@ interface FarmCardProps {
   priority?: boolean;
   onClick?: () => void;
   isFavorite?: boolean;
-  rating?: number;
-  priceRange?: string;
 }
 
 export function FarmCard({ 
   farm, 
   priority = false, 
   onClick,
-  isFavorite = false,
-  rating = 4.8,
-  priceRange = "$25-35/week"
+  isFavorite = false
 }: FarmCardProps) {
   const handleClick = () => {
     if (onClick) {
@@ -61,6 +62,10 @@ export function FarmCard({
   // Get primary image or fallback
   const primaryImage = farm.imageUrls?.[0];
   const location = [farm.city, farm.state].filter(Boolean).join(', ');
+  const ratingValue = farm.rating ? farm.rating.toFixed(1) : '4.8';
+  const priceValue = farm.pricePerWeek ? `$${farm.pricePerWeek}/week` : '$25-35/week';
+  const categories = farm.categories ?? [];
+  const distance = farm.distanceMiles ? `${farm.distanceMiles.toFixed(1)} mi` : null;
 
   return (
     <div className="farm-item group cursor-pointer" onClick={handleClick}>
@@ -114,9 +119,15 @@ export function FarmCard({
           </h3>
           <div className="flex items-center flex-shrink-0">
             <span className="text-farm-green text-xs">★</span>
-            <span className="text-sm ml-1">{rating}</span>
+            <span className="text-sm ml-1">{ratingValue}</span>
           </div>
         </div>
+        
+        {distance && (
+          <p className="text-xs text-muted-foreground mb-1">
+            {distance} away
+          </p>
+        )}
         
         {location && (
           <p className="text-gray-600 text-sm mb-1 line-clamp-1">
@@ -130,9 +141,13 @@ export function FarmCard({
           </p>
         )}
         
-        <p className="font-semibold text-farm-green">
-          {priceRange}
-        </p>
+        <p className="font-semibold text-farm-green">{priceValue}</p>
+
+        {categories.length > 0 && (
+          <p className="mt-1 text-xs uppercase tracking-wide text-muted-foreground line-clamp-1">
+            {categories.join(' • ')}
+          </p>
+        )}
       </div>
     </div>
   );

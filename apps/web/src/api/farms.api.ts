@@ -16,6 +16,11 @@ export type Farm = {
   latitude?: string;
   longitude?: string;
   imageUrls?: string[];
+  categories?: string[];
+  pricePerWeek?: number;
+  deliveryOptions?: string[];
+  rating?: number;
+  distanceMiles?: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,12 +35,22 @@ export type CreateFarmInput = {
   latitude?: string;
   longitude?: string;
   imageUrls?: string[];
+  categories?: string[];
+  pricePerWeek?: number;
+  deliveryOptions?: string[];
+  rating?: number;
+  distanceMiles?: number;
 };
 
 export type GetFarmsParams = {
   cursor?: string;
   limit?: number;
   search?: string;
+  category?: string;
+  priceTier?: string;
+  delivery?: string;
+  minRating?: number;
+  sort?: string;
 };
 
 const buildUrl = (path: string) => (API_BASE_URL ? `${API_BASE_URL}${path}` : path);
@@ -67,10 +82,51 @@ export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedRe
         )
       : farms;
 
-    const sliceStart = Math.min(offset, filtered.length);
-    const sliceEnd = Math.min(sliceStart + limit, filtered.length);
-    const paged = filtered.slice(sliceStart, sliceEnd);
-    const nextCursor = sliceEnd < filtered.length ? String(sliceEnd) : null;
+    const filteredByCategory = params.category && params.category !== 'all'
+      ? filtered.filter((farm) => {
+          const categories = farm.categories?.map((c) => c.toLowerCase()) ?? [];
+          return categories.includes(params.category!.toLowerCase());
+        })
+      : filtered;
+
+    const filteredByPrice = (() => {
+      if (!params.priceTier || params.priceTier === 'all') return filteredByCategory;
+      return filteredByCategory.filter((farm) => {
+        const price = farm.pricePerWeek ?? Infinity;
+        if (params.priceTier === 'under-30') return price < 30;
+        if (params.priceTier === '30-40') return price >= 30 && price <= 40;
+        if (params.priceTier === '40-plus') return price > 40;
+        return true;
+      });
+    })();
+
+    const filteredByDelivery = params.delivery && params.delivery !== 'all'
+      ? filteredByPrice.filter((farm) => farm.deliveryOptions?.includes(params.delivery!))
+      : filteredByPrice;
+
+    const filteredByRating = typeof params.minRating === 'number'
+      ? filteredByDelivery.filter((farm) => (farm.rating ?? 5) >= params.minRating!)
+      : filteredByDelivery;
+
+    const sorted = (() => {
+      const list = [...filteredByRating];
+      switch (params.sort) {
+        case 'rating':
+          return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+        case 'price':
+          return list.sort((a, b) => (a.pricePerWeek ?? Infinity) - (b.pricePerWeek ?? Infinity));
+        case 'name':
+          return list.sort((a, b) => a.name.localeCompare(b.name));
+        case 'distance':
+        default:
+          return list.sort((a, b) => (a.distanceMiles ?? Infinity) - (b.distanceMiles ?? Infinity));
+      }
+    })();
+
+    const sliceStart = Math.min(offset, sorted.length);
+    const sliceEnd = Math.min(sliceStart + limit, sorted.length);
+    const paged = sorted.slice(sliceStart, sliceEnd);
+    const nextCursor = sliceEnd < sorted.length ? String(sliceEnd) : null;
 
     return {
       success: true,
@@ -85,6 +141,11 @@ export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedRe
   if (params.cursor) searchParams.set('cursor', params.cursor);
   if (params.limit) searchParams.set('limit', params.limit.toString());
   if (params.search) searchParams.set('search', params.search);
+  if (params.category) searchParams.set('category', params.category);
+  if (params.priceTier) searchParams.set('price', params.priceTier);
+  if (params.delivery) searchParams.set('delivery', params.delivery);
+  if (typeof params.minRating === 'number') searchParams.set('rating', params.minRating.toString());
+  if (params.sort && params.sort !== 'distance') searchParams.set('sort', params.sort);
   
   const url = buildUrl(`/farms${searchParams.toString() ? `?${searchParams.toString()}` : ''}`);
   

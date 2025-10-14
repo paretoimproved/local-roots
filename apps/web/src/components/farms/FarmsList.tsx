@@ -9,10 +9,19 @@ import { FarmCard } from './FarmCard';
 import { FarmCardSkeleton } from './FarmCardSkeleton';
 import { EmptyState } from './EmptyState';
 import { ErrorBoundary } from './ErrorBoundary';
+import { FarmsFilters } from './FarmsFilters';
 
 export function FarmsList() {
   const searchParams = useSearchParams();
   const searchQuery = (searchParams.get('search') || '').trim();
+  const category = (searchParams.get('category') || '').trim() || undefined;
+  const priceTier = (searchParams.get('price') || '').trim() || undefined;
+  const delivery = (searchParams.get('delivery') || '').trim() || undefined;
+  const ratingParam = searchParams.get('rating');
+  const parsedRating = ratingParam ? Number(ratingParam) : undefined;
+  const minRating = parsedRating && !Number.isNaN(parsedRating) ? parsedRating : undefined;
+  const sortParam = (searchParams.get('sort') || '').trim();
+  const sort = sortParam || 'distance';
   
   const { ref, inView } = useInView({
     threshold: 0.1,
@@ -29,11 +38,16 @@ export function FarmsList() {
     isLoading,
     isError,
   } = useInfiniteQuery({
-    queryKey: ['farms', { search: searchQuery || undefined }],
+    queryKey: ['farms', { search: searchQuery || undefined, category, priceTier, delivery, minRating, sort }],
     queryFn: ({ pageParam }) => getFarms({ 
       cursor: pageParam, 
       limit: 20,
-      search: searchQuery || undefined 
+      search: searchQuery || undefined,
+      category,
+      priceTier,
+      delivery,
+      minRating,
+      sort
     }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor || undefined,
@@ -87,6 +101,7 @@ export function FarmsList() {
 
   return (
     <div className="space-y-8">
+      <FarmsFilters />
       {/* Results count */}
       <div className="text-sm text-muted-foreground">
         {searchQuery ? (
@@ -99,19 +114,13 @@ export function FarmsList() {
       {/* Farms grid - Airbnb style */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {farms.map((farm, index) => {
-          // Generate some realistic sample data for now
-          const sampleRatings = [4.6, 4.7, 4.8, 4.9, 5.0];
-          const samplePrices = ["$22/week", "$28/week", "$35/week", "$42/week", "$25/week"];
-          const isFavorite = index % 4 === 0; // Every 4th farm is a favorite
-          
+          const isFavorite = index % 4 === 0; // Every 4th farm is a favorite for demo purposes
           return (
             <FarmCard 
               key={farm.id} 
               farm={farm}
-              priority={index < 8} // Prioritize loading first 8 images
+              priority={index < 8}
               isFavorite={isFavorite}
-              rating={sampleRatings[index % sampleRatings.length]}
-              priceRange={samplePrices[index % samplePrices.length]}
             />
           );
         })}
