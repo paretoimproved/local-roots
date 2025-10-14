@@ -56,6 +56,8 @@ export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedRe
 
     const limit = params.limit ?? 20;
     const searchTerm = params.search?.toLowerCase().trim();
+    const rawOffset = params.cursor ? Number(params.cursor) : 0;
+    const offset = Number.isFinite(rawOffset) && rawOffset > 0 ? Math.floor(rawOffset) : 0;
 
     const filtered = searchTerm
       ? farms.filter((farm) =>
@@ -65,11 +67,16 @@ export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedRe
         )
       : farms;
 
+    const sliceStart = Math.min(offset, filtered.length);
+    const sliceEnd = Math.min(sliceStart + limit, filtered.length);
+    const paged = filtered.slice(sliceStart, sliceEnd);
+    const nextCursor = sliceEnd < filtered.length ? String(sliceEnd) : null;
+
     return {
       success: true,
-      data: filtered.slice(0, limit),
-      nextCursor: null,
-      hasMore: filtered.length > limit,
+      data: paged,
+      nextCursor,
+      hasMore: nextCursor !== null,
     };
   }
 
