@@ -12,7 +12,10 @@ export function createApp() {
   app.use("*", prettyJSON());
   app.use("*", cors());
 
-  app.get("/health", (c) => c.json({ status: "ok" }));
+  const healthHandler = (c: any) => c.json({ status: "ok" });
+
+  app.get("/health", healthHandler);
+  app.get("/api/health", healthHandler);
 
   const api = new Hono();
   api.route("/farms", farmRoutes);
