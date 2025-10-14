@@ -1,4 +1,5 @@
-import { db, eq, and, or, csaShares, farms, newId, type CsaShare, type NewCsaShare } from "@repo/db";
+import { db, eq, and, csaShares, farms, newId, type CsaShare, type NewCsaShare } from "@repo/db";
+import { inArray } from "drizzle-orm";
 
 export const sharesService = {
   // Get all shares
@@ -20,9 +21,10 @@ export const sharesService = {
       return [];
     }
     
-    return db.select().from(csaShares).where(
-      farmIds.map(farmId => eq(csaShares.farmId, farmId)).reduce((prev, curr) => or(prev, curr))
-    );
+    return db
+      .select()
+      .from(csaShares)
+      .where(inArray(csaShares.farmId, farmIds));
   },
   
   // Get a share by ID

@@ -1,12 +1,12 @@
-import { db, eq, and, desc, farms, newId, type Farm, type NewFarm } from "@repo/db";
-import { ilike, lt, or } from "drizzle-orm";
+import { db, eq, desc, farms, newId, type Farm, type NewFarm } from "@repo/db";
+import { and as drizzleAnd, ilike, lt, or } from "drizzle-orm";
 import type { SQL } from "drizzle-orm";
 
 export const farmService = {
   // Get all farms with cursor pagination
   async getFarms(cursor?: string, limit: number = 20, search?: string) {
     let query = db.select().from(farms).orderBy(desc(farms.createdAt), desc(farms.id)).limit(limit + 1);
-    const whereConditions: SQL[] = [];
+    let whereClause: SQL<unknown> | undefined;
 
     if (cursor) {
       // Decode cursor to get createdAt and id
@@ -14,32 +14,29 @@ export const farmService = {
       if (decodedCursor) {
         const { createdAt, id } = decodedCursor;
         // Cursor pagination: get items before the cursor (since we order DESC)
-        whereConditions.push(
-          or(
-            lt(farms.createdAt, createdAt),
-            and(
-              eq(farms.createdAt, createdAt),
-              lt(farms.id, id)
-            )
-          )
+        const cursorCondition = or(
+          lt(farms.createdAt, createdAt),
+          drizzleAnd(eq(farms.createdAt, createdAt), lt(farms.id, id))
         );
+
+        whereClause = whereClause ? drizzleAnd(whereClause, cursorCondition) : cursorCondition;
       }
     }
 
     if (search && search.trim().length > 0) {
       const normalizedSearch = `%${search.trim()}%`;
-      whereConditions.push(
-        or(
-          ilike(farms.name, normalizedSearch),
-          ilike(farms.city, normalizedSearch),
-          ilike(farms.state, normalizedSearch),
-          ilike(farms.description, normalizedSearch)
-        )
+      const searchCondition = or(
+        ilike(farms.name, normalizedSearch),
+        ilike(farms.city, normalizedSearch),
+        ilike(farms.state, normalizedSearch),
+        ilike(farms.description, normalizedSearch)
       );
+
+      whereClause = whereClause ? drizzleAnd(whereClause, searchCondition) : searchCondition;
     }
 
-    if (whereConditions.length > 0) {
-      query = query.where(and(...whereConditions));
+    if (whereClause) {
+      query = query.where(whereClause);
     }
     
     const results = await query;

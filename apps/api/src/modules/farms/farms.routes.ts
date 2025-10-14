@@ -2,7 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import { farmService } from "./farms.service";
 import { farmInsertSchema } from "@repo/db";
-import { auth, getUserId, requireAuth } from "../../pkg/middleware/clerk-auth";
+import { auth, getUserId } from "../../pkg/middleware/clerk-auth";
 import { z } from "zod";
 
 // Pagination query schema
@@ -13,10 +13,27 @@ const paginationSchema = z.object({
 });
 
 // Create farms routes
+const normalizeImageUrls = (imageUrls: unknown): string[] | null | undefined => {
+  if (Array.isArray(imageUrls)) {
+    return imageUrls;
+  }
+
+  if (typeof imageUrls === "string") {
+    return [imageUrls];
+  }
+
+  if (imageUrls === null) {
+    return null;
+  }
+
+  return undefined;
+};
+
 export const farmRoutes = new Hono()
   // Get all farms with pagination (public)
-  .get("/", zValidator("query", paginationSchema), async (c) => {
-    const { cursor, limit, search } = c.req.valid("query");
+  .get("/", async (c) => {
+    const rawQuery = c.req.query();
+    const { cursor, limit, search } = paginationSchema.parse(rawQuery);
     
     try {
       const result = await farmService.getFarms(cursor, limit, search);
@@ -68,17 +85,22 @@ export const farmRoutes = new Hono()
   
   // Create a new farm
   .post("/", zValidator("json", farmInsertSchema), async (c) => {
-    const data = c.req.valid("json");
+    const json = c.req.valid("json") as z.infer<typeof farmInsertSchema>;
     const userId = getUserId(c);
+
+    const normalizedData = {
+      ...json,
+      imageUrls: normalizeImageUrls(json.imageUrls) ?? null,
+    };
     
-    const farm = await farmService.createFarm(data, userId);
+    const farm = await farmService.createFarm(normalizedData, userId);
     return c.json(farm, 201);
   })
   
   // Update a farm
   .put("/:id", zValidator("json", farmInsertSchema.partial()), async (c) => {
     const id = c.req.param("id");
-    const data = c.req.valid("json");
+    const json = c.req.valid("json") as Partial<z.infer<typeof farmInsertSchema>>;
     const userId = getUserId(c);
     
     // Check if the farm exists and belongs to the user
@@ -91,7 +113,13 @@ export const farmRoutes = new Hono()
       return c.json({ error: "Unauthorized" }, 403);
     }
     
-    const updatedFarm = await farmService.updateFarm(id, data);
+    const updatePayload = {
+      ...json,
+      imageUrls:
+        json.imageUrls === undefined ? undefined : normalizeImageUrls(json.imageUrls) ?? null,
+    };
+
+    const updatedFarm = await farmService.updateFarm(id, updatePayload);
     return c.json(updatedFarm);
   })
   
