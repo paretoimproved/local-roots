@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { X, MapPin, Mail, Phone, Globe, Calendar, Users } from 'lucide-react';
+import { X, MapPin, Mail, Calendar, Users, Star, ArrowLeft, ArrowRight, Package } from 'lucide-react';
 import Image from 'next/image';
 import { getFarm } from '@/api/farms.api';
 import { Button } from '@/components/ui/button';
@@ -16,8 +16,10 @@ export function FarmDetailDrawer() {
   const farmId = searchParams.get('farm');
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [touchEnd, setTouchEnd] = useState<{ x: number; y: number } | null>(null);
+  const [activeImage, setActiveImage] = useState(0);
 
   // Fetch farm details when drawer opens
   const { data: farm, isLoading, error } = useQuery({
@@ -41,6 +43,11 @@ export function FarmDetailDrawer() {
       document.body.style.overflow = 'unset';
     };
   }, [farmId, isClosing]);
+
+  // reset carousel whenever farm changes
+  useEffect(() => {
+    setActiveImage(0);
+  }, [farmId]);
 
   // Handle keyboard events
   useEffect(() => {
@@ -71,6 +78,16 @@ export function FarmDetailDrawer() {
     };
   }, [router]);
 
+  // Track viewport size to toggle drawer vs modal behaviour
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const update = () => setIsDesktop(mq.matches);
+    update();
+    mq.addEventListener('change', update);
+    return () => mq.removeEventListener('change', update);
+  }, []);
+
   const handleClose = () => {
     setIsClosing(true);
     
@@ -91,21 +108,29 @@ export function FarmDetailDrawer() {
 
   const onTouchStart = (e: React.TouchEvent) => {
     setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+    const touch = e.targetTouches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
   };
 
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    const touch = e.targetTouches[0];
+    setTouchEnd({ x: touch.clientX, y: touch.clientY });
   };
 
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
 
-    if (isRightSwipe) {
+    const distanceX = touchStart.x - touchEnd.x;
+    const distanceY = touchStart.y - touchEnd.y;
+
+    // On mobile drawer use vertical swipe to close
+    if (!isDesktop && distanceY < -minSwipeDistance) {
+      handleClose();
+      return;
+    }
+
+    // On desktop allow horizontal gesture to close as fallback
+    if (isDesktop && distanceX < -minSwipeDistance) {
       handleClose();
     }
   };
@@ -114,6 +139,9 @@ export function FarmDetailDrawer() {
   if (!farmId) return null;
 
   const location = farm ? [farm.city, farm.state].filter(Boolean).join(', ') : '';
+  const galleryImages = useMemo(() => farm?.imageUrls ?? [], [farm?.imageUrls]);
+  const currentImage = galleryImages[activeImage] ?? null;
+  const remainingPhotos = Math.max(galleryImages.length - 1, 0);
 
   return (
     <>
@@ -126,18 +154,29 @@ export function FarmDetailDrawer() {
         aria-hidden="true"
       />
 
-      {/* Drawer */}
+      {/* Drawer / Modal Container */}
       <div
-        className={`fixed right-0 top-0 h-full w-full sm:w-[500px] lg:w-[600px] bg-background shadow-xl z-50 transform transition-transform duration-300 ease-out ${
-          isOpen ? 'translate-x-0' : 'translate-x-full'
-        }`}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="farm-detail-title"
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
+        className={`fixed inset-0 z-50 flex ${
+          isDesktop ? 'items-center justify-center' : 'items-end justify-center'
+        } pointer-events-none`}
       >
+        <div
+          className={`${
+            isDesktop
+              ? `pointer-events-auto w-full max-w-3xl rounded-2xl bg-background shadow-2xl transition-all duration-300 ease-out ${
+                  isOpen ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0'
+                }`
+              : `pointer-events-auto h-[92%] w-full rounded-t-3xl bg-background shadow-2xl transition-transform duration-300 ease-out ${
+                  isOpen ? 'translate-y-0' : 'translate-y-full'
+                }`
+          } overflow-hidden`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="farm-detail-title"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
         <div className="h-full flex flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
@@ -173,22 +212,44 @@ export function FarmDetailDrawer() {
             ) : farm ? (
               <div className="space-y-6">
                 {/* Image Gallery */}
-                {farm.imageUrls && farm.imageUrls.length > 0 ? (
+                {currentImage ? (
                   <div className="relative aspect-[16/9] bg-muted">
                     <Image
-                      src={farm.imageUrls[0]}
-                      alt={`${farm.name} farm`}
+                      src={currentImage}
+                      alt={`${farm.name} farm image ${activeImage + 1}`}
                       fill
                       className="object-cover"
                       sizes="(max-width: 768px) 100vw, 600px"
                       priority
                     />
-                    {farm.imageUrls.length > 1 && (
-                      <div className="absolute bottom-2 right-2">
-                        <Badge variant="secondary" className="bg-black/50 text-white">
-                          +{farm.imageUrls.length - 1} more photos
-                        </Badge>
-                      </div>
+                    {galleryImages.length > 1 && (
+                      <>
+                        <button
+                          className="absolute left-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white transition hover:bg-black/80"
+                          onClick={() =>
+                            setActiveImage((prev) => (prev === 0 ? galleryImages.length - 1 : prev - 1))
+                          }
+                          aria-label="Previous image"
+                        >
+                          <ArrowLeft className="h-4 w-4" />
+                        </button>
+                        <button
+                          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full bg-black/60 p-2 text-white transition hover:bg-black/80"
+                          onClick={() =>
+                            setActiveImage((prev) => (prev === galleryImages.length - 1 ? 0 : prev + 1))
+                          }
+                          aria-label="Next image"
+                        >
+                          <ArrowRight className="h-4 w-4" />
+                        </button>
+                        {remainingPhotos > 0 && (
+                          <div className="absolute bottom-2 right-2">
+                            <Badge variant="secondary" className="bg-black/50 text-white">
+                              {activeImage + 1} / {galleryImages.length}
+                            </Badge>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 ) : (
@@ -201,7 +262,16 @@ export function FarmDetailDrawer() {
                 <div className="px-6 space-y-6">
                   {/* Title and Location */}
                   <div>
-                    <h3 className="text-2xl font-bold mb-2">{farm.name}</h3>
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
+                      <h3 className="text-2xl font-bold">{farm.name}</h3>
+                      {typeof farm.rating === 'number' && (
+                        <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                          <Star className="h-4 w-4 text-amber-500" />
+                          <span className="font-semibold text-foreground">{farm.rating.toFixed(1)}</span>
+                          <span className="text-xs">Farmer rating</span>
+                        </div>
+                      )}
+                    </div>
                     {location && (
                       <div className="flex items-center text-muted-foreground">
                         <MapPin className="h-4 w-4 mr-2" />
@@ -209,6 +279,39 @@ export function FarmDetailDrawer() {
                       </div>
                     )}
                   </div>
+
+                  {farm.categories && farm.categories.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {farm.categories.map((category) => (
+                        <Badge key={category} variant="outline" className="uppercase tracking-wide text-xs">
+                          {category}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+
+                  {(farm.pricePerWeek || farm.deliveryOptions || farm.distanceMiles) && (
+                    <div className="rounded-lg border p-4 bg-muted/40 space-y-2">
+                      {farm.pricePerWeek && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">CSA share from</span>
+                          <span className="font-semibold text-foreground">${farm.pricePerWeek}/week</span>
+                        </div>
+                      )}
+                      {farm.deliveryOptions && farm.deliveryOptions.length > 0 && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Options</span>
+                          <span className="font-medium text-foreground">{farm.deliveryOptions.join(' • ')}</span>
+                        </div>
+                      )}
+                      {typeof farm.distanceMiles === 'number' && (
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground">Distance</span>
+                          <span className="font-medium text-foreground">{farm.distanceMiles.toFixed(1)} miles</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {/* Description */}
                   {farm.description && (
@@ -265,20 +368,26 @@ export function FarmDetailDrawer() {
                   <div className="border-t pt-6">
                     <h4 className="font-semibold mb-3">Available CSA Shares</h4>
                     <div className="space-y-3">
-                      <div className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start mb-2">
+                      <div className="border rounded-lg p-4 space-y-3">
+                        <div className="flex items-start justify-between">
                           <div>
-                            <h5 className="font-medium">Weekly Vegetable Box</h5>
-                            <p className="text-sm text-muted-foreground">
-                              Fresh seasonal produce delivered weekly
+                            <div className="flex items-center gap-2">
+                              <Package className="h-4 w-4 text-muted-foreground" />
+                              <h5 className="font-medium">Weekly Harvest Share</h5>
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              Seasonal assortment of produce and pantry favorites tailored to member preferences.
                             </p>
                           </div>
-                          <Badge>Available</Badge>
+                          <Badge variant="default">Popular</Badge>
                         </div>
-                        <div className="flex justify-between items-center mt-3">
-                          <span className="text-lg font-semibold">$35/week</span>
-                          <Button size="sm">Subscribe</Button>
+                        <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                          <span className="text-muted-foreground">Includes 8–10 items</span>
+                          <span className="font-semibold">${farm.pricePerWeek ? farm.pricePerWeek + 5 : 35}/week</span>
                         </div>
+                        <Button size="sm" className="w-full" variant="outline">
+                          View share details
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -290,10 +399,7 @@ export function FarmDetailDrawer() {
           {/* Footer */}
           <div className="border-t p-4">
             <div className="flex gap-3">
-              <Button className="flex-1" onClick={() => {
-                // Navigate to subscribe flow (future implementation)
-                alert('Subscribe functionality coming soon!');
-              }}>
+              <Button className="flex-1" onClick={() => alert('Subscribe functionality coming soon!')}>
                 View CSA Shares
               </Button>
               <Button variant="outline" onClick={handleClose}>
@@ -301,6 +407,7 @@ export function FarmDetailDrawer() {
               </Button>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </>
