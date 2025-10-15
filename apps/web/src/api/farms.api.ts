@@ -238,6 +238,16 @@ export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedRe
 
 // Fetch a farm by ID
 export async function getFarm(id: string): Promise<Farm> {
+  if (USE_DEMO_DATA) {
+    const res = await fetch('/demo/farms.json');
+    const farms = (await res.json()) as Farm[];
+    const farm = farms.find((item) => item.id === id);
+    if (!farm) {
+      throw new Error(`Farm ${id} not found in demo dataset`);
+    }
+    return farm;
+  }
+  
   try {
     const response = await fetch(buildUrl(`/farms/${id}`), {
       method: 'GET',
