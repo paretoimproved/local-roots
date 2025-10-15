@@ -3,6 +3,59 @@ import apiClient from "./client";
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "";
 const USE_DEMO_DATA = process.env.NEXT_PUBLIC_USE_DEMO_DATA === "true";
 
+const STATE_ABBR_TO_FULL: Record<string, string> = {
+  AL: "Alabama",
+  AK: "Alaska",
+  AZ: "Arizona",
+  AR: "Arkansas",
+  CA: "California",
+  CO: "Colorado",
+  CT: "Connecticut",
+  DE: "Delaware",
+  FL: "Florida",
+  GA: "Georgia",
+  HI: "Hawaii",
+  ID: "Idaho",
+  IL: "Illinois",
+  IN: "Indiana",
+  IA: "Iowa",
+  KS: "Kansas",
+  KY: "Kentucky",
+  LA: "Louisiana",
+  ME: "Maine",
+  MD: "Maryland",
+  MA: "Massachusetts",
+  MI: "Michigan",
+  MN: "Minnesota",
+  MS: "Mississippi",
+  MO: "Missouri",
+  MT: "Montana",
+  NE: "Nebraska",
+  NV: "Nevada",
+  NH: "New Hampshire",
+  NJ: "New Jersey",
+  NM: "New Mexico",
+  NY: "New York",
+  NC: "North Carolina",
+  ND: "North Dakota",
+  OH: "Ohio",
+  OK: "Oklahoma",
+  OR: "Oregon",
+  PA: "Pennsylvania",
+  RI: "Rhode Island",
+  SC: "South Carolina",
+  SD: "South Dakota",
+  TN: "Tennessee",
+  TX: "Texas",
+  UT: "Utah",
+  VT: "Vermont",
+  VA: "Virginia",
+  WA: "Washington",
+  WV: "West Virginia",
+  WI: "Wisconsin",
+  WY: "Wyoming",
+};
+
 // Types
 export type Farm = {
   id: string;
@@ -75,11 +128,26 @@ export async function getFarms(params: GetFarmsParams = {}): Promise<PaginatedRe
     const offset = Number.isFinite(rawOffset) && rawOffset > 0 ? Math.floor(rawOffset) : 0;
 
     const filtered = searchTerm
-      ? farms.filter((farm) =>
-          [farm.name, farm.city, farm.state, farm.description]
-            .filter(Boolean)
-            .some((value) => value!.toLowerCase().includes(searchTerm))
-        )
+      ? farms.filter((farm) => {
+          const term = searchTerm.toLowerCase();
+          const isStateAbbr = term.length === 2 && /^[a-z]{2}$/.test(term);
+
+          const farmState = farm.state?.toLowerCase() ?? '';
+          if (isStateAbbr) {
+            return farmState === term;
+          }
+
+          const stateFull = STATE_ABBR_TO_FULL[farm.state?.toUpperCase() ?? '']?.toLowerCase() ?? '';
+          const fields = [
+            farm.name?.toLowerCase() ?? '',
+            farm.city?.toLowerCase() ?? '',
+            stateFull,
+            (farm.categories ?? []).join(' ').toLowerCase(),
+            farm.zipCode ?? ''
+          ];
+
+          return fields.some((field) => field.includes(term));
+        })
       : farms;
 
     const filteredByCategory = params.category && params.category !== 'all'
