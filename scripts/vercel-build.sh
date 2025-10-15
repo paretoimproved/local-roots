@@ -1,6 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 set -eu
-REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if command -v pnpm >/dev/null 2>&1; then
+  PNPM="pnpm"
+else
+  PNPM="$(npm root -g)/pnpm/bin/pnpm.cjs"
+fi
 cd "$REPO_ROOT"
 TARGET=${VITE_BUILD_TARGET:-web}
-pnpm --filter "$TARGET" run build
+"${PNPM}" --filter "$TARGET" run build

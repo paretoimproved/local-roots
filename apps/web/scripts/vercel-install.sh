@@ -1,5 +1,3 @@
-#!/bin/sh
+#!/bin/bash
 set -eu
-REPO_ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-cd "$REPO_ROOT"
-pnpm install --frozen-lockfile
+"$(dirname "$0")/../../scripts/vercel-install.sh"
