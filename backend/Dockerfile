@@ -30,4 +30,4 @@ EXPOSE 8080
 ENV ADDR=:8080
 ENV ENV=prod
 
-CMD ["/bin/api"]
+CMD ["/bin/sh", "-c", "/bin/migrate up && exec /bin/api"]
