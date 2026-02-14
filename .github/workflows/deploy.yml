@@ -25,11 +25,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
           
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8.6.0
+          version: 10.6.5
 
       - name: Get pnpm store directory
         shell: bash
@@ -53,17 +58,13 @@ jobs:
       - name: Lint check
         run: pnpm lint
 
-      - name: Run unit tests
-        run: pnpm test --coverage
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      - name: Go tests
+        run: |
+          cd backend
+          go test ./...
 
       - name: Build application
         run: pnpm build
-        env:
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Upload test coverage
         uses: codecov/codecov-action@v4
@@ -82,17 +83,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.5
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
       - name: Pull Vercel Environment Information
+        working-directory: ./frontend
         run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Project Artifacts
+        working-directory: ./frontend
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project Artifacts to Vercel
         id: deploy
+        working-directory: ./frontend
         run: |
           DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
           echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
@@ -111,9 +125,9 @@ jobs:
               
               ## Testing Checklist:
               - [ ] Home page loads correctly
-              - [ ] Farm discovery page (/farms) works
-              - [ ] Search functionality works
-              - [ ] Farm detail drawer opens
+              - [ ] Stores page (/stores) works
+              - [ ] Store pickup windows (/stores/{id}) works
+              - [ ] Offerings page (/pickup-windows/{id}) works
               - [ ] Mobile responsive design
               - [ ] Performance: Load time <2s
               
@@ -132,17 +146,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.6.5
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
       - name: Pull Vercel Environment Information
+        working-directory: ./frontend
         run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Project Artifacts
+        working-directory: ./frontend
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project Artifacts to Vercel
         id: deploy-prod
+        working-directory: ./frontend
         run: |
           DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
           echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
@@ -152,7 +179,7 @@ jobs:
           echo "Running smoke tests on ${{ steps.deploy-prod.outputs.deployment_url }}"
           # Add curl commands to test critical endpoints
           curl -f "${{ steps.deploy-prod.outputs.deployment_url }}" || exit 1
-          curl -f "${{ steps.deploy-prod.outputs.deployment_url }}/farms" || exit 1
+          curl -f "${{ steps.deploy-prod.outputs.deployment_url }}/stores" || exit 1
 
       - name: Notify deployment success
         uses: actions/github-script@v7
@@ -168,7 +195,7 @@ jobs:
               
               Smoke tests passed:
               - ✅ Home page accessible
-              - ✅ Farms page accessible
+              - ✅ Stores page accessible
               - ✅ Application is live
               
               Ready for manual QA testing.`
@@ -193,7 +220,7 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8.6.0
+          version: 10.6.5
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
