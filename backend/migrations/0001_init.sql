@@ -1,6 +1,7 @@
 -- +goose Up
 create extension if not exists pgcrypto;
 
+-- +goose StatementBegin
 create or replace function set_updated_at()
 returns trigger
 language plpgsql
@@ -10,6 +11,7 @@ begin
   return new;
 end;
 $$;
+-- +goose StatementEnd
 
 create table users (
   id uuid primary key default gen_random_uuid(),
