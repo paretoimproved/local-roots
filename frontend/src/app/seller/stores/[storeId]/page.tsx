@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   sellerApi,
   type PlacesAutocompletePrediction,
@@ -30,6 +30,8 @@ type OrderFilter =
   | "picked_up"
   | "no_show"
   | "canceled";
+
+type WizardStep = 1 | 2 | 3;
 
 function formatMoney(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
@@ -125,6 +127,137 @@ function StatusPill({
   );
 }
 
+function TimezoneCombobox({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  placeholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value);
+  const [active, setActive] = useState(0);
+
+  const zones = useMemo(() => {
+    const usCommon = [
+      "America/Los_Angeles",
+      "America/Denver",
+      "America/Chicago",
+      "America/New_York",
+      "America/Phoenix",
+      "America/Anchorage",
+      "Pacific/Honolulu",
+    ];
+    const supported =
+      typeof Intl !== "undefined" &&
+      "supportedValuesOf" in Intl &&
+      typeof (Intl as unknown as { supportedValuesOf?: (k: string) => string[] })
+        .supportedValuesOf === "function"
+        ? (Intl as unknown as { supportedValuesOf: (k: string) => string[] }).supportedValuesOf(
+            "timeZone",
+          )
+        : [];
+    const merged = Array.from(new Set([...usCommon, ...supported]));
+    return merged;
+  }, []);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return zones.slice(0, 12);
+    return zones
+      .filter((z) => z.toLowerCase().includes(q))
+      .slice(0, 12);
+  }, [zones, query]);
+
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  return (
+    <div className="relative">
+      <input
+        className="lr-field w-full px-3 py-2 text-sm"
+        value={query}
+        placeholder={placeholder ?? "Timezone"}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setOpen(true);
+          setActive(0);
+        }}
+        onFocus={() => {
+          setOpen(true);
+          setActive(0);
+        }}
+        onBlur={() => {
+          const next = query.trim();
+          if (next) onChange(next);
+          window.setTimeout(() => setOpen(false), 120);
+        }}
+        onKeyDown={(e) => {
+          if (!open) return;
+          if (e.key === "ArrowDown") {
+            e.preventDefault();
+            setActive((i) => Math.min(i + 1, Math.max(filtered.length - 1, 0)));
+          } else if (e.key === "ArrowUp") {
+            e.preventDefault();
+            setActive((i) => Math.max(i - 1, 0));
+          } else if (e.key === "Enter") {
+            e.preventDefault();
+            const z = filtered[active];
+            if (z) {
+              onChange(z);
+              setOpen(false);
+            }
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            setOpen(false);
+          }
+        }}
+        autoComplete="off"
+        aria-label="Timezone"
+      />
+
+      {open ? (
+        <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[color:var(--lr-border)] bg-white/95 shadow-[0_18px_50px_rgba(38,28,10,0.16)] backdrop-blur">
+          <ul className="max-h-64 overflow-auto py-1">
+            {filtered.length ? (
+              filtered.map((z, idx) => {
+                const isActive = idx === active;
+                return (
+                  <li key={z}>
+                    <button
+                      type="button"
+                      className="w-full px-3 py-2 text-left text-sm"
+                      style={{
+                        background: isActive
+                          ? "rgba(47, 107, 79, 0.10)"
+                          : "transparent",
+                      }}
+                      onMouseDown={(ev) => {
+                        ev.preventDefault();
+                        onChange(z);
+                        setOpen(false);
+                      }}
+                    >
+                      {z}
+                    </button>
+                  </li>
+                );
+              })
+            ) : (
+              <li className="px-3 py-2 text-sm text-[color:var(--lr-muted)]">
+                No matches
+              </li>
+            )}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function SellerStorePage() {
   const params = useParams<{ storeId: string }>();
   const storeId = params.storeId;
@@ -132,6 +265,9 @@ export default function SellerStorePage() {
 
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ kind: "success" | "error"; message: string } | null>(
+    null,
+  );
 
   const [locations, setLocations] = useState<SellerPickupLocation[] | null>(
     null,
@@ -147,6 +283,10 @@ export default function SellerStorePage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showLocationSetup, setShowLocationSetup] = useState(false);
   const [showBoxSetup, setShowBoxSetup] = useState(false);
+  const [supportOpen, setSupportOpen] = useState(false);
+  const supportBtnRef = useRef<HTMLButtonElement | null>(null);
+  const supportPanelRef = useRef<HTMLDivElement | null>(null);
+  const [supportPos, setSupportPos] = useState<{ top: number; left: number } | null>(null);
   const [pickupCodeByOrderId, setPickupCodeByOrderId] = useState<
     Record<string, string>
   >({});
@@ -174,6 +314,7 @@ export default function SellerStorePage() {
   const [addrOpen, setAddrOpen] = useState(false);
   const [addrLoading, setAddrLoading] = useState(false);
   const [addrActiveIndex, setAddrActiveIndex] = useState(0);
+  const [savingLocation, setSavingLocation] = useState(false);
 
   // Create pickup window
   const [windowLocationId, setWindowLocationId] = useState("");
@@ -181,7 +322,7 @@ export default function SellerStorePage() {
   const [endAtLocal, setEndAtLocal] = useState("");
   const [cutoffAtLocal, setCutoffAtLocal] = useState("");
   const [windowNotes, setWindowNotes] = useState("");
-  const [windowStatus, setWindowStatus] = useState("published");
+  const [windowStatus, setWindowStatus] = useState("draft");
 
   // Create product
   const [productTitle, setProductTitle] = useState("");
@@ -205,6 +346,8 @@ export default function SellerStorePage() {
   const [planFirstStartLocal, setPlanFirstStartLocal] = useState("");
   const [planDurationMin, setPlanDurationMin] = useState(120);
   const [planCutoffHours, setPlanCutoffHours] = useState(24);
+  const [creatingPlan, setCreatingPlan] = useState(false);
+  const [generatingCycle, setGeneratingCycle] = useState(false);
 
   const readyForOfferings = useMemo(
     () => !!selectedWindowId && !!products?.length,
@@ -266,8 +409,31 @@ export default function SellerStorePage() {
     : !setupProgress.hasPlan
       ? 2
       : 3;
-  const showFullLocation = !isOnboarding || onboardingStep === 1 || showLocationSetup;
-  const showFullBox = !isOnboarding || onboardingStep === 2 || showBoxSetup;
+  const [wizardStep, setWizardStep] = useState<WizardStep>(onboardingStep as WizardStep);
+  const showFullLocation = !isOnboarding || wizardStep === 1 || showLocationSetup;
+  const showFullBox = !isOnboarding || wizardStep === 2 || showBoxSetup;
+  const canShowAdvanced = !isOnboarding; // keep onboarding focused
+
+  useEffect(() => {
+    // Auto-advance the wizard highlight when prerequisites are completed.
+    setWizardStep((prev) =>
+      (onboardingStep as WizardStep) > prev ? (onboardingStep as WizardStep) : prev,
+    );
+  }, [onboardingStep]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  function goToStep(step: WizardStep, sectionId: string) {
+    setWizardStep(step);
+    setShowLocationSetup(step === 1);
+    setShowBoxSetup(step === 2);
+    // Allow React to render the target before scrolling.
+    window.setTimeout(() => scrollToSection(sectionId), 0);
+  }
 
   function scrollToSection(id: string) {
     const el =
@@ -284,6 +450,52 @@ export default function SellerStorePage() {
     }
     setToken(t);
   }, [router]);
+
+  useLayoutEffect(() => {
+    if (!supportOpen) return;
+
+    const update = () => {
+      const btn = supportBtnRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      const w = 288; // matches w-[18rem]
+      const pad = 10;
+      const left = Math.max(
+        pad,
+        Math.min(rect.right - w, window.innerWidth - w - pad),
+      );
+      const top = Math.min(rect.bottom + 10, window.innerHeight - 20);
+      setSupportPos({ top, left });
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [supportOpen]);
+
+  useEffect(() => {
+    if (!supportOpen) return;
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node | null;
+      if (!t) return;
+      if (supportBtnRef.current?.contains(t)) return;
+      if (supportPanelRef.current?.contains(t)) return;
+      setSupportOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSupportOpen(false);
+    };
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [supportOpen]);
 
   async function refreshAll(t: string) {
     const [ls, ws, ps, sps] = await Promise.all([
@@ -308,6 +520,14 @@ export default function SellerStorePage() {
   }, [token, storeId]);
 
   useEffect(() => {
+    // If a seller already has a location, keep the "Add a location" form feeling like
+    // a new entry, not an edit.
+    if ((locations?.length ?? 0) > 0) {
+      setLocLabel("");
+    }
+  }, [locations?.length]);
+
+  useEffect(() => {
     if (!token || !selectedWindowId) return;
     setError(null);
     sellerApi
@@ -328,6 +548,8 @@ export default function SellerStorePage() {
   async function createLocation() {
     if (!token) return;
     setError(null);
+    setToast(null);
+    setSavingLocation(true);
     try {
       await sellerApi.createPickupLocation(token, storeId, {
         label: locLabel || null,
@@ -347,9 +569,15 @@ export default function SellerStorePage() {
       setAddrQuery("");
       setAddrPredictions([]);
       setAddrOpen(false);
+      // When a location already exists, keep the "add" form feeling like a new entry.
+      if ((locations?.length ?? 0) > 0) setLocLabel("");
+      setToast({ kind: "success", message: "Pickup location saved." });
       await refreshAll(token);
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
+      setToast({ kind: "error", message: "Could not save pickup location." });
+    } finally {
+      setSavingLocation(false);
     }
   }
 
@@ -488,9 +716,33 @@ export default function SellerStorePage() {
     if (!planLocationId && locations?.length) setPlanLocationId(locations[0].id);
   }, [locations, planLocationId]);
 
+  useEffect(() => {
+    if (!isOnboarding) return;
+    if (wizardStep !== 2) return;
+    if (planFirstStartLocal) return;
+    // Smart default: next Saturday morning at 10:00 local time.
+    const now = new Date();
+    const d = new Date(now);
+    const targetDow = 6; // Saturday
+    const daysAhead = (targetDow - d.getDay() + 7) % 7;
+    d.setDate(d.getDate() + daysAhead);
+    d.setHours(10, 0, 0, 0);
+    // If it's already Saturday after 10:00, push to next week.
+    if (daysAhead === 0 && now.getTime() >= d.getTime()) {
+      d.setDate(d.getDate() + 7);
+    }
+    const pad2 = (n: number) => String(n).padStart(2, "0");
+    const local =
+      `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}` +
+      `T${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+    setPlanFirstStartLocal(local);
+  }, [isOnboarding, wizardStep, planFirstStartLocal]);
+
   async function createPlan() {
     if (!token) return;
     setError(null);
+    setToast(null);
+    setCreatingPlan(true);
     try {
       const cents = parseUSDToCents(planPriceUsd);
       if (cents === null) {
@@ -512,21 +764,34 @@ export default function SellerStorePage() {
       setPlanDesc("");
       setPlanPriceUsd("");
       setPlanFirstStartLocal("");
+      setToast({ kind: "success", message: "Box created." });
       await refreshAll(token);
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
+      setToast({ kind: "error", message: "Could not create box." });
+    } finally {
+      setCreatingPlan(false);
     }
   }
 
   async function generateNextCycle(planId: string) {
     if (!token) return;
     setError(null);
+    setToast(null);
+    setGeneratingCycle(true);
     try {
       const res = await sellerApi.generateNextCycle(token, storeId, planId);
       await refreshAll(token);
       setSelectedWindowId(res.pickup_window_id);
+      setToast({
+        kind: "success",
+        message: "Pickup cycle generated. You are now live.",
+      });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
+      setToast({ kind: "error", message: "Could not generate pickup cycle." });
+    } finally {
+      setGeneratingCycle(false);
     }
   }
 
@@ -611,45 +876,15 @@ export default function SellerStorePage() {
 
         <div className="flex flex-wrap gap-2">
           <button
+            ref={supportBtnRef}
             type="button"
             className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-            onClick={() => {
-              if (!token) return;
-              setError(null);
-              refreshAll(token).catch((e: unknown) =>
-                setError(friendlyErrorMessage(e)),
-              );
-            }}
+            aria-haspopup="dialog"
+            aria-expanded={supportOpen}
+            onClick={() => setSupportOpen((v) => !v)}
           >
-            Refresh
+            Support
           </button>
-          <details className="relative">
-            <summary className="lr-btn lr-chip cursor-pointer list-none px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]">
-              Support
-            </summary>
-            <div className="absolute right-0 mt-2 w-[18rem] rounded-2xl border border-[color:var(--lr-border)] bg-white/90 p-3 text-sm shadow-[0_22px_60px_rgba(38,28,10,0.16)] backdrop-blur">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
-                Store ID
-              </div>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="lr-chip grow rounded-xl px-3 py-2 font-mono text-xs text-[color:var(--lr-ink)]">
-                  {storeId}
-                </span>
-                <button
-                  type="button"
-                  className="lr-btn lr-btn-primary px-3 py-2 text-xs font-semibold"
-                  onClick={() => {
-                    void navigator.clipboard.writeText(storeId);
-                  }}
-                >
-                  Copy
-                </button>
-              </div>
-              <div className="mt-2 text-xs text-[color:var(--lr-muted)]">
-                Only needed if you contact support.
-              </div>
-            </div>
-          </details>
           {!isOnboarding ? (
             <button
               type="button"
@@ -666,7 +901,7 @@ export default function SellerStorePage() {
           ) : null}
           <button
             type="button"
-            className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+            className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
             onClick={() => {
               session.clearToken();
               router.replace("/seller/login");
@@ -676,6 +911,38 @@ export default function SellerStorePage() {
           </button>
         </div>
       </header>
+
+      {supportOpen && supportPos ? (
+        <div
+          ref={supportPanelRef}
+          role="dialog"
+          aria-label="Support"
+          className="fixed z-50 w-[18rem] rounded-2xl border border-[color:var(--lr-border)] bg-white/92 p-3 text-sm shadow-[0_22px_60px_rgba(38,28,10,0.16)] backdrop-blur"
+          style={{ top: supportPos.top, left: supportPos.left }}
+        >
+          <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
+            Store ID
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="lr-chip grow rounded-xl px-3 py-2 font-mono text-xs text-[color:var(--lr-ink)]">
+              {storeId}
+            </span>
+            <button
+              type="button"
+              className="lr-btn lr-btn-primary px-3 py-2 text-xs font-semibold"
+              onClick={() => {
+                void navigator.clipboard.writeText(storeId);
+                setToast({ kind: "success", message: "Store ID copied." });
+              }}
+            >
+              Copy
+            </button>
+          </div>
+          <div className="mt-2 text-xs text-[color:var(--lr-muted)]">
+            Only needed if you contact support.
+          </div>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="lr-card border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-900">
@@ -691,44 +958,47 @@ export default function SellerStorePage() {
                 Seller setup
               </div>
               <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                Step {onboardingStep} of 3
+                Step {wizardStep} of 3
                 {isLoading ? " (loading…)" : ""}: pickup location → box → go
                 live.
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
+              {/** Disable future steps until prerequisites are met. */}
+              {/** Step 1 is always available. */}
               <button
                 type="button"
                 className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                  onboardingStep === 1
+                  wizardStep === 1
                     ? "lr-btn-primary"
                     : "lr-chip text-[color:var(--lr-ink)]"
                 }`}
-                onClick={() => scrollToSection("setup-location")}
+                onClick={() => goToStep(1, "setup-location")}
               >
                 1. Location
               </button>
               <button
                 type="button"
                 className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                  onboardingStep === 2
+                  wizardStep === 2
                     ? "lr-btn-primary"
                     : "lr-chip text-[color:var(--lr-ink)]"
-                }`}
-                onClick={() => scrollToSection("setup-box")}
+                } disabled:opacity-50`}
+                onClick={() => goToStep(2, "setup-box")}
+                disabled={!setupProgress.hasLocation}
               >
                 2. Box
               </button>
               <button
                 type="button"
                 className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                  onboardingStep === 3
+                  wizardStep === 3
                     ? "lr-btn-primary"
                     : "lr-chip text-[color:var(--lr-ink)]"
                 } disabled:opacity-50`}
-                onClick={() => scrollToSection("setup-go-live")}
-                disabled={onboardingStep < 3}
+                onClick={() => goToStep(3, "setup-go-live")}
+                disabled={!setupProgress.hasLocation || !setupProgress.hasPlan}
               >
                 3. Go live
               </button>
@@ -747,10 +1017,10 @@ export default function SellerStorePage() {
             <button
               type="button"
               className="lr-btn lr-chip px-3 py-1.5 text-sm font-semibold text-[color:var(--lr-ink)]"
-              onClick={() => setShowAdvanced((v) => !v)}
-              aria-pressed={showAdvanced}
+              onClick={() => setToast({ kind: "success", message: "Advanced tools unlock after you go live." })}
+              aria-disabled="true"
             >
-              {showAdvanced ? "Hide advanced tools" : "Show advanced tools"}
+              Advanced tools (after go live)
             </button>
           </div>
         </section>
@@ -816,7 +1086,7 @@ export default function SellerStorePage() {
         </section>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-2">
+      <div className={`grid gap-8 ${isOnboarding ? "" : "lg:grid-cols-2"}`}>
         <section id="setup-location" className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Pickup locations</h2>
@@ -867,14 +1137,12 @@ export default function SellerStorePage() {
                     className="lr-field px-3 py-2 text-sm"
                     value={locLabel}
                     onChange={(e) => setLocLabel(e.target.value)}
-                    placeholder="Label"
+                    placeholder="Label (optional)"
                   />
-                  <input
-                    className="lr-field px-3 py-2 text-sm"
-                    list="tz-list"
+                  <TimezoneCombobox
                     value={locTz}
-                    onChange={(e) => setLocTz(e.target.value)}
-                    placeholder="Timezone (e.g. America/Los_Angeles)"
+                    onChange={setLocTz}
+                    placeholder="Timezone (auto-detected)"
                   />
 
                   <div className="relative md:col-span-2">
@@ -990,19 +1258,10 @@ export default function SellerStorePage() {
                   />
                 </div>
 
-                <datalist id="tz-list">
-                  <option value="America/Los_Angeles" />
-                  <option value="America/Denver" />
-                  <option value="America/Chicago" />
-                  <option value="America/New_York" />
-                  <option value="America/Phoenix" />
-                  <option value="America/Anchorage" />
-                  <option value="Pacific/Honolulu" />
-                </datalist>
-
                 <button
                   className="mt-4 lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
                   disabled={
+                    savingLocation ||
                     !locAddress1.trim() ||
                     !locCity.trim() ||
                     !locRegion.trim() ||
@@ -1011,7 +1270,7 @@ export default function SellerStorePage() {
                   onClick={createLocation}
                   type="button"
                 >
-                  Save location
+                  {savingLocation ? "Saving…" : "Save location"}
                 </button>
               </details>
             </>
@@ -1035,16 +1294,18 @@ export default function SellerStorePage() {
                 type="button"
                 className="lr-btn lr-chip w-fit px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
                 onClick={() => {
+                  setWizardStep(1);
                   setShowLocationSetup(true);
+                  window.setTimeout(() => scrollToSection("setup-location"), 0);
                 }}
               >
-                Edit pickup location
+                Manage pickup locations
               </button>
             </div>
           )}
         </section>
 
-        {showAdvanced ? (
+        {canShowAdvanced && showAdvanced ? (
         <section className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Pickup windows</h2>
@@ -1136,7 +1397,18 @@ export default function SellerStorePage() {
                 <select
                   className="lr-field px-3 py-2 text-sm"
                   value={windowStatus}
-                  onChange={(e) => setWindowStatus(e.target.value)}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (
+                      next === "published" &&
+                      (!startAtLocal || !endAtLocal || !cutoffAtLocal)
+                    ) {
+                      setError("Add start, end, and cutoff before publishing.");
+                      setWindowStatus("draft");
+                      return;
+                    }
+                    setWindowStatus(next);
+                  }}
                 >
                   <option value="draft">draft</option>
                   <option value="published">published</option>
@@ -1211,7 +1483,7 @@ export default function SellerStorePage() {
         </section>
         ) : null}
 
-        {showAdvanced ? (
+        {canShowAdvanced && showAdvanced ? (
         <section className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Products</h2>
@@ -1283,7 +1555,7 @@ export default function SellerStorePage() {
         </section>
         ) : null}
 
-        {showAdvanced ? (
+        {canShowAdvanced && showAdvanced ? (
         <section className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Offerings</h2>
@@ -1397,7 +1669,7 @@ export default function SellerStorePage() {
         </section>
         ) : null}
 
-        {!isOnboarding || onboardingStep >= 2 || showBoxSetup ? (
+        {!isOnboarding || (setupProgress.hasLocation && (wizardStep >= 2 || showBoxSetup)) ? (
         <section id="setup-box" className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Subscription boxes</h2>
@@ -1453,8 +1725,11 @@ export default function SellerStorePage() {
                           type="button"
                           className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
                           onClick={() => generateNextCycle(p.id)}
+                          disabled={generatingCycle}
                         >
-                          {p.is_live
+                          {generatingCycle
+                            ? "Generating…"
+                            : p.is_live
                             ? "Generate next cycle"
                             : "Go live (generate first cycle)"}
                         </button>
@@ -1616,6 +1891,9 @@ export default function SellerStorePage() {
                   value={planDurationMin}
                   onChange={(e) => setPlanDurationMin(Number(e.target.value))}
                 />
+                <span className="text-[11px] text-[color:var(--lr-muted)]">
+                  How long buyers have to pick up once the window starts.
+                </span>
               </label>
               <label className="grid gap-1">
                 <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
@@ -1628,6 +1906,9 @@ export default function SellerStorePage() {
                   value={planCutoffHours}
                   onChange={(e) => setPlanCutoffHours(Number(e.target.value))}
                 />
+                <span className="text-[11px] text-[color:var(--lr-muted)]">
+                  Buyers must subscribe at least this many hours before pickup.
+                </span>
               </label>
             </div>
 
@@ -1635,6 +1916,7 @@ export default function SellerStorePage() {
               type="button"
               className="mt-4 lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
               disabled={
+                creatingPlan ||
                 !planTitle.trim() ||
                 !planLocationId ||
                 !planFirstStartLocal ||
@@ -1642,7 +1924,7 @@ export default function SellerStorePage() {
               }
               onClick={createPlan}
             >
-              Create box
+              {creatingPlan ? "Creating…" : "Create box"}
             </button>
           </details>
           ) : (
@@ -1651,7 +1933,11 @@ export default function SellerStorePage() {
               <button
                 type="button"
                 className="ml-2 lr-btn lr-chip px-3 py-1.5 text-sm font-semibold text-[color:var(--lr-ink)]"
-                onClick={() => setShowBoxSetup(true)}
+                onClick={() => {
+                  setWizardStep(2);
+                  setShowBoxSetup(true);
+                  window.setTimeout(() => scrollToSection("setup-box"), 0);
+                }}
               >
                 Edit
               </button>
@@ -1669,7 +1955,7 @@ export default function SellerStorePage() {
             <button
               type="button"
               className="lr-btn lr-chip w-fit px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-              onClick={() => scrollToSection("setup-location")}
+              onClick={() => goToStep(1, "setup-location")}
             >
               Go to pickup locations
             </button>
@@ -1677,7 +1963,7 @@ export default function SellerStorePage() {
         )}
       </div>
 
-      {isOnboarding && onboardingStep === 3 ? (
+      {isOnboarding ? (
         <section
           id="setup-go-live"
           className="lr-card lr-card-strong lr-animate grid gap-4 p-6"
@@ -1690,7 +1976,11 @@ export default function SellerStorePage() {
             </p>
           </div>
 
-          {!primaryPlan ? (
+          {wizardStep !== 3 ? (
+            <div className="rounded-2xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
+              Finish steps 1 and 2 to unlock go-live.
+            </div>
+          ) : !primaryPlan ? (
             <div className="grid gap-3">
               <div className="rounded-2xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
                 Create your first box to continue.
@@ -1698,7 +1988,7 @@ export default function SellerStorePage() {
               <button
                 type="button"
                 className="lr-btn lr-btn-primary w-fit px-4 py-2 text-sm font-semibold"
-                onClick={() => scrollToSection("setup-box")}
+                onClick={() => goToStep(2, "setup-box")}
               >
                 Go to box setup
               </button>
@@ -1730,8 +2020,9 @@ export default function SellerStorePage() {
                 type="button"
                 className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
                 onClick={() => generateNextCycle(primaryPlan.id)}
+                disabled={generatingCycle}
               >
-                Generate first cycle and go live
+                {generatingCycle ? "Generating…" : "Generate first cycle and go live"}
               </button>
 
               <div className="text-xs text-[color:var(--lr-muted)]">
@@ -1937,6 +2228,31 @@ export default function SellerStorePage() {
           setPickupCodeByOrderId((prev) => ({ ...prev, [target]: m[1] ?? "" }));
         }}
       />
+
+      {toast ? (
+        <div className="fixed bottom-4 right-4 z-50">
+          <div
+            className="rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_50px_rgba(38,28,10,0.16)] backdrop-blur"
+            style={{
+              background:
+                toast.kind === "success"
+                  ? "rgba(255, 255, 255, 0.92)"
+                  : "rgba(255, 244, 244, 0.92)",
+              borderColor:
+                toast.kind === "success"
+                  ? "rgba(47, 107, 79, 0.25)"
+                  : "rgba(179, 93, 46, 0.30)",
+              color:
+                toast.kind === "success"
+                  ? "var(--lr-ink)"
+                  : "rgb(127, 29, 29)",
+              maxWidth: 360,
+            }}
+          >
+            {toast.message}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
