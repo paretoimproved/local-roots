@@ -3,10 +3,10 @@ package httpx
 import (
 	"net/http"
 
-	"github.com/paretoimproved/local-roots/backend/internal/config"
-	v1 "github.com/paretoimproved/local-roots/backend/internal/api/v1"
-	"github.com/paretoimproved/local-roots/backend/internal/health"
 	"github.com/jackc/pgx/v5/pgxpool"
+	v1 "github.com/paretoimproved/local-roots/backend/internal/api/v1"
+	"github.com/paretoimproved/local-roots/backend/internal/config"
+	"github.com/paretoimproved/local-roots/backend/internal/health"
 )
 
 type Deps struct {
@@ -29,6 +29,9 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/stores", public.ListStores)
 	mux.HandleFunc("GET /v1/stores/{storeId}/pickup-windows", public.ListStorePickupWindows)
 	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}/offerings", public.ListPickupWindowOfferings)
+
+	orders := v1.OrdersAPI{DB: deps.DB}
+	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/orders", orders.CreateOrder)
 
 	authAPI := v1.AuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("POST /v1/auth/register", authAPI.Register)
