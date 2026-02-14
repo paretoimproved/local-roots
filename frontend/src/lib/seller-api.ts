@@ -1,3 +1,5 @@
+import { requestJSON } from "@/lib/http";
+
 export type AuthUser = {
   id: string;
   email: string;
@@ -132,35 +134,6 @@ export type PlacesDetailsResponse = {
   lat: number | null;
   lng: number | null;
 };
-
-function apiBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ||
-    "http://localhost:8080"
-  );
-}
-
-async function requestJSON<T>(
-  path: string,
-  init: RequestInit & { token?: string } = {},
-): Promise<T> {
-  const headers = new Headers(init.headers);
-  headers.set("Content-Type", "application/json");
-  if (init.token) headers.set("Authorization", `Bearer ${init.token}`);
-
-  const res = await fetch(`${apiBaseUrl()}${path}`, {
-    ...init,
-    headers,
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API ${res.status}: ${text || res.statusText}`);
-  }
-
-  return (await res.json()) as T;
-}
 
 export const sellerApi = {
   registerSeller: (email: string, password: string, displayName?: string) =>
