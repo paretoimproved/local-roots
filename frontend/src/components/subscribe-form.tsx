@@ -209,6 +209,9 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   if (done) {
     const order = done.first_order;
     const accessUrl = `/orders/${order.id}?t=${encodeURIComponent(order.buyer_token)}`;
+    const subUrl = `/subscriptions/${done.subscription.id}?t=${encodeURIComponent(
+      done.subscription.buyer_token,
+    )}`;
     return (
       <div className="grid gap-4">
         <section className="lr-card lr-card-strong p-6">
@@ -228,6 +231,12 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
               href={accessUrl}
             >
               View first order
+            </Link>
+            <Link
+              className="lr-btn px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+              href={subUrl}
+            >
+              Manage subscription
             </Link>
             <Link
               className="lr-btn lr-chip px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"

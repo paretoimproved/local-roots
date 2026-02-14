@@ -49,6 +49,12 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/orders/{orderId}", buyerOrders.GetOrder)
 	mux.HandleFunc("POST /v1/orders/{orderId}/review", buyerOrders.CreateReview)
 
+	buyerSubs := v1.BuyerSubscriptionsAPI{DB: deps.DB, Stripe: stripeClient}
+	mux.HandleFunc("GET /v1/subscriptions/{subscriptionId}", buyerSubs.GetSubscription)
+	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/status", buyerSubs.UpdateStatus)
+	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/payment-method/setup", buyerSubs.SetupPaymentMethod)
+	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/payment-method/confirm", buyerSubs.ConfirmPaymentMethod)
+
 	authAPI := v1.AuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("POST /v1/auth/register", authAPI.Register)
 	mux.HandleFunc("POST /v1/auth/login", authAPI.Login)

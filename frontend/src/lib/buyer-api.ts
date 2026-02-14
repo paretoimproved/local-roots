@@ -61,6 +61,32 @@ export type PlanCheckoutResponse = {
   client_secret: string;
 };
 
+export type BuyerSubscription = {
+  id: string;
+  plan_id: string;
+  store_id: string;
+  status: string;
+  created_at: string;
+  plan: {
+    title: string;
+    cadence: string;
+    price_cents: number;
+    next_start_at: string;
+    pickup_location: {
+      timezone: string;
+      label: string | null;
+      address1: string;
+      city: string;
+      region: string;
+      postal_code: string;
+    };
+  };
+};
+
+export type GetBuyerSubscriptionResponse = {
+  subscription: BuyerSubscription;
+};
+
 export type GetOrderResponse = {
   order: Order;
   has_review: boolean;
@@ -113,6 +139,44 @@ export const buyerApi = {
           phone: input.buyer.phone ?? null,
         },
       }),
+    }),
+
+  getSubscription: (subscriptionId: string, token: string) =>
+    requestJSON<GetBuyerSubscriptionResponse>(`/v1/subscriptions/${subscriptionId}`, {
+      method: "GET",
+      token,
+    }),
+
+  updateSubscriptionStatus: (
+    subscriptionId: string,
+    input: { token: string; status: "active" | "paused" | "canceled" },
+  ) =>
+    requestJSON<{ ok: boolean; status: string }>(
+      `/v1/subscriptions/${subscriptionId}/status`,
+      {
+        method: "POST",
+        token: input.token,
+        body: JSON.stringify({ status: input.status }),
+      },
+    ),
+
+  setupSubscriptionPaymentMethod: (subscriptionId: string, token: string) =>
+    requestJSON<{ setup_intent_id: string; client_secret: string }>(
+      `/v1/subscriptions/${subscriptionId}/payment-method/setup`,
+      {
+        method: "POST",
+        token,
+      },
+    ),
+
+  confirmSubscriptionPaymentMethod: (
+    subscriptionId: string,
+    input: { token: string; setup_intent_id: string },
+  ) =>
+    requestJSON<{ ok: boolean }>(`/v1/subscriptions/${subscriptionId}/payment-method/confirm`, {
+      method: "POST",
+      token: input.token,
+      body: JSON.stringify({ setup_intent_id: input.setup_intent_id }),
     }),
 
   createReview: (

@@ -174,7 +174,7 @@ export default function OrderPage() {
               Payment:{" "}
               {data.order.payment_method === "card" ? (
                 <span className="font-medium">
-                  Card authorized (captured on pickup confirmation)
+                  Card {data.order.payment_status} (captured on pickup confirmation)
                 </span>
               ) : (
                 <span className="font-medium">Pay at pickup</span>
