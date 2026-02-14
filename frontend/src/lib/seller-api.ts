@@ -254,10 +254,20 @@ export const sellerApi = {
     token: string,
     storeId: string,
     orderId: string,
-    status: "ready" | "picked_up" | "canceled" | "no_show",
+    status: "ready" | "canceled" | "no_show",
   ) =>
     requestJSON<{ id: string; store_id: string; pickup_window_id: string; status: string }>(
       `/v1/seller/stores/${storeId}/orders/${orderId}/status`,
       { method: "POST", token, body: JSON.stringify({ status }) },
+    ),
+
+  confirmPickup: (token: string, storeId: string, orderId: string, pickupCode: string) =>
+    requestJSON<{ id: string; store_id: string; pickup_window_id: string; status: string }>(
+      `/v1/seller/stores/${storeId}/orders/${orderId}/confirm-pickup`,
+      {
+        method: "POST",
+        token,
+        body: JSON.stringify({ pickup_code: pickupCode }),
+      },
     ),
 };

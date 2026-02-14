@@ -43,6 +43,7 @@ type Order struct {
 	StoreID        string      `json:"store_id"`
 	PickupWindowID string      `json:"pickup_window_id"`
 	BuyerToken     string      `json:"buyer_token"`
+	PickupCode     string      `json:"pickup_code"`
 	BuyerEmail     string      `json:"buyer_email"`
 	BuyerName      *string     `json:"buyer_name"`
 	BuyerPhone     *string     `json:"buyer_phone"`
@@ -218,10 +219,11 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRow(ctx, `
 		insert into orders (store_id, pickup_window_id, buyer_email, buyer_name, buyer_phone, status, payment_method, payment_status, subtotal_cents, total_cents)
 		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', 'pay_at_pickup', 'unpaid', $6, $7)
-		returning id::text, buyer_token, status, payment_method, payment_status, created_at
+		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, created_at
 	`, storeID, windowID, buyerEmail, in.Buyer.Name, in.Buyer.Phone, subtotal, total).Scan(
 		&out.ID,
 		&out.BuyerToken,
+		&out.PickupCode,
 		&out.Status,
 		&out.PaymentMethod,
 		&out.PaymentStatus,

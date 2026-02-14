@@ -27,6 +27,7 @@ export type Order = {
   store_id: string;
   pickup_window_id: string;
   buyer_token: string;
+  pickup_code: string;
   buyer_email: string;
   buyer_name: string | null;
   buyer_phone: string | null;

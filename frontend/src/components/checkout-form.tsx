@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { Offering } from "@/lib/api";
 import { buyerApi, defaultItemQty, type Order } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
+import { PickupCodeCard } from "@/components/pickup-code-card";
 
 function formatMoney(cents: number) {
   return new Intl.NumberFormat("en-US", {
@@ -78,47 +79,57 @@ export function CheckoutForm({
 
   if (order) {
     return (
-      <section className="lr-card lr-card-strong p-6">
-        <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
-          Order placed
-        </h2>
-        <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-          Order ID: <span className="font-mono text-xs">{order.id}</span>
-        </p>
-        <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-          Total:{" "}
-          <span className="font-medium text-[color:var(--lr-ink)]">
-            {formatMoney(order.total_cents)}
-          </span>
-        </p>
-        <div className="mt-4 grid gap-2 rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
-          <div className="text-sm font-medium text-[color:var(--lr-ink)]">
-            Save your access link
+      <div className="grid gap-4">
+        <section className="lr-card lr-card-strong p-6">
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            Order placed
+          </h2>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Order ID: <span className="font-mono text-xs">{order.id}</span>
+          </p>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Total:{" "}
+            <span className="font-medium text-[color:var(--lr-ink)]">
+              {formatMoney(order.total_cents)}
+            </span>
+          </p>
+          <div className="mt-4 grid gap-2 rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
+            <div className="text-sm font-medium text-[color:var(--lr-ink)]">
+              Save your access link
+            </div>
+            <div className="text-sm text-[color:var(--lr-muted)]">
+              You will need it to check status or leave a review on another
+              device.
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <a
+                className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+                href={`/orders/${order.id}`}
+              >
+                View order
+              </a>
+              <button
+                className="lr-btn lr-btn-primary px-4 py-2 text-sm font-medium"
+                type="button"
+                onClick={copyAccessLink}
+              >
+                {copied ? "Copied" : "Copy access link"}
+              </button>
+            </div>
           </div>
-          <div className="text-sm text-[color:var(--lr-muted)]">
-            You will need it to check status or leave a review on another device.
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <a
-              className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-              href={`/orders/${order.id}`}
-            >
-              View order
-            </a>
-            <button
-              className="lr-btn lr-btn-primary px-4 py-2 text-sm font-medium"
-              type="button"
-              onClick={copyAccessLink}
-            >
-              {copied ? "Copied" : "Copy access link"}
-            </button>
-          </div>
-        </div>
 
-        <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
-          Payment method: <span className="font-medium">Pay at pickup</span>.
-        </div>
-      </section>
+          <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
+            Payment method: <span className="font-medium">Pay at pickup</span>.
+          </div>
+        </section>
+
+        <PickupCodeCard
+          storeId={order.store_id}
+          orderId={order.id}
+          pickupCode={order.pickup_code}
+          status={order.status}
+        />
+      </div>
     );
   }
 

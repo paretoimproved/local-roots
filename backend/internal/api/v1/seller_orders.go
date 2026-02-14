@@ -165,7 +165,6 @@ type UpdateOrderStatusRequest struct {
 // UpdateOrderStatus supports:
 // - placed -> ready
 // - placed -> canceled
-// - ready  -> picked_up
 // - ready  -> no_show
 func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Request, u AuthUser) {
 	if a.DB == nil {
@@ -285,10 +284,119 @@ func isAllowedTransition(from string, to string) bool {
 	case "placed":
 		return to == "ready" || to == "canceled"
 	case "ready":
-		return to == "picked_up" || to == "no_show"
+		return to == "no_show"
 	default:
 		return false
 	}
+}
+
+type ConfirmPickupRequest struct {
+	PickupCode string `json:"pickup_code"`
+}
+
+// ConfirmPickup requires a buyer-present pickup code handshake.
+// - ready -> picked_up (only if pickup_code matches)
+func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u AuthUser) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if u.Role != "seller" && u.Role != "admin" {
+		resp.Forbidden(w, "seller access required")
+		return
+	}
+
+	storeID := r.PathValue("storeId")
+	orderID := r.PathValue("orderId")
+	if storeID == "" || orderID == "" {
+		resp.BadRequest(w, "missing storeId or orderId")
+		return
+	}
+
+	var in ConfirmPickupRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+	in.PickupCode = strings.TrimSpace(in.PickupCode)
+	if in.PickupCode == "" {
+		resp.BadRequest(w, "pickup_code is required")
+		return
+	}
+
+	var ownerID string
+	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "store not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+	if ownerID != u.ID {
+		resp.Forbidden(w, "not your store")
+		return
+	}
+
+	ctx := r.Context()
+	tx, err := a.DB.Begin(ctx)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	var currentStatus string
+	var pickupWindowID string
+	var pickupCode string
+	if err := tx.QueryRow(ctx, `
+		select status, pickup_window_id::text, pickup_code
+		from orders
+		where id = $1::uuid and store_id = $2::uuid
+		for update
+	`, orderID, storeID).Scan(&currentStatus, &pickupWindowID, &pickupCode); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "order not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	if currentStatus != "ready" {
+		resp.BadRequest(w, "order is not ready for pickup")
+		return
+	}
+	if pickupCode != in.PickupCode {
+		resp.BadRequest(w, "invalid pickup code")
+		return
+	}
+
+	if err := adjustOfferingsForOrder(ctx, tx, orderID, "finalize"); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	if _, err := tx.Exec(ctx, `
+		update orders
+		set status = 'picked_up', updated_at = now()
+		where id = $1::uuid
+	`, orderID); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, map[string]any{
+		"id":               orderID,
+		"store_id":         storeID,
+		"pickup_window_id": pickupWindowID,
+		"status":           "picked_up",
+	})
 }
 
 // mode:

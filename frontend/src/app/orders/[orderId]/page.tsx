@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { buyerApi, type GetOrderResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
+import { PickupCodeCard } from "@/components/pickup-code-card";
 
 function formatMoney(cents: number) {
   return new Intl.NumberFormat("en-US", {
@@ -176,6 +177,13 @@ export default function OrderPage() {
               Payment method: <span className="font-medium">Pay at pickup</span>.
             </div>
           </section>
+
+          <PickupCodeCard
+            storeId={data.order.store_id}
+            orderId={data.order.id}
+            pickupCode={data.order.pickup_code}
+            status={data.order.status}
+          />
 
           {canReview ? (
             <section className="lr-card lr-card-strong p-6">

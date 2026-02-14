@@ -12,6 +12,7 @@ import {
   type SellerProduct,
 } from "@/lib/seller-api";
 import { session } from "@/lib/session";
+import { QrScannerModal } from "@/components/qr-scanner-modal";
 
 function toIso(dtLocal: string): string {
   // dtLocal is like "2026-02-14T10:30" in local time.
@@ -99,6 +100,10 @@ export default function SellerStorePage() {
 
   const [selectedWindowId, setSelectedWindowId] = useState<string>("");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
+  const [pickupCodeByOrderId, setPickupCodeByOrderId] = useState<
+    Record<string, string>
+  >({});
+  const [scanOrderId, setScanOrderId] = useState<string | null>(null);
 
   // Create pickup location
   const [locLabel, setLocLabel] = useState("Main pickup");
@@ -297,7 +302,7 @@ export default function SellerStorePage() {
 
   async function setOrderStatus(
     orderId: string,
-    status: "ready" | "picked_up" | "canceled" | "no_show",
+    status: "ready" | "canceled" | "no_show",
   ) {
     if (!token || !selectedWindowId) return;
     setError(null);
@@ -322,6 +327,33 @@ export default function SellerStorePage() {
       ]);
       setOrders(os);
       setOfferings(ofs);
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  }
+
+  async function confirmPickup(orderId: string) {
+    if (!token || !selectedWindowId) return;
+    const code = (pickupCodeByOrderId[orderId] ?? "").trim();
+    if (!/^[0-9]{6}$/.test(code)) {
+      setError("Pickup code must be 6 digits.");
+      return;
+    }
+    setError(null);
+    try {
+      await sellerApi.confirmPickup(token, storeId, orderId, code);
+      // Refresh both orders and offerings since inventory may have changed.
+      const [os, ofs] = await Promise.all([
+        sellerApi.listOrders(token, storeId, selectedWindowId),
+        sellerApi.listOfferings(token, storeId, selectedWindowId),
+      ]);
+      setOrders(os);
+      setOfferings(ofs);
+      setPickupCodeByOrderId((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
     } catch (e: unknown) {
       setError(String(e));
     }
@@ -1003,13 +1035,41 @@ export default function SellerStorePage() {
 
                     {o.status === "ready" ? (
                       <>
-                        <button
-                          type="button"
-                          className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
-                          onClick={() => setOrderStatus(o.id, "picked_up")}
-                        >
-                          Picked up
-                        </button>
+                        <div className="grid gap-2">
+                          <label className="grid gap-1">
+                            <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                              Pickup code
+                            </span>
+                            <input
+                              className="lr-field w-40 px-3 py-2 text-sm font-mono tracking-widest"
+                              inputMode="numeric"
+                              placeholder="123456"
+                              value={pickupCodeByOrderId[o.id] ?? ""}
+                              onChange={(e) =>
+                                setPickupCodeByOrderId((prev) => ({
+                                  ...prev,
+                                  [o.id]: e.target.value,
+                                }))
+                              }
+                            />
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
+                              onClick={() => confirmPickup(o.id)}
+                            >
+                              Confirm pickup
+                            </button>
+                            <button
+                              type="button"
+                              className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+                              onClick={() => setScanOrderId(o.id)}
+                            >
+                              Scan QR
+                            </button>
+                          </div>
+                        </div>
                         <button
                           type="button"
                           className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-clay)]"
@@ -1034,6 +1094,32 @@ export default function SellerStorePage() {
           </div>
         )}
       </section>
+
+      <QrScannerModal
+        open={scanOrderId !== null}
+        onClose={() => setScanOrderId(null)}
+        onScan={(res) => {
+          const parsed = res.parsed;
+          if (parsed) {
+            // If the QR includes a different order_id, fill that order instead.
+            const targetOrderId = parsed.order_id;
+            setPickupCodeByOrderId((prev) => ({
+              ...prev,
+              [targetOrderId]: parsed.pickup_code,
+            }));
+            return;
+          }
+          // If a generic QR was scanned, try to extract a 6-digit code.
+          const m = res.raw.match(/\b([0-9]{6})\b/);
+          if (!m) {
+            setError("Scanned QR did not contain a valid pickup code.");
+            return;
+          }
+          const target = scanOrderId;
+          if (!target) return;
+          setPickupCodeByOrderId((prev) => ({ ...prev, [target]: m[1] ?? "" }));
+        }}
+      />
     </div>
   );
 }
