@@ -11,7 +11,11 @@ type Config struct {
 func FromEnv() Config {
 	addr := os.Getenv("ADDR")
 	if addr == "" {
-		addr = ":8080"
+		if port := os.Getenv("PORT"); port != "" {
+			addr = ":" + port
+		} else {
+			addr = ":8080"
+		}
 	}
 	env := os.Getenv("ENV")
 	if env == "" {
