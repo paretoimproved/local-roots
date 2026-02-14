@@ -20,5 +20,12 @@ go run ./cmd/migrate up
 go run ./cmd/migrate status
 ```
 
+## Seed (demo data)
+
+```sh
+export DATABASE_URL="postgres://localroots:localroots@localhost:5432/localroots?sslmode=disable"
+go run ./cmd/seed
+```
+
 Endpoints:
 - `GET /health`
