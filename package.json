@@ -1,0 +1,16 @@
+{
+  "name": "local-roots",
+  "private": true,
+  "packageManager": "pnpm@10.6.5",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "pnpm -C frontend dev",
+    "build": "pnpm -C frontend build",
+    "lint": "pnpm -C frontend lint",
+    "typecheck": "pnpm -C frontend exec tsc -p tsconfig.json --noEmit",
+    "dev:backend": "cd backend && go run ./cmd/api",
+    "dev:all": "echo \"Terminal 1: pnpm dev:backend   |   Terminal 2: pnpm dev\""
+  }
+}
