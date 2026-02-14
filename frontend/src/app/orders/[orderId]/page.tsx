@@ -171,7 +171,15 @@ export default function OrderPage() {
             </div>
 
             <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
-              Payment method: <span className="font-medium">Pay at pickup</span>.
+              Payment:{" "}
+              {data.order.payment_method === "card" ? (
+                <span className="font-medium">
+                  Card authorized (captured on pickup confirmation)
+                </span>
+              ) : (
+                <span className="font-medium">Pay at pickup</span>
+              )}
+              .
             </div>
           </section>
 
