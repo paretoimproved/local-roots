@@ -99,14 +99,84 @@ function StatusPill({
   );
 }
 
+function PaymentPill({
+  status,
+}: {
+  status:
+    | "unpaid"
+    | "pending"
+    | "authorized"
+    | "paid"
+    | "voided"
+    | "failed"
+    | "refunded"
+    | "requires_action"
+    | string;
+}) {
+  const style =
+    status === "paid"
+      ? {
+          border: "rgba(47, 107, 79, 0.28)",
+          bg: "rgba(47, 107, 79, 0.10)",
+          fg: "var(--lr-leaf)",
+        }
+      : status === "authorized"
+        ? {
+            border: "rgba(31, 108, 120, 0.28)",
+            bg: "rgba(31, 108, 120, 0.10)",
+            fg: "var(--lr-water)",
+          }
+        : status === "pending" || status === "requires_action"
+          ? {
+              border: "rgba(90, 85, 73, 0.28)",
+              bg: "rgba(90, 85, 73, 0.08)",
+              fg: "var(--lr-muted)",
+            }
+          : status === "failed"
+            ? {
+                border: "rgba(179, 93, 46, 0.30)",
+                bg: "rgba(179, 93, 46, 0.10)",
+                fg: "var(--lr-clay)",
+              }
+            : status === "voided" || status === "refunded"
+              ? {
+                  border: "rgba(179, 93, 46, 0.22)",
+                  bg: "rgba(179, 93, 46, 0.06)",
+                  fg: "var(--lr-clay)",
+                }
+              : {
+                  border: "var(--lr-border)",
+                  bg: "rgba(255, 255, 255, 0.65)",
+                  fg: "var(--lr-ink)",
+                };
+
+  return (
+    <span
+      className="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold"
+      style={{
+        borderColor: style.border,
+        background: style.bg,
+        color: style.fg,
+      }}
+      title="Payment status"
+    >
+      {status.replaceAll("_", " ")}
+    </span>
+  );
+}
+
 function TimezoneCombobox({
   value,
   onChange,
   placeholder,
+  invalid,
+  onTouched,
 }: {
   value: string;
   onChange: (next: string) => void;
   placeholder?: string;
+  invalid?: boolean;
+  onTouched?: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(value);
@@ -150,7 +220,7 @@ function TimezoneCombobox({
   return (
     <div className="relative">
       <input
-        className="lr-field w-full px-3 py-2 text-sm"
+        className={fieldClass("lr-field w-full px-3 py-2 text-sm", !!invalid)}
         value={query}
         placeholder={placeholder ?? "Timezone"}
         onChange={(e) => {
@@ -163,6 +233,7 @@ function TimezoneCombobox({
           setActive(0);
         }}
         onBlur={() => {
+          onTouched?.();
           const next = query.trim();
           if (next) onChange(next);
           window.setTimeout(() => setOpen(false), 120);
@@ -189,6 +260,7 @@ function TimezoneCombobox({
         }}
         autoComplete="off"
         aria-label="Timezone"
+        aria-invalid={!!invalid}
       />
 
       {open ? (
@@ -400,7 +472,11 @@ export default function SellerStorePage() {
     setShowLocationSetup(step === 1);
     setShowBoxSetup(step === 2);
     // Allow React to render the target before scrolling.
-    window.setTimeout(() => scrollToSection(sectionId), 0);
+    if (typeof window !== "undefined") {
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => scrollToSection(sectionId));
+      });
+    }
   }
 
   function scrollToSection(id: string) {
@@ -1029,7 +1105,6 @@ export default function SellerStorePage() {
                 return (
                   <button
                     type="button"
-                    aria-disabled={locked}
                     className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
                       wizardStep === 3
                         ? "lr-btn-primary"
@@ -1197,7 +1272,16 @@ export default function SellerStorePage() {
                     value={locTz}
                     onChange={setLocTz}
                     placeholder="Timezone (auto-detected)"
+                    invalid={!!(locTouched.timezone && locErrors.timezone)}
+                    onTouched={() =>
+                      setLocTouched((p) => ({ ...p, timezone: true }))
+                    }
                   />
+                  {locTouched.timezone && locErrors.timezone ? (
+                    <span className="text-[11px] text-rose-900 md:col-span-2">
+                      {locErrors.timezone}
+                    </span>
+                  ) : null}
 
                   <div className="relative md:col-span-2">
                     <input
@@ -1299,6 +1383,11 @@ export default function SellerStorePage() {
                     placeholder="Address"
                     aria-invalid={!!(locTouched.address1 && locErrors.address1)}
                   />
+                  {locTouched.address1 && locErrors.address1 ? (
+                    <span className="text-[11px] text-rose-900 md:col-span-2">
+                      {locErrors.address1}
+                    </span>
+                  ) : null}
                   <input
                     className={fieldClass(
                       "lr-field px-3 py-2 text-sm",
@@ -1310,6 +1399,11 @@ export default function SellerStorePage() {
                     placeholder="City"
                     aria-invalid={!!(locTouched.city && locErrors.city)}
                   />
+                  {locTouched.city && locErrors.city ? (
+                    <span className="text-[11px] text-rose-900">
+                      {locErrors.city}
+                    </span>
+                  ) : null}
                   <input
                     className={fieldClass(
                       "lr-field px-3 py-2 text-sm",
@@ -1323,6 +1417,11 @@ export default function SellerStorePage() {
                     placeholder="State/Region"
                     aria-invalid={!!(locTouched.region && locErrors.region)}
                   />
+                  {locTouched.region && locErrors.region ? (
+                    <span className="text-[11px] text-rose-900">
+                      {locErrors.region}
+                    </span>
+                  ) : null}
                   <input
                     className={fieldClass(
                       "lr-field px-3 py-2 text-sm",
@@ -1336,6 +1435,11 @@ export default function SellerStorePage() {
                     placeholder="Postal code"
                     aria-invalid={!!(locTouched.postal && locErrors.postal)}
                   />
+                  {locTouched.postal && locErrors.postal ? (
+                    <span className="text-[11px] text-rose-900">
+                      {locErrors.postal}
+                    </span>
+                  ) : null}
                 </div>
 
                 {(locErrors.address1 ||
@@ -2231,13 +2335,14 @@ export default function SellerStorePage() {
               <li key={o.id} className="lr-chip rounded-2xl px-4 py-3">
                 <div className="flex flex-wrap items-start justify-between gap-4">
                   <div className="min-w-[240px]">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <div className="font-medium text-[color:var(--lr-ink)]">
-                        {o.buyer_name ? `${o.buyer_name} · ` : ""}
-                        {o.buyer_email}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-medium text-[color:var(--lr-ink)]">
+                          {o.buyer_name ? `${o.buyer_name} · ` : ""}
+                          {o.buyer_email}
+                        </div>
+                        <StatusPill status={o.status} />
+                        <PaymentPill status={o.payment_status} />
                       </div>
-                      <StatusPill status={o.status} />
-                    </div>
                     <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
                       Total{" "}
                       <span className="font-semibold text-[color:var(--lr-ink)]">
