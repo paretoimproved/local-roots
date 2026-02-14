@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
-import { X, MapPin, Mail, Calendar, Users, Star, ArrowLeft, ArrowRight, Package } from 'lucide-react';
+import { X, MapPin, Mail, Users, Star, ArrowLeft, ArrowRight, Package } from 'lucide-react';
 import Image from 'next/image';
 import { getFarm } from '@/api/farms.api';
 import { Button } from '@/components/ui/button';
@@ -27,6 +27,21 @@ export function FarmDetailDrawer() {
     queryFn: () => getFarm(farmId!),
     enabled: !!farmId,
   });
+
+  const handleClose = useCallback(() => {
+    setIsClosing(true);
+
+    // Start close animation
+    setIsOpen(false);
+
+    // Update URL after animation
+    setTimeout(() => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('farm');
+      router.push(url.pathname + url.search, { scroll: false });
+      setIsClosing(false);
+    }, 300); // Match animation duration
+  }, [router]);
 
   // Handle drawer open/close based on URL
   useEffect(() => {
@@ -59,7 +74,7 @@ export function FarmDetailDrawer() {
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [isOpen]);
+  }, [handleClose, isOpen]);
 
   // Listen for custom farm detail event
   useEffect(() => {
@@ -87,21 +102,6 @@ export function FarmDetailDrawer() {
     mq.addEventListener('change', update);
     return () => mq.removeEventListener('change', update);
   }, []);
-
-  const handleClose = () => {
-    setIsClosing(true);
-    
-    // Start close animation
-    setIsOpen(false);
-    
-    // Update URL after animation
-    setTimeout(() => {
-      const url = new URL(window.location.href);
-      url.searchParams.delete('farm');
-      router.push(url.pathname + url.search, { scroll: false });
-      setIsClosing(false);
-    }, 300); // Match animation duration
-  };
 
   // Swipe gesture handlers
   const minSwipeDistance = 50;
@@ -135,13 +135,13 @@ export function FarmDetailDrawer() {
     }
   };
 
-  // Don't render if no farmId
-  if (!farmId) return null;
-
   const location = farm ? [farm.city, farm.state].filter(Boolean).join(', ') : '';
   const galleryImages = useMemo(() => farm?.imageUrls ?? [], [farm?.imageUrls]);
   const currentImage = galleryImages[activeImage] ?? null;
   const remainingPhotos = Math.max(galleryImages.length - 1, 0);
+
+  // Don't render if no farmId
+  if (!farmId) return null;
 
   return (
     <>

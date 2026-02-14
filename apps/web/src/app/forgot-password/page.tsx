@@ -57,7 +57,7 @@ export default function ForgotPasswordPage() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">Reset your password</h2>
           <p className="mt-2 text-sm text-gray-600">
-            Enter your email address and we'll send you a link to reset your password
+            Enter your email address and we will send you a link to reset your password
           </p>
         </div>
         
@@ -83,7 +83,7 @@ export default function ForgotPasswordPage() {
               </div>
               <h3 className="text-lg font-medium text-gray-900">Check your email</h3>
               <p className="mt-2 text-sm text-gray-600">
-                We've sent a password reset link to {email}. Please check your inbox 
+                We sent a password reset link to {email}. Please check your inbox 
                 and follow the instructions to reset your password.
               </p>
               <div className="mt-4">
@@ -135,7 +135,7 @@ export default function ForgotPasswordPage() {
         </div>
         
         <p className="text-xs text-center text-gray-500">
-          By continuing, you agree to LocalRoots's Terms of Service and Privacy Policy.
+          By continuing, you agree to the LocalRoots Terms of Service and Privacy Policy.
         </p>
       </div>
     </div>

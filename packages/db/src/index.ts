@@ -16,4 +16,4 @@ export { eq, and, or, not, like, desc, asc } from "drizzle-orm";
 // Generate IDs for new records
 export function newId(prefix: string): string {
   return `${prefix}_${Math.random().toString(36).substring(2, 15)}`;
-} 
+}

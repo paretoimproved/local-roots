@@ -105,7 +105,7 @@ export function FarmsList() {
       {/* Results count */}
       <div className="text-sm text-muted-foreground">
         {searchQuery ? (
-          <span>Found {totalFarms} farms matching "{searchQuery}"</span>
+          <span>Found {totalFarms} farms matching {searchQuery}</span>
         ) : (
           <span>Showing {totalFarms} local farms</span>
         )}
@@ -152,7 +152,7 @@ export function FarmsList() {
       {!hasNextPage && totalFarms > 0 && (
         <div className="text-center py-4">
           <p className="text-sm text-muted-foreground">
-            You've seen all {totalFarms} farms. 
+            You have seen all {totalFarms} farms. 
             {searchQuery && (
               <span>
                 {' '}Try adjusting your search to discover more.

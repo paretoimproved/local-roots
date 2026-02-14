@@ -33,7 +33,7 @@ export function createApp() {
           status,
         },
       },
-      status
+      status,
     );
   });
 

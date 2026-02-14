@@ -149,7 +149,7 @@ describe('FarmDetailDrawer', () => {
     renderWithQuery(<FarmDetailDrawer />)
     
     const drawer = screen.getByRole('dialog')
-    expect(drawer).toHaveClass('w-full', 'sm:w-[500px]', 'lg:w-[600px]')
+    expect(drawer).toHaveClass('w-full', 'h-[92%]', 'rounded-t-3xl')
   })
 
   it('prevents body scroll when drawer is open', () => {

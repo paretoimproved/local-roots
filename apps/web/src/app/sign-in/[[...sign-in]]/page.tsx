@@ -72,7 +72,7 @@ export default function SignInPage() {
         </div>
         
         <p className="text-xs text-center text-gray-500">
-          By continuing, you agree to LocalRoots's Terms of Service and Privacy Policy.
+          By continuing, you agree to the LocalRoots Terms of Service and Privacy Policy.
         </p>
       </div>
     </div>

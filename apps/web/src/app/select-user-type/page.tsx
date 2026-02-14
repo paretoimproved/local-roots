@@ -69,7 +69,7 @@ export default function SelectUserTypePage() {
       <div className="text-center mb-12">
         <h1 className="text-3xl font-bold">How will you use Local Roots?</h1>
         <p className="text-gray-500 mt-2 max-w-lg mx-auto">
-          Choose how you'd like to participate in our local food community
+          Choose how you would like to participate in our local food community
         </p>
       </div>
       
@@ -79,7 +79,7 @@ export default function SelectUserTypePage() {
             <div className="h-16 w-16 bg-[#FFF3F3] rounded-full flex items-center justify-center mb-4 group-hover:bg-[#FFEBEB] transition-colors">
               <span className="text-3xl">👨‍🌾</span>
             </div>
-            <h2 className="text-2xl font-bold mb-2 group-hover:text-farm-green transition-colors">I'm a Farmer</h2>
+            <h2 className="text-2xl font-bold mb-2 group-hover:text-farm-green transition-colors">I am a Farmer</h2>
             <p className="text-gray-500">
               I want to create a farm profile and offer CSA shares to customers.
             </p>
@@ -99,7 +99,7 @@ export default function SelectUserTypePage() {
             <div className="h-16 w-16 bg-[#F3F8FF] rounded-full flex items-center justify-center mb-4 group-hover:bg-[#EBF3FF] transition-colors">
               <span className="text-3xl">🧺</span>
             </div>
-            <h2 className="text-2xl font-bold mb-2 group-hover:text-farm-green transition-colors">I'm a Consumer</h2>
+            <h2 className="text-2xl font-bold mb-2 group-hover:text-farm-green transition-colors">I am a Consumer</h2>
             <p className="text-gray-500">
               I want to find and subscribe to local CSA shares from farms.
             </p>

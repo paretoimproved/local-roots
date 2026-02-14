@@ -68,7 +68,7 @@ describe('SearchBox', () => {
     const searchInput = screen.getByRole('searchbox')
     fireEvent.change(searchInput, { target: { value: 'brooklyn' } })
     
-    const clearButton = screen.getByRole('button')
+    const clearButton = screen.getByRole('button', { name: /clear search/i })
     expect(clearButton).toBeInTheDocument()
     
     // Check for sr-only text content
@@ -81,7 +81,7 @@ describe('SearchBox', () => {
     const searchInput = screen.getByRole('searchbox') as HTMLInputElement
     fireEvent.change(searchInput, { target: { value: 'brooklyn' } })
     
-    const clearButton = screen.getByRole('button')
+    const clearButton = screen.getByRole('button', { name: /clear search/i })
     fireEvent.click(clearButton)
     
     expect(searchInput.value).toBe('')

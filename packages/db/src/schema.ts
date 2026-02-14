@@ -1,7 +1,16 @@
-import { pgTable, text, varchar, timestamp, boolean, integer, serial, pgEnum } from "drizzle-orm/pg-core";
-import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { InferInsertModel, InferSelectModel } from "drizzle-orm";
 import { sql } from "drizzle-orm";
+import {
+  boolean,
+  integer,
+  pgEnum,
+  pgTable,
+  serial,
+  text,
+  timestamp,
+  varchar,
+} from "drizzle-orm/pg-core";
+import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 // Create the users table reference (assuming it's already set up with Clerk)
 export const users = pgTable("users", {
@@ -87,4 +96,4 @@ export const csaShareInsertSchema = createInsertSchema(csaShares);
 export const csaShareSelectSchema = createSelectSchema(csaShares);
 
 export const subscriptionInsertSchema = createInsertSchema(subscriptions);
-export const subscriptionSelectSchema = createSelectSchema(subscriptions); 
+export const subscriptionSelectSchema = createSelectSchema(subscriptions);

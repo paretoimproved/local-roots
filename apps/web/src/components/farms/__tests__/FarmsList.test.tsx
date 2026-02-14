@@ -5,11 +5,15 @@ import { FarmsList } from '../FarmsList'
 import { getFarms } from '@/api/farms.api'
 
 // Mock Next.js navigation
-const mockSearchParams = {
-  get: vi.fn(() => null),
-}
+let mockSearchParams = new URLSearchParams()
 
 vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    refresh: vi.fn(),
+  }),
+  usePathname: () => '/',
   useSearchParams: () => mockSearchParams,
 }))
 
@@ -57,7 +61,7 @@ describe('FarmsList', () => {
         },
       },
     })
-    mockSearchParams.get.mockReturnValue(null)
+    mockSearchParams = new URLSearchParams()
     vi.mocked(getFarms).mockResolvedValue({
       success: true,
       data: [],
@@ -118,7 +122,7 @@ describe('FarmsList', () => {
   })
 
   it('passes trimmed search query to the API', async () => {
-    mockSearchParams.get.mockReturnValue('  brooklyn  ')
+    mockSearchParams.set('search', '  brooklyn  ')
     vi.mocked(getFarms).mockResolvedValue({
       success: true,
       data: [],
@@ -129,11 +133,13 @@ describe('FarmsList', () => {
     renderWithQuery(<FarmsList />)
 
     await waitFor(() => {
-      expect(getFarms).toHaveBeenCalledWith({
-        cursor: undefined,
-        limit: 20,
-        search: 'brooklyn',
-      })
+      expect(getFarms).toHaveBeenCalledWith(
+        expect.objectContaining({
+          cursor: undefined,
+          limit: 20,
+          search: 'brooklyn',
+        })
+      )
     })
   })
 

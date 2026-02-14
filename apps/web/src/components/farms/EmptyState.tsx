@@ -21,7 +21,8 @@ export function EmptyState({ searchQuery }: EmptyStateProps) {
         <Search className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
         <h2 className="text-2xl font-semibold mb-2">No farms found</h2>
         <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-          We couldn't find any farms matching "{searchQuery}". Try adjusting your search terms or browse all available farms.
+          We could not find any farms matching {searchQuery}. Try adjusting your search terms or browse all available
+          farms.
         </p>
         <div className="space-x-3">
           <Button onClick={clearSearch} variant="outline">
@@ -35,9 +36,9 @@ export function EmptyState({ searchQuery }: EmptyStateProps) {
         <div className="mt-8 p-4 bg-muted/50 rounded-lg max-w-md mx-auto">
           <h3 className="font-medium mb-2">Search Tips:</h3>
           <ul className="text-sm text-muted-foreground space-y-1">
-            <li>• Try searching by city name (e.g., "Brooklyn", "Portland")</li>
+            <li>• Try searching by city name (e.g., Brooklyn, Portland)</li>
             <li>• Search by ZIP code for nearby farms</li>
-            <li>• Use farm type keywords (e.g., "organic", "sustainable")</li>
+            <li>• Use farm type keywords (e.g., organic, sustainable)</li>
           </ul>
         </div>
       </div>
@@ -53,7 +54,7 @@ export function EmptyState({ searchQuery }: EmptyStateProps) {
       
       <h2 className="text-2xl font-semibold mb-2">No farms available yet</h2>
       <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-        It looks like there aren't any farms in our network yet. Be the first to discover fresh, local produce!
+        It looks like there are not any farms in our network yet. Be the first to discover fresh, local produce!
       </p>
       
       <div className="space-y-3">
