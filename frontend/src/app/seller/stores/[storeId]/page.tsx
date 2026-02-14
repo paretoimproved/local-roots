@@ -967,6 +967,7 @@ export default function SellerStorePage() {
             <div className="flex flex-wrap gap-2">
               {/** Disable future steps until prerequisites are met. */}
               {/** Step 1 is always available. */}
+              {/** Note: we keep locked steps clickable so we can explain what to do next. */}
               <button
                 type="button"
                 className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
@@ -978,30 +979,66 @@ export default function SellerStorePage() {
               >
                 1. Location
               </button>
-              <button
-                type="button"
-                className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                  wizardStep === 2
-                    ? "lr-btn-primary"
-                    : "lr-chip text-[color:var(--lr-ink)]"
-                } disabled:opacity-50`}
-                onClick={() => goToStep(2, "setup-box")}
-                disabled={!setupProgress.hasLocation}
-              >
-                2. Box
-              </button>
-              <button
-                type="button"
-                className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                  wizardStep === 3
-                    ? "lr-btn-primary"
-                    : "lr-chip text-[color:var(--lr-ink)]"
-                } disabled:opacity-50`}
-                onClick={() => goToStep(3, "setup-go-live")}
-                disabled={!setupProgress.hasLocation || !setupProgress.hasPlan}
-              >
-                3. Go live
-              </button>
+              {(() => {
+                const locked = !setupProgress.hasLocation;
+                return (
+                  <button
+                    type="button"
+                    aria-disabled={locked}
+                    className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
+                      wizardStep === 2
+                        ? "lr-btn-primary"
+                        : "lr-chip text-[color:var(--lr-ink)]"
+                    } ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() => {
+                      if (locked) {
+                        setToast({
+                          kind: "error",
+                          message: "Add a pickup location to unlock box setup.",
+                        });
+                        goToStep(1, "setup-location");
+                        return;
+                      }
+                      goToStep(2, "setup-box");
+                    }}
+                  >
+                    2. Box
+                  </button>
+                );
+              })()}
+              {(() => {
+                const locked =
+                  !setupProgress.hasLocation || !setupProgress.hasPlan;
+                return (
+                  <button
+                    type="button"
+                    aria-disabled={locked}
+                    className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
+                      wizardStep === 3
+                        ? "lr-btn-primary"
+                        : "lr-chip text-[color:var(--lr-ink)]"
+                    } ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
+                    onClick={() => {
+                      if (locked) {
+                        setToast({
+                          kind: "error",
+                          message: !setupProgress.hasLocation
+                            ? "Add a pickup location first."
+                            : "Create a box to unlock go-live.",
+                        });
+                        goToStep(
+                          setupProgress.hasLocation ? 2 : 1,
+                          setupProgress.hasLocation ? "setup-box" : "setup-location",
+                        );
+                        return;
+                      }
+                      goToStep(3, "setup-go-live");
+                    }}
+                  >
+                    3. Go live
+                  </button>
+                );
+              })()}
             </div>
           </div>
 
@@ -1260,6 +1297,7 @@ export default function SellerStorePage() {
 
                 <button
                   className="mt-4 lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                  style={{ width: isOnboarding && wizardStep === 1 ? "100%" : undefined }}
                   disabled={
                     savingLocation ||
                     !locAddress1.trim() ||
@@ -1915,6 +1953,7 @@ export default function SellerStorePage() {
             <button
               type="button"
               className="mt-4 lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              style={{ width: isOnboarding && wizardStep === 2 ? "100%" : undefined }}
               disabled={
                 creatingPlan ||
                 !planTitle.trim() ||
@@ -2021,6 +2060,7 @@ export default function SellerStorePage() {
                 className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
                 onClick={() => generateNextCycle(primaryPlan.id)}
                 disabled={generatingCycle}
+                style={{ width: isOnboarding && wizardStep === 3 ? "100%" : undefined }}
               >
                 {generatingCycle ? "Generating…" : "Generate first cycle and go live"}
               </button>
