@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -82,7 +81,7 @@ func (a SellerAPI) CreateStore(w http.ResponseWriter, r *http.Request, u AuthUse
 	}
 
 	var in createStoreRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -131,7 +130,7 @@ func (a SellerAPI) UpdateStore(w http.ResponseWriter, r *http.Request, u AuthUse
 	}
 
 	var in updateStoreRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -260,7 +259,7 @@ func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, 
 	}
 
 	var in createPickupLocationRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -430,7 +429,7 @@ func (a SellerAPI) CreatePickupWindow(w http.ResponseWriter, r *http.Request, u 
 	}
 
 	var in createPickupWindowRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -578,7 +577,7 @@ func (a SellerAPI) CreateProduct(w http.ResponseWriter, r *http.Request, u AuthU
 	}
 
 	var in createProductRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -740,7 +739,7 @@ func (a SellerAPI) CreateOffering(w http.ResponseWriter, r *http.Request, u Auth
 	}
 
 	var in createOfferingRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}

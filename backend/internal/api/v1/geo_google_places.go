@@ -51,7 +51,7 @@ func (a GeoAPI) PlacesAutocomplete(w http.ResponseWriter, r *http.Request, u Aut
 	}
 
 	var in placesAutocompleteRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -211,7 +211,7 @@ func (a GeoAPI) PlacesDetails(w http.ResponseWriter, r *http.Request, u AuthUser
 	}
 
 	var in placesDetailsRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}

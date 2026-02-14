@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -49,7 +48,7 @@ func (a AuthAPI) Register(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var in registerRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -120,7 +119,7 @@ func (a AuthAPI) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var in loginRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
