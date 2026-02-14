@@ -1,17 +1,16 @@
 import Link from "next/link";
+import { ApiStatusChip } from "@/components/api-status-chip";
 
 export default function Home() {
-  const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8080";
-
   return (
     <div className="grid gap-10">
-      <section className="rounded-2xl bg-white p-8 shadow-sm ring-1 ring-zinc-950/5">
-        <h1 className="text-3xl font-semibold tracking-tight">
+      <section className="rounded-2xl bg-white p-8 text-zinc-950 shadow-sm ring-1 ring-zinc-950/5">
+        <h1 className="text-3xl font-semibold tracking-tight text-zinc-950">
           Produce and food, for local pickup.
         </h1>
-        <p className="mt-3 max-w-2xl text-zinc-600">
+        <p className="mt-3 max-w-2xl text-zinc-700">
           Sellers publish pickup windows (date, time, location) and attach
-          limited-batch offerings. Buyers pay up front and pick up locally.
+          limited-batch offerings. Buyers order ahead and pick up locally.
         </p>
         <div className="mt-6 flex flex-wrap gap-3">
           <Link
@@ -20,14 +19,7 @@ export default function Home() {
           >
             Browse stores
           </Link>
-          <a
-            className="inline-flex items-center justify-center rounded-full px-5 py-2 text-sm font-medium ring-1 ring-zinc-950/15 hover:bg-zinc-50"
-            href={`${apiBase}/health`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            API health
-          </a>
+          <ApiStatusChip />
         </div>
       </section>
 
