@@ -3,13 +3,29 @@ name: Deploy Pipeline
 on:
   push:
     branches: [main]
+    paths:
+      - "frontend/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/deploy.yml"
   pull_request:
     branches: [main]
+    paths:
+      - "frontend/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
 env:
   VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
   VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   # Step 1: Run all tests and quality checks
@@ -128,12 +144,31 @@ jobs:
       - name: Deploy Project Artifacts to Vercel
         id: deploy
         if: steps.vercel_secrets.outputs.ok == 'true'
+        shell: bash
         run: |
-          DEPLOYMENT_URL=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
-          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          set +e
+          out=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 2>&1)
+          ec=$?
+          set -e
+
+          echo "$out"
+
+          if [[ $ec -ne 0 ]]; then
+            if echo "$out" | grep -q "api-deployments-free-per-day"; then
+              echo "skipped=true" >> "$GITHUB_OUTPUT"
+              echo "deployment_url=" >> "$GITHUB_OUTPUT"
+              echo "Skipping Vercel deploy: deployment quota exceeded for current plan."
+              exit 0
+            fi
+            exit $ec
+          fi
+
+          url=$(echo "$out" | tail -n 1 | tr -d '\r')
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Comment PR with staging URL
-        if: steps.vercel_secrets.outputs.ok == 'true'
+        if: steps.vercel_secrets.outputs.ok == 'true' && steps.deploy.outputs.skipped != 'true'
         uses: actions/github-script@v7
         with:
           script: |
@@ -210,12 +245,31 @@ jobs:
       - name: Deploy Project Artifacts to Vercel
         id: deploy-prod
         if: steps.vercel_secrets.outputs.ok == 'true'
+        shell: bash
         run: |
-          DEPLOYMENT_URL=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
-          echo "deployment_url=$DEPLOYMENT_URL" >> $GITHUB_OUTPUT
+          set +e
+          out=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} 2>&1)
+          ec=$?
+          set -e
+
+          echo "$out"
+
+          if [[ $ec -ne 0 ]]; then
+            if echo "$out" | grep -q "api-deployments-free-per-day"; then
+              echo "skipped=true" >> "$GITHUB_OUTPUT"
+              echo "deployment_url=" >> "$GITHUB_OUTPUT"
+              echo "Skipping Vercel deploy: deployment quota exceeded for current plan."
+              exit 0
+            fi
+            exit $ec
+          fi
+
+          url=$(echo "$out" | tail -n 1 | tr -d '\r')
+          echo "skipped=false" >> "$GITHUB_OUTPUT"
+          echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Run production smoke tests
-        if: steps.vercel_secrets.outputs.ok == 'true'
+        if: steps.vercel_secrets.outputs.ok == 'true' && steps.deploy-prod.outputs.skipped != 'true'
         run: |
           echo "Running smoke tests on ${{ steps.deploy-prod.outputs.deployment_url }}"
           # Add curl commands to test critical endpoints
@@ -223,7 +277,7 @@ jobs:
           curl -f "${{ steps.deploy-prod.outputs.deployment_url }}/stores" || exit 1
 
       - name: Notify deployment success
-        if: steps.vercel_secrets.outputs.ok == 'true'
+        if: steps.vercel_secrets.outputs.ok == 'true' && steps.deploy-prod.outputs.skipped != 'true'
         uses: actions/github-script@v7
         with:
           script: |
