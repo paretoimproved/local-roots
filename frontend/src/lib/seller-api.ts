@@ -58,6 +58,7 @@ export type SellerSubscriptionPlan = {
   duration_minutes: number;
   cutoff_hours: number;
   is_active: boolean;
+  is_live: boolean;
   created_at: string;
   updated_at: string;
   next_start_at: string;

@@ -53,6 +53,7 @@ export type SubscriptionPlan = {
   duration_minutes: number;
   cutoff_hours: number;
   is_active: boolean;
+  is_live: boolean;
   next_start_at: string;
   pickup_location: PickupLocation;
 };

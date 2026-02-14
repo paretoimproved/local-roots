@@ -138,6 +138,13 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         </div>
       ) : null}
 
+      {!plan.is_live ? (
+        <div className="mt-4 rounded-xl bg-amber-50/70 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+          This box is not live yet. Check back soon, or scan the farmstand QR
+          once the seller goes live.
+        </div>
+      ) : null}
+
       <div className="mt-4 grid gap-3">
         <label className="grid gap-1">
           <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
@@ -177,10 +184,14 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         <button
           type="button"
           className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
-          disabled={submitting || !email.trim()}
+          disabled={submitting || !email.trim() || !plan.is_live}
           onClick={subscribe}
         >
-          {submitting ? "Starting…" : "Start subscription"}
+          {!plan.is_live
+            ? "Not live yet"
+            : submitting
+              ? "Starting…"
+              : "Start subscription"}
         </button>
         <div className="text-xs text-[color:var(--lr-muted)]">
           Cancel/skip/refunds follow the pickup window cutoff policy.
@@ -189,4 +200,3 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
     </section>
   );
 }
-

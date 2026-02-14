@@ -103,6 +103,7 @@ export default function SellerStorePage() {
 
   const [selectedWindowId, setSelectedWindowId] = useState<string>("");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [pickupCodeByOrderId, setPickupCodeByOrderId] = useState<
     Record<string, string>
   >({});
@@ -144,7 +145,7 @@ export default function SellerStorePage() {
   const [planCadence, setPlanCadence] = useState<
     "weekly" | "biweekly" | "monthly"
   >("weekly");
-  const [planPriceCents, setPlanPriceCents] = useState(0);
+  const [planPriceUsd, setPlanPriceUsd] = useState("");
   const [planLimit, setPlanLimit] = useState(25);
   const [planLocationId, setPlanLocationId] = useState("");
   const [planFirstStartLocal, setPlanFirstStartLocal] = useState("");
@@ -189,6 +190,27 @@ export default function SellerStorePage() {
     if (typeof window === "undefined") return "";
     return window.location.origin;
   }, []);
+
+  const primaryPlan = useMemo(() => {
+    return (plans ?? []).find((p) => p.is_active) ?? null;
+  }, [plans]);
+
+  const setupProgress = useMemo(() => {
+    const hasLocation = !!locations?.length;
+    const hasPlan = !!primaryPlan;
+    const isLive = !!primaryPlan?.is_live;
+    const done = [hasLocation, hasPlan, isLive].filter(Boolean).length;
+    const total = 3;
+    const pct = total ? Math.round((done / total) * 100) : 0;
+    return { hasLocation, hasPlan, isLive, done, total, pct };
+  }, [locations, primaryPlan]);
+
+  function scrollToSection(id: string) {
+    const el =
+      typeof document !== "undefined" ? document.getElementById(id) : null;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
 
   useEffect(() => {
     const t = session.getToken();
@@ -331,12 +353,18 @@ export default function SellerStorePage() {
     if (!token) return;
     setError(null);
     try {
+      const parsed = Number.parseFloat(planPriceUsd || "0");
+      const cents = Math.round(parsed * 100);
+      if (!Number.isFinite(cents) || cents < 0) {
+        setError("Box price must be a valid USD amount (e.g. 25.00).");
+        return;
+      }
       await sellerApi.createSubscriptionPlan(token, storeId, {
         pickup_location_id: planLocationId,
         title: planTitle,
         description: planDesc || null,
         cadence: planCadence,
-        price_cents: planPriceCents,
+        price_cents: cents,
         subscriber_limit: planLimit,
         first_start_at_local: planFirstStartLocal,
         duration_minutes: planDurationMin,
@@ -344,7 +372,7 @@ export default function SellerStorePage() {
       });
       setPlanTitle("");
       setPlanDesc("");
-      setPlanPriceCents(0);
+      setPlanPriceUsd("");
       setPlanFirstStartLocal("");
       await refreshAll(token);
     } catch (e: unknown) {
@@ -356,8 +384,9 @@ export default function SellerStorePage() {
     if (!token) return;
     setError(null);
     try {
-      await sellerApi.generateNextCycle(token, storeId, planId);
+      const res = await sellerApi.generateNextCycle(token, storeId, planId);
       await refreshAll(token);
+      setSelectedWindowId(res.pickup_window_id);
     } catch (e: unknown) {
       setError(String(e));
     }
@@ -458,6 +487,18 @@ export default function SellerStorePage() {
           </button>
           <button
             type="button"
+            className={`lr-btn px-4 py-2 text-sm font-medium ${
+              showAdvanced
+                ? "lr-btn-primary"
+                : "lr-chip text-[color:var(--lr-ink)]"
+            }`}
+            onClick={() => setShowAdvanced((v) => !v)}
+            aria-pressed={showAdvanced}
+          >
+            Advanced tools
+          </button>
+          <button
+            type="button"
             className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
             onClick={() => {
               session.clearToken();
@@ -476,6 +517,64 @@ export default function SellerStorePage() {
       ) : null}
 
       <section className="lr-card lr-card-strong lr-animate sticky top-3 z-10 grid gap-3 p-4 md:p-5">
+        <div className="grid gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
+                Setup progress
+              </div>
+              <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                {setupProgress.done}/{setupProgress.total} complete. Go live to
+                let buyers subscribe.
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
+                  setupProgress.hasLocation
+                    ? "lr-chip text-[color:var(--lr-ink)]"
+                    : "lr-btn-primary"
+                }`}
+                onClick={() => scrollToSection("setup-location")}
+              >
+                1. Pickup location
+              </button>
+              <button
+                type="button"
+                className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
+                  setupProgress.hasPlan
+                    ? "lr-chip text-[color:var(--lr-ink)]"
+                    : "lr-btn-primary"
+                }`}
+                onClick={() => scrollToSection("setup-box")}
+              >
+                2. Create box
+              </button>
+              <button
+                type="button"
+                className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
+                  setupProgress.isLive
+                    ? "lr-chip text-[color:var(--lr-ink)]"
+                    : "lr-btn-primary"
+                }`}
+                onClick={() => scrollToSection("setup-box")}
+              >
+                3. Go live
+              </button>
+            </div>
+          </div>
+
+          <div className="h-2 overflow-hidden rounded-full bg-[rgba(38,28,10,0.10)]">
+            <div
+              className="h-full rounded-full bg-[color:var(--lr-leaf)] transition-[width] duration-500"
+              style={{ width: `${setupProgress.pct}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="h-px w-full bg-[rgba(38,28,10,0.10)]" />
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
@@ -530,13 +629,15 @@ export default function SellerStorePage() {
           </div>
         ) : (
           <div className="text-sm text-[color:var(--lr-muted)]">
-            Create a pickup window below, then select it here.
+            Generate a box cycle (go live) to create a pickup window, then
+            select it here. Or turn on Advanced tools to create windows
+            manually.
           </div>
         )}
       </section>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <section className="lr-card lr-animate grid gap-4 p-6">
+        <section id="setup-location" className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Pickup locations</h2>
             <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
@@ -642,6 +743,7 @@ export default function SellerStorePage() {
           </div>
         </section>
 
+        {showAdvanced ? (
         <section className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Pickup windows</h2>
@@ -806,7 +908,9 @@ export default function SellerStorePage() {
             </button>
           </div>
         </section>
+        ) : null}
 
+        {showAdvanced ? (
         <section className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Products</h2>
@@ -876,7 +980,9 @@ export default function SellerStorePage() {
             </button>
           </div>
         </section>
+        ) : null}
 
+        {showAdvanced ? (
         <section className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Offerings</h2>
@@ -988,8 +1094,9 @@ export default function SellerStorePage() {
             </button>
           </div>
         </section>
+        ) : null}
 
-        <section className="lr-card lr-animate grid gap-4 p-6">
+        <section id="setup-box" className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Subscription boxes</h2>
             <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
@@ -1011,6 +1118,15 @@ export default function SellerStorePage() {
                         <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-muted)]">
                           {p.cadence}
                         </span>
+                        {p.is_live ? (
+                          <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-leaf)]">
+                            live
+                          </span>
+                        ) : (
+                          <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-clay)]">
+                            draft
+                          </span>
+                        )}
                         {!p.is_active ? (
                           <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-clay)]">
                             inactive
@@ -1029,27 +1145,46 @@ export default function SellerStorePage() {
                           target="_blank"
                           rel="noreferrer"
                         >
-                          Buyer page
+                          {p.is_live ? "Buyer page" : "Preview buyer page"}
                         </Link>
                         <button
                           type="button"
                           className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
                           onClick={() => generateNextCycle(p.id)}
                         >
-                          Generate next cycle
+                          {p.is_live
+                            ? "Generate next cycle"
+                            : "Go live (generate first cycle)"}
                         </button>
                       </div>
                     </div>
 
                     <div className="grid gap-2 justify-items-end">
-                      <QrCode
-                        value={siteOrigin ? `${siteOrigin}/boxes/${p.id}` : `/boxes/${p.id}`}
-                        size={140}
-                        label="Farmstand QR"
-                      />
-                      <div className="max-w-[14rem] text-right text-xs text-[color:var(--lr-muted)]">
-                        Tip: print this QR at the farmstand.
-                      </div>
+                      {p.is_live ? (
+                        <>
+                          <QrCode
+                            value={
+                              siteOrigin
+                                ? `${siteOrigin}/boxes/${p.id}`
+                                : `/boxes/${p.id}`
+                            }
+                            size={140}
+                            label="Farmstand QR"
+                          />
+                          <div className="max-w-[14rem] text-right text-xs text-[color:var(--lr-muted)]">
+                            Tip: print this QR at the farmstand.
+                          </div>
+                        </>
+                      ) : (
+                        <div className="lr-chip grid gap-2 rounded-2xl p-4 text-right">
+                          <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
+                            Farmstand QR
+                          </div>
+                          <div className="text-xs text-[color:var(--lr-muted)]">
+                            Go live to enable the buyer QR.
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </li>
@@ -1126,14 +1261,14 @@ export default function SellerStorePage() {
               </label>
               <label className="grid gap-1">
                 <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
-                  Price (cents)
+                  Price (USD)
                 </span>
                 <input
                   className="lr-field px-3 py-2 text-sm"
-                  type="number"
-                  min={0}
-                  value={planPriceCents}
-                  onChange={(e) => setPlanPriceCents(Number(e.target.value))}
+                  inputMode="decimal"
+                  value={planPriceUsd}
+                  onChange={(e) => setPlanPriceUsd(e.target.value)}
+                  placeholder="25.00"
                 />
               </label>
               <label className="grid gap-1">

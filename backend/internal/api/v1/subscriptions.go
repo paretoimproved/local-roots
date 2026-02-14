@@ -34,6 +34,7 @@ type SubscriptionPlanPublic struct {
 	DurationMin     int       `json:"duration_minutes"`
 	CutoffHours     int       `json:"cutoff_hours"`
 	IsActive        bool      `json:"is_active"`
+	IsLive          bool      `json:"is_live"`
 	NextStartAt     time.Time `json:"next_start_at"`
 	PickupLocation  struct {
 		ID       string  `json:"id"`
@@ -70,6 +71,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 			sp.duration_minutes,
 			sp.cutoff_hours,
 			sp.is_active,
+			sp.is_live,
 			pl.id::text,
 			pl.label,
 			pl.address1,
@@ -81,6 +83,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 		join pickup_locations pl on pl.id = sp.pickup_location_id
 		where sp.store_id = $1::uuid
 			and sp.is_active = true
+			and sp.is_live = true
 		order by sp.created_at desc
 		limit 50
 	`, storeID)
@@ -106,6 +109,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 			&sp.DurationMin,
 			&sp.CutoffHours,
 			&sp.IsActive,
+			&sp.IsLive,
 			&sp.PickupLocation.ID,
 			&sp.PickupLocation.Label,
 			&sp.PickupLocation.Address1,
@@ -158,6 +162,7 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 			sp.duration_minutes,
 			sp.cutoff_hours,
 			sp.is_active,
+			sp.is_live,
 			pl.id::text,
 			pl.label,
 			pl.address1,
@@ -181,6 +186,7 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 		&sp.DurationMin,
 		&sp.CutoffHours,
 		&sp.IsActive,
+		&sp.IsLive,
 		&sp.PickupLocation.ID,
 		&sp.PickupLocation.Label,
 		&sp.PickupLocation.Address1,
@@ -271,6 +277,7 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		durationMin      int
 		cutoffHours      int
 		isActive         bool
+		isLive           bool
 	)
 	if err := tx.QueryRow(ctx, `
 		select
@@ -285,6 +292,7 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 			sp.duration_minutes,
 			sp.cutoff_hours,
 			sp.is_active
+			, sp.is_live
 		from subscription_plans sp
 		join pickup_locations pl on pl.id = sp.pickup_location_id
 		where sp.id = $1::uuid
@@ -301,6 +309,7 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		&durationMin,
 		&cutoffHours,
 		&isActive,
+		&isLive,
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "plan not found")
@@ -311,6 +320,10 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	if !isActive {
 		resp.BadRequest(w, "plan is not active")
+		return
+	}
+	if !isLive {
+		resp.BadRequest(w, "plan is not live yet")
 		return
 	}
 
@@ -414,6 +427,7 @@ type SubscriptionPlanSeller struct {
 	DurationMin      int       `json:"duration_minutes"`
 	CutoffHours      int       `json:"cutoff_hours"`
 	IsActive         bool      `json:"is_active"`
+	IsLive           bool      `json:"is_live"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	NextStartAt      time.Time `json:"next_start_at"`
@@ -473,6 +487,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 			sp.duration_minutes,
 			sp.cutoff_hours,
 			sp.is_active,
+			sp.is_live,
 			sp.created_at,
 			sp.updated_at,
 			pl.id::text,
@@ -512,6 +527,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 			&sp.DurationMin,
 			&sp.CutoffHours,
 			&sp.IsActive,
+			&sp.IsLive,
 			&sp.CreatedAt,
 			&sp.UpdatedAt,
 			&sp.PickupLocation.ID,
@@ -684,6 +700,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 	out.DurationMin = in.DurationMinutes
 	out.CutoffHours = in.CutoffHours
 	out.IsActive = true
+	out.IsLive = false
 
 	if err := tx.QueryRow(ctx, `
 		insert into subscription_plans (
@@ -937,6 +954,16 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 	}
 	if rows.Err() != nil {
 		resp.Internal(w, rows.Err())
+		return
+	}
+
+	// Once a cycle exists, the plan is eligible for buyers. This is our MVP "go live" gate.
+	if _, err := tx.Exec(ctx, `
+		update subscription_plans
+		set is_live = true
+		where id = $1::uuid and store_id = $2::uuid
+	`, planID, storeID); err != nil {
+		resp.Internal(w, err)
 		return
 	}
 
