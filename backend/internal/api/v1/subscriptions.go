@@ -1522,7 +1522,7 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 			stripe_payment_intent_id
 		)
 		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', $6, $7, $8, $9, $10::uuid, $11)
-		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, created_at
+		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, captured_cents, created_at
 	`, in.storeID, in.pickupWindowID, in.buyerEmail, in.buyerName, in.buyerPhone, paymentMethod, paymentStatus, subtotal, total, subID, stripePI).Scan(
 		&out.ID,
 		&out.BuyerToken,
@@ -1530,6 +1530,7 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 		&out.Status,
 		&out.PaymentMethod,
 		&out.PaymentStatus,
+		&out.CapturedCents,
 		&out.CreatedAt,
 	); err != nil {
 		return Order{}, err

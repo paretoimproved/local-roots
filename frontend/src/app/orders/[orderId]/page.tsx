@@ -174,12 +174,24 @@ export default function OrderPage() {
               Payment:{" "}
               {data.order.payment_method === "card" ? (
                 <span className="font-medium">
-                  Card {data.order.payment_status} (captured on pickup confirmation)
+                  {data.order.status === "no_show" && data.order.captured_cents > 0
+                    ? `No-show fee charged: ${formatMoney(data.order.captured_cents)}.`
+                    : data.order.payment_status === "paid"
+                      ? `Card paid${data.order.captured_cents ? `: ${formatMoney(data.order.captured_cents)} captured.` : "."}`
+                      : `Card ${data.order.payment_status} (captured on pickup confirmation).`}
                 </span>
               ) : (
                 <span className="font-medium">Pay at pickup</span>
               )}
               .
+              {data.order.payment_method === "card" ? (
+                <span>
+                  {" "}
+                  <Link className="underline" href="/policies">
+                    Policies
+                  </Link>
+                </span>
+              ) : null}
             </div>
           </section>
 

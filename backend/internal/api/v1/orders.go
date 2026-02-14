@@ -51,6 +51,7 @@ type Order struct {
 	PaymentStatus  string      `json:"payment_status"`
 	SubtotalCents  int         `json:"subtotal_cents"`
 	TotalCents     int         `json:"total_cents"`
+	CapturedCents  int         `json:"captured_cents"`
 	CreatedAt      time.Time   `json:"created_at"`
 	Items          []OrderItem `json:"items"`
 }
@@ -218,7 +219,7 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	err = tx.QueryRow(ctx, `
 		insert into orders (store_id, pickup_window_id, buyer_email, buyer_name, buyer_phone, status, payment_method, payment_status, subtotal_cents, total_cents)
 		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', 'pay_at_pickup', 'unpaid', $6, $7)
-		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, created_at
+		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, captured_cents, created_at
 	`, storeID, windowID, buyerEmail, in.Buyer.Name, in.Buyer.Phone, subtotal, total).Scan(
 		&out.ID,
 		&out.BuyerToken,
@@ -226,6 +227,7 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		&out.Status,
 		&out.PaymentMethod,
 		&out.PaymentStatus,
+		&out.CapturedCents,
 		&out.CreatedAt,
 	)
 	if err != nil {

@@ -61,22 +61,26 @@ func (a StripeWebhookAPI) StripeWebhook(w http.ResponseWriter, r *http.Request) 
 	case "payment_intent.requires_capture":
 		var pi stripe.PaymentIntent
 		if err := json.Unmarshal(ev.Data.Raw, &pi); err == nil && pi.ID != "" {
-			_ = a.updatePaymentByPI(ctx, pi.ID, "authorized", false)
+			zero := 0
+			_ = a.updatePaymentByPI(ctx, pi.ID, "authorized", &zero, false)
 		}
 	case "payment_intent.succeeded":
 		var pi stripe.PaymentIntent
 		if err := json.Unmarshal(ev.Data.Raw, &pi); err == nil && pi.ID != "" {
-			_ = a.updatePaymentByPI(ctx, pi.ID, "paid", false)
+			amt := int(pi.AmountReceived)
+			_ = a.updatePaymentByPI(ctx, pi.ID, "paid", &amt, false)
 		}
 	case "payment_intent.canceled":
 		var pi stripe.PaymentIntent
 		if err := json.Unmarshal(ev.Data.Raw, &pi); err == nil && pi.ID != "" {
-			_ = a.updatePaymentByPI(ctx, pi.ID, "voided", true)
+			zero := 0
+			_ = a.updatePaymentByPI(ctx, pi.ID, "voided", &zero, true)
 		}
 	case "payment_intent.payment_failed":
 		var pi stripe.PaymentIntent
 		if err := json.Unmarshal(ev.Data.Raw, &pi); err == nil && pi.ID != "" {
-			_ = a.updatePaymentByPI(ctx, pi.ID, "failed", true)
+			zero := 0
+			_ = a.updatePaymentByPI(ctx, pi.ID, "failed", &zero, true)
 		}
 	default:
 		// ignore other events for MVP
@@ -85,7 +89,7 @@ func (a StripeWebhookAPI) StripeWebhook(w http.ResponseWriter, r *http.Request) 
 	resp.OK(w, map[string]any{"ok": true})
 }
 
-func (a StripeWebhookAPI) updatePaymentByPI(ctx context.Context, paymentIntentID string, paymentStatus string, cancelIfPlaced bool) error {
+func (a StripeWebhookAPI) updatePaymentByPI(ctx context.Context, paymentIntentID string, paymentStatus string, capturedCents *int, cancelIfPlaced bool) error {
 	tx, err := a.DB.Begin(ctx)
 	if err != nil {
 		return err
@@ -112,13 +116,25 @@ func (a StripeWebhookAPI) updatePaymentByPI(ctx context.Context, paymentIntentID
 		return err
 	}
 
-	// Always sync the payment_status; this is safe and makes UI accurate.
-	if _, err := tx.Exec(ctx, `
-		update orders
-		set payment_status = $2, updated_at = now()
-		where id = $1::uuid
-	`, orderID, paymentStatus); err != nil {
-		return err
+	// Sync payment fields from Stripe; this keeps UI accurate after async changes.
+	if capturedCents != nil {
+		if _, err := tx.Exec(ctx, `
+			update orders
+			set payment_status = $2,
+				captured_cents = $3,
+				updated_at = now()
+			where id = $1::uuid
+		`, orderID, paymentStatus, *capturedCents); err != nil {
+			return err
+		}
+	} else {
+		if _, err := tx.Exec(ctx, `
+			update orders
+			set payment_status = $2, updated_at = now()
+			where id = $1::uuid
+		`, orderID, paymentStatus); err != nil {
+			return err
+		}
 	}
 
 	// If the payment failed/voided before seller fulfillment started, cancel and release inventory.

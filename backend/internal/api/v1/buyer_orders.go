@@ -64,6 +64,7 @@ func (a BuyerOrdersAPI) GetOrder(w http.ResponseWriter, r *http.Request) {
 			payment_status,
 			subtotal_cents,
 			total_cents,
+			captured_cents,
 			created_at
 		from orders
 		where id = $1::uuid
@@ -83,6 +84,7 @@ func (a BuyerOrdersAPI) GetOrder(w http.ResponseWriter, r *http.Request) {
 		&o.PaymentStatus,
 		&o.SubtotalCents,
 		&o.TotalCents,
+		&o.CapturedCents,
 		&o.CreatedAt,
 	)
 	if err != nil {
