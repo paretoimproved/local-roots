@@ -33,6 +33,10 @@ func NewHandler(deps Deps) http.Handler {
 	orders := v1.OrdersAPI{DB: deps.DB}
 	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/orders", orders.CreateOrder)
 
+	buyerOrders := v1.BuyerOrdersAPI{DB: deps.DB}
+	mux.HandleFunc("GET /v1/orders/{orderId}", buyerOrders.GetOrder)
+	mux.HandleFunc("POST /v1/orders/{orderId}/review", buyerOrders.CreateReview)
+
 	authAPI := v1.AuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("POST /v1/auth/register", authAPI.Register)
 	mux.HandleFunc("POST /v1/auth/login", authAPI.Login)
@@ -53,6 +57,10 @@ func NewHandler(deps Deps) http.Handler {
 
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(seller.ListOfferings))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(seller.CreateOffering))
+
+	sellerOrders := v1.SellerOrdersAPI{DB: deps.DB}
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(sellerOrders.ListOrdersForPickupWindow))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(sellerOrders.UpdateOrderStatus))
 
 	return withCORS(deps.Config, mux)
 }

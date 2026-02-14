@@ -1,0 +1,354 @@
+package v1
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/paretoimproved/local-roots/backend/internal/resp"
+)
+
+type SellerOrdersAPI struct {
+	DB *pgxpool.Pool
+}
+
+type SellerOrder struct {
+	ID             string      `json:"id"`
+	StoreID        string      `json:"store_id"`
+	PickupWindowID string      `json:"pickup_window_id"`
+	BuyerEmail     string      `json:"buyer_email"`
+	BuyerName      *string     `json:"buyer_name"`
+	BuyerPhone     *string     `json:"buyer_phone"`
+	Status         string      `json:"status"`
+	PaymentMethod  string      `json:"payment_method"`
+	PaymentStatus  string      `json:"payment_status"`
+	SubtotalCents  int         `json:"subtotal_cents"`
+	TotalCents     int         `json:"total_cents"`
+	CreatedAt      time.Time   `json:"created_at"`
+	Items          []OrderItem `json:"items"`
+}
+
+func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *http.Request, u AuthUser) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if u.Role != "seller" && u.Role != "admin" {
+		resp.Forbidden(w, "seller access required")
+		return
+	}
+
+	storeID := r.PathValue("storeId")
+	windowID := r.PathValue("pickupWindowId")
+	if storeID == "" || windowID == "" {
+		resp.BadRequest(w, "missing storeId or pickupWindowId")
+		return
+	}
+
+	var ownerID string
+	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "store not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+	if ownerID != u.ID {
+		resp.Forbidden(w, "not your store")
+		return
+	}
+
+	rows, err := a.DB.Query(r.Context(), `
+		select
+			o.id::text,
+			o.store_id::text,
+			o.pickup_window_id::text,
+			o.buyer_email,
+			o.buyer_name,
+			o.buyer_phone,
+			o.status,
+			o.payment_method,
+			o.payment_status,
+			o.subtotal_cents,
+			o.total_cents,
+			o.created_at
+		from orders o
+		where o.store_id = $1::uuid and o.pickup_window_id = $2::uuid
+		order by o.created_at desc
+		limit 200
+	`, storeID, windowID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
+
+	var out []SellerOrder
+	for rows.Next() {
+		var o SellerOrder
+		if err := rows.Scan(
+			&o.ID,
+			&o.StoreID,
+			&o.PickupWindowID,
+			&o.BuyerEmail,
+			&o.BuyerName,
+			&o.BuyerPhone,
+			&o.Status,
+			&o.PaymentMethod,
+			&o.PaymentStatus,
+			&o.SubtotalCents,
+			&o.TotalCents,
+			&o.CreatedAt,
+		); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		out = append(out, o)
+	}
+	if rows.Err() != nil {
+		resp.Internal(w, rows.Err())
+		return
+	}
+
+	// Load items per order (N+1 is fine for small MVP; keeps SQL simple).
+	for i := range out {
+		items, err := a.listOrderItems(r.Context(), out[i].ID)
+		if err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		out[i].Items = items
+	}
+
+	resp.OK(w, out)
+}
+
+func (a SellerOrdersAPI) listOrderItems(ctx context.Context, orderID string) ([]OrderItem, error) {
+	rows, err := a.DB.Query(ctx, `
+		select id::text, offering_id::text, product_title, product_unit, price_cents, quantity, line_total_cents
+		from order_items
+		where order_id = $1::uuid
+		order by created_at asc
+	`, orderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []OrderItem
+	for rows.Next() {
+		var it OrderItem
+		var offeringID *string
+		if err := rows.Scan(&it.ID, &offeringID, &it.ProductTitle, &it.ProductUnit, &it.PriceCents, &it.Quantity, &it.LineTotalCents); err != nil {
+			return nil, err
+		}
+		it.OfferingID = offeringID
+		out = append(out, it)
+	}
+	if rows.Err() != nil {
+		return nil, rows.Err()
+	}
+	return out, nil
+}
+
+type UpdateOrderStatusRequest struct {
+	Status string `json:"status"`
+}
+
+// UpdateOrderStatus supports:
+// - placed -> ready
+// - placed -> canceled
+// - ready  -> picked_up
+// - ready  -> no_show
+func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Request, u AuthUser) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if u.Role != "seller" && u.Role != "admin" {
+		resp.Forbidden(w, "seller access required")
+		return
+	}
+
+	storeID := r.PathValue("storeId")
+	orderID := r.PathValue("orderId")
+	if storeID == "" || orderID == "" {
+		resp.BadRequest(w, "missing storeId or orderId")
+		return
+	}
+
+	var in UpdateOrderStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+	in.Status = strings.TrimSpace(in.Status)
+	if in.Status == "" {
+		resp.BadRequest(w, "status is required")
+		return
+	}
+
+	var ownerID string
+	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "store not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+	if ownerID != u.ID {
+		resp.Forbidden(w, "not your store")
+		return
+	}
+
+	ctx := r.Context()
+	tx, err := a.DB.Begin(ctx)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	var currentStatus string
+	var pickupWindowID string
+	if err := tx.QueryRow(ctx, `
+		select status, pickup_window_id::text
+		from orders
+		where id = $1::uuid and store_id = $2::uuid
+		for update
+	`, orderID, storeID).Scan(&currentStatus, &pickupWindowID); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "order not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	if !isAllowedTransition(currentStatus, in.Status) {
+		resp.BadRequest(w, "invalid status transition")
+		return
+	}
+
+	// Adjust inventory reservations/availability based on transition.
+	if currentStatus == "placed" && (in.Status == "canceled") {
+		if err := adjustOfferingsForOrder(ctx, tx, orderID, "release"); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+	}
+	if currentStatus == "ready" && (in.Status == "no_show") {
+		if err := adjustOfferingsForOrder(ctx, tx, orderID, "release"); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+	}
+	if currentStatus == "ready" && (in.Status == "picked_up") {
+		if err := adjustOfferingsForOrder(ctx, tx, orderID, "finalize"); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+	}
+
+	if _, err := tx.Exec(ctx, `
+		update orders
+		set status = $2, updated_at = now()
+		where id = $1::uuid
+	`, orderID, in.Status); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, map[string]any{
+		"id":               orderID,
+		"store_id":         storeID,
+		"pickup_window_id": pickupWindowID,
+		"status":           in.Status,
+	})
+}
+
+func isAllowedTransition(from string, to string) bool {
+	switch from {
+	case "placed":
+		return to == "ready" || to == "canceled"
+	case "ready":
+		return to == "picked_up" || to == "no_show"
+	default:
+		return false
+	}
+}
+
+// mode:
+// - "release": decrement quantity_reserved
+// - "finalize": decrement quantity_available and quantity_reserved
+func adjustOfferingsForOrder(ctx context.Context, tx pgx.Tx, orderID string, mode string) error {
+	rows, err := tx.Query(ctx, `
+		select offering_id::text, quantity
+		from order_items
+		where order_id = $1::uuid
+	`, orderID)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	type item struct {
+		offeringID string
+		qty        int
+	}
+	var items []item
+	for rows.Next() {
+		var offeringID *string
+		var qty int
+		if err := rows.Scan(&offeringID, &qty); err != nil {
+			return err
+		}
+		if offeringID == nil {
+			continue
+		}
+		items = append(items, item{offeringID: *offeringID, qty: qty})
+	}
+	if rows.Err() != nil {
+		return rows.Err()
+	}
+
+	// Lock and adjust each offering row.
+	for _, it := range items {
+		switch mode {
+		case "release":
+			if _, err := tx.Exec(ctx, `
+				update offerings
+				set quantity_reserved = greatest(0, quantity_reserved - $2)
+				where id = $1::uuid
+			`, it.offeringID, it.qty); err != nil {
+				return err
+			}
+		case "finalize":
+			if _, err := tx.Exec(ctx, `
+				update offerings
+				set
+					quantity_available = greatest(0, quantity_available - $2),
+					quantity_reserved = greatest(0, quantity_reserved - $2)
+				where id = $1::uuid
+			`, it.offeringID, it.qty); err != nil {
+				return err
+			}
+		default:
+			return errors.New("invalid adjust mode")
+		}
+	}
+	return nil
+}
