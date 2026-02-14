@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useState } from "react";
 import { sellerApi } from "@/lib/seller-api";
 import { session } from "@/lib/session";
+import { friendlyErrorMessage } from "@/lib/ui";
 
 export default function SellerLoginPage() {
   const router = useRouter();
@@ -22,7 +23,7 @@ export default function SellerLoginPage() {
       session.setToken(res.token);
       router.replace("/seller");
     } catch (err: unknown) {
-      setError(String(err));
+      setError(friendlyErrorMessage(err));
     } finally {
       setSubmitting(false);
     }

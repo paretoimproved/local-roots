@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { sellerApi, type SellerStore } from "@/lib/seller-api";
 import { session } from "@/lib/session";
+import { friendlyErrorMessage } from "@/lib/ui";
 
 export default function SellerHome() {
   const router = useRouter();
@@ -32,7 +33,7 @@ export default function SellerHome() {
     sellerApi
       .listMyStores(token)
       .then(setStores)
-      .catch((e: unknown) => setError(String(e)))
+      .catch((e: unknown) => setError(friendlyErrorMessage(e)))
       .finally(() => {});
   }, [token]);
 
@@ -53,7 +54,7 @@ export default function SellerHome() {
       setPhone("");
       setStores(await sellerApi.listMyStores(token));
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     } finally {
       setSubmitting(false);
     }

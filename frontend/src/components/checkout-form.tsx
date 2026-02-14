@@ -5,13 +5,7 @@ import type { Offering } from "@/lib/api";
 import { buyerApi, defaultItemQty, type Order } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
-
-function formatMoney(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
+import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 export function CheckoutForm({
   pickupWindowId,
@@ -59,7 +53,7 @@ export function CheckoutForm({
       orderToken.set(res.id, res.buyer_token);
       setOrder(res);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     } finally {
       setSubmitting(false);
     }

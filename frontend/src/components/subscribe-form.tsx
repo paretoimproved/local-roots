@@ -7,13 +7,7 @@ import { buyerApi, type SubscribeResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { subscriptionToken } from "@/lib/subscription-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
-
-function formatMoney(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
+import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 function cadenceLabel(c: string) {
   if (c === "weekly") return "Weekly";
@@ -58,7 +52,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
       orderToken.set(res.first_order.id, res.first_order.buyer_token);
       setDone(res);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     } finally {
       setSubmitting(false);
     }

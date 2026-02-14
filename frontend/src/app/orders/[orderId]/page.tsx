@@ -6,13 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { buyerApi, type GetOrderResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
-
-function formatMoney(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
+import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 export default function OrderPage() {
   const params = useParams<{ orderId: string }>();
@@ -47,7 +41,7 @@ export default function OrderPage() {
       setData(res);
       setReviewDone(res.has_review);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -82,7 +76,7 @@ export default function OrderPage() {
       setReviewDone(true);
       await load();
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     } finally {
       setSubmitting(false);
     }

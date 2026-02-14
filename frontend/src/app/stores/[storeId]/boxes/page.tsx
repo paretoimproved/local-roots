@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { formatMoney } from "@/lib/ui";
 
 function formatNext(plan: Awaited<ReturnType<typeof api.listStoreSubscriptionPlans>>[number]) {
   const tz = plan.pickup_location.timezone || "UTC";
@@ -12,13 +13,6 @@ function formatNext(plan: Awaited<ReturnType<typeof api.listStoreSubscriptionPla
     hour: "numeric",
     minute: "2-digit",
   }).format(start);
-}
-
-function formatMoney(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
 }
 
 function cadenceLabel(c: string) {
@@ -141,4 +135,3 @@ export default async function StoreBoxesPage({
     </div>
   );
 }
-

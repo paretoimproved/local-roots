@@ -1,13 +1,7 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { CheckoutForm } from "@/components/checkout-form";
-
-function formatMoney(cents: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(cents / 100);
-}
+import { formatMoney } from "@/lib/ui";
 
 export default async function PickupWindowOfferingsPage({
   params,
