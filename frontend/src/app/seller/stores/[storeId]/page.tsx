@@ -16,6 +16,8 @@ import {
 import { session } from "@/lib/session";
 import { QrScannerModal } from "@/components/qr-scanner-modal";
 import { QrCode } from "@/components/qr-code";
+import { useToast } from "@/components/toast";
+import { fieldClass, formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 function toIso(dtLocal: string): string {
   // dtLocal is like "2026-02-14T10:30" in local time.
@@ -32,10 +34,6 @@ type OrderFilter =
   | "canceled";
 
 type WizardStep = 1 | 2 | 3;
-
-function formatMoney(cents: number): string {
-  return `$${(cents / 100).toFixed(2)}`;
-}
 
 function formatWindowLabel(w: SellerPickupWindow): string {
   const start = new Date(w.start_at);
@@ -55,36 +53,6 @@ function parseUSDToCents(raw: string): number | null {
   const cents = Math.round(n * 100);
   if (cents < 0) return null;
   return cents;
-}
-
-function friendlyErrorMessage(e: unknown): string {
-  const msg = e instanceof Error ? e.message : String(e);
-  // Never show raw JS runtime errors in the UI.
-  if (/\b(TypeError|ReferenceError|SyntaxError)\b/.test(msg)) {
-    return "Something went wrong while loading this page. Please refresh. If this keeps happening, contact support.";
-  }
-
-  // Translate common API error shapes into something a seller can act on.
-  // requestJSON throws: `API <status>: <text>`
-  const m = msg.match(/^API\s+\d+:\s*(.*)$/);
-  if (m && m[1]) {
-    const text = m[1].trim();
-    try {
-      const parsed = JSON.parse(text) as { error?: string };
-      if (parsed && typeof parsed.error === "string" && parsed.error.trim()) {
-        return parsed.error.trim();
-      }
-    } catch {
-      // ignore
-    }
-    return text || "Request failed. Please try again.";
-  }
-
-  return msg;
-}
-
-function fieldClass(base: string, hasError: boolean): string {
-  return `${base} ${hasError ? "border-rose-300 bg-rose-50/70" : ""}`.trim();
 }
 
 function StatusPill({
@@ -266,12 +234,10 @@ export default function SellerStorePage() {
   const params = useParams<{ storeId: string }>();
   const storeId = params.storeId;
   const router = useRouter();
+  const { showToast, clearToast } = useToast();
 
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ kind: "success" | "error"; message: string } | null>(
-    null,
-  );
 
   const [locations, setLocations] = useState<SellerPickupLocation[] | null>(
     null,
@@ -429,12 +395,6 @@ export default function SellerStorePage() {
     );
   }, [onboardingStep]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = window.setTimeout(() => setToast(null), 3200);
-    return () => window.clearTimeout(t);
-  }, [toast]);
-
   function goToStep(step: WizardStep, sectionId: string) {
     setWizardStep(step);
     setShowLocationSetup(step === 1);
@@ -556,7 +516,7 @@ export default function SellerStorePage() {
   async function createLocation() {
     if (!token) return;
     setError(null);
-    setToast(null);
+    clearToast();
 
     const nextErrors: Record<string, string> = {};
     if (!locAddress1.trim()) nextErrors.address1 = "Address is required.";
@@ -574,7 +534,7 @@ export default function SellerStorePage() {
       label: true,
     });
     if (Object.keys(nextErrors).length) {
-      setToast({ kind: "error", message: "Check the highlighted fields." });
+      showToast({ kind: "error", message: "Check the highlighted fields." });
       return;
     }
 
@@ -602,11 +562,11 @@ export default function SellerStorePage() {
       setAddrOpen(false);
       // When a location already exists, keep the "add" form feeling like a new entry.
       if ((locations?.length ?? 0) > 0) setLocLabel("");
-      setToast({ kind: "success", message: "Pickup location saved." });
+      showToast({ kind: "success", message: "Pickup location saved." });
       await refreshAll(token);
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
-      setToast({ kind: "error", message: "Could not save pickup location." });
+      showToast({ kind: "error", message: "Could not save pickup location." });
     } finally {
       setSavingLocation(false);
     }
@@ -772,7 +732,7 @@ export default function SellerStorePage() {
   async function createPlan() {
     if (!token) return;
     setError(null);
-    setToast(null);
+    clearToast();
     setCreatingPlan(true);
     try {
       const nextErrors: Record<string, string> = {};
@@ -795,7 +755,7 @@ export default function SellerStorePage() {
         first_start_at_local: true,
       });
       if (Object.keys(nextErrors).length) {
-        setToast({ kind: "error", message: "Check the highlighted fields." });
+        showToast({ kind: "error", message: "Check the highlighted fields." });
         return;
       }
 
@@ -816,11 +776,11 @@ export default function SellerStorePage() {
       setPlanFirstStartLocal("");
       setPlanErrors({});
       setPlanTouched({});
-      setToast({ kind: "success", message: "Box created." });
+      showToast({ kind: "success", message: "Box created." });
       await refreshAll(token);
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
-      setToast({ kind: "error", message: "Could not create box." });
+      showToast({ kind: "error", message: "Could not create box." });
     } finally {
       setCreatingPlan(false);
     }
@@ -829,19 +789,19 @@ export default function SellerStorePage() {
   async function generateNextCycle(planId: string) {
     if (!token) return;
     setError(null);
-    setToast(null);
+    clearToast();
     setGeneratingCycle(true);
     try {
       const res = await sellerApi.generateNextCycle(token, storeId, planId);
       await refreshAll(token);
       setSelectedWindowId(res.pickup_window_id);
-      setToast({
+      showToast({
         kind: "success",
         message: "Pickup cycle generated. You are now live.",
       });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
-      setToast({ kind: "error", message: "Could not generate pickup cycle." });
+      showToast({ kind: "error", message: "Could not generate pickup cycle." });
     } finally {
       setGeneratingCycle(false);
     }
@@ -983,8 +943,15 @@ export default function SellerStorePage() {
               type="button"
               className="lr-btn lr-btn-primary px-3 py-2 text-xs font-semibold"
               onClick={() => {
-                void navigator.clipboard.writeText(storeId);
-                setToast({ kind: "success", message: "Store ID copied." });
+                navigator.clipboard
+                  .writeText(storeId)
+                  .then(() => showToast({ kind: "success", message: "Store ID copied." }))
+                  .catch(() =>
+                    showToast({
+                      kind: "error",
+                      message: "Could not copy. Your browser may block clipboard access.",
+                    }),
+                  );
               }}
             >
               Copy
@@ -1045,7 +1012,7 @@ export default function SellerStorePage() {
                     onClick={() => {
                       goToStep(2, "setup-box");
                       if (locked) {
-                        setToast({
+                        showToast({
                           kind: "error",
                           message: "Add a pickup location to unlock box setup.",
                         });
@@ -1071,7 +1038,7 @@ export default function SellerStorePage() {
                     onClick={() => {
                       goToStep(3, "setup-go-live");
                       if (locked) {
-                        setToast({
+                        showToast({
                           kind: "error",
                           message: !setupProgress.hasLocation
                             ? "Add a pickup location first."
@@ -1099,7 +1066,12 @@ export default function SellerStorePage() {
             <button
               type="button"
               className="lr-btn lr-chip px-3 py-1.5 text-sm font-semibold text-[color:var(--lr-ink)]"
-              onClick={() => setToast({ kind: "success", message: "Advanced tools unlock after you go live." })}
+              onClick={() =>
+                showToast({
+                  kind: "info",
+                  message: "Advanced tools unlock after you go live.",
+                })
+              }
               aria-disabled="true"
             >
               Advanced tools (after go live)
@@ -2402,31 +2374,6 @@ export default function SellerStorePage() {
           setPickupCodeByOrderId((prev) => ({ ...prev, [target]: m[1] ?? "" }));
         }}
       />
-
-      {toast ? (
-        <div className="fixed bottom-4 right-4 z-50">
-          <div
-            className="rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_50px_rgba(38,28,10,0.16)] backdrop-blur"
-            style={{
-              background:
-                toast.kind === "success"
-                  ? "rgba(255, 255, 255, 0.92)"
-                  : "rgba(255, 244, 244, 0.92)",
-              borderColor:
-                toast.kind === "success"
-                  ? "rgba(47, 107, 79, 0.25)"
-                  : "rgba(179, 93, 46, 0.30)",
-              color:
-                toast.kind === "success"
-                  ? "var(--lr-ink)"
-                  : "rgb(127, 29, 29)",
-              maxWidth: 360,
-            }}
-          >
-            {toast.message}
-          </div>
-        </div>
-      ) : null}
     </div>
   );
 }

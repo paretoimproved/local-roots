@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useToast } from "@/components/toast";
 
 function chunk(code: string) {
   const c = code.replaceAll(/\s+/g, "");
@@ -29,6 +30,7 @@ export function PickupCodeCard({
   pickupCode: string;
   status: string;
 }) {
+  const { showToast } = useToast();
   const payload = useMemo(
     () =>
       makePayload({
@@ -100,8 +102,12 @@ export function PickupCodeCard({
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(pickupCode);
+                  showToast({ kind: "success", message: "Pickup code copied." });
                 } catch {
-                  // No-op; clipboard may be blocked.
+                  showToast({
+                    kind: "error",
+                    message: "Could not copy. Your browser may block clipboard access.",
+                  });
                 }
               }}
               title="Copy pickup code"
@@ -137,4 +143,3 @@ export function PickupCodeCard({
     </section>
   );
 }
-

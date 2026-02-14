@@ -6,12 +6,14 @@ import { useEffect, useMemo, useState } from "react";
 import { buyerApi, type GetOrderResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
+import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 export default function OrderPage() {
   const params = useParams<{ orderId: string }>();
   const search = useSearchParams();
   const orderId = params.orderId;
+  const { showToast } = useToast();
 
   const tokenFromQuery = search.get("t");
   const [token, setToken] = useState<string>("");
@@ -75,6 +77,7 @@ export default function OrderPage() {
       });
       setReviewDone(true);
       await load();
+      showToast({ kind: "success", message: "Review submitted." });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
     } finally {

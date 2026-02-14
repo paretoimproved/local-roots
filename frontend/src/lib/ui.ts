@@ -10,7 +10,7 @@ export function friendlyErrorMessage(e: unknown): string {
 
   // Never show raw JS runtime errors in the UI.
   if (/\b(TypeError|ReferenceError|SyntaxError)\b/.test(msg)) {
-    return "Something went wrong. Please refresh and try again.";
+    return "Something went wrong. Please refresh and try again. If this keeps happening, contact support.";
   }
 
   // requestJSON throws: `API <status>: <text>`
@@ -34,4 +34,3 @@ export function friendlyErrorMessage(e: unknown): string {
 export function fieldClass(base: string, hasError: boolean): string {
   return `${base} ${hasError ? "border-rose-300 bg-rose-50/70" : ""}`.trim();
 }
-

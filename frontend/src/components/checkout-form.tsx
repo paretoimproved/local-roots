@@ -5,6 +5,7 @@ import type { Offering } from "@/lib/api";
 import { buyerApi, defaultItemQty, type Order } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
+import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 export function CheckoutForm({
@@ -14,6 +15,7 @@ export function CheckoutForm({
   pickupWindowId: string;
   offerings: Offering[];
 }) {
+  const { showToast } = useToast();
   const [qty, setQty] = useState<Record<string, number>>(() =>
     defaultItemQty(offerings),
   );
@@ -52,6 +54,7 @@ export function CheckoutForm({
       });
       orderToken.set(res.id, res.buyer_token);
       setOrder(res);
+      showToast({ kind: "success", message: "Order placed." });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
     } finally {
@@ -66,8 +69,12 @@ export function CheckoutForm({
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 1400);
+      showToast({ kind: "success", message: "Access link copied." });
     } catch {
-      setError("Could not copy link. Your browser may block clipboard access.");
+      showToast({
+        kind: "error",
+        message: "Could not copy. Your browser may block clipboard access.",
+      });
     }
   }
 

@@ -5,10 +5,12 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { sellerApi, type SellerStore } from "@/lib/seller-api";
 import { session } from "@/lib/session";
+import { useToast } from "@/components/toast";
 import { friendlyErrorMessage } from "@/lib/ui";
 
 export default function SellerHome() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [stores, setStores] = useState<SellerStore[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +55,7 @@ export default function SellerHome() {
       setDescription("");
       setPhone("");
       setStores(await sellerApi.listMyStores(token));
+      showToast({ kind: "success", message: "Store created." });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
     } finally {
