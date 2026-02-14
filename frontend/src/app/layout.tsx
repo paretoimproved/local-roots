@@ -37,6 +37,9 @@ export default function RootLayout({
               <Link className="hover:text-zinc-950" href="/stores">
                 Stores
               </Link>
+              <Link className="hover:text-zinc-950" href="/seller">
+                Sell
+              </Link>
               <a
                 className="hover:text-zinc-950"
                 href="https://github.com/paretoimproved/local-roots"
