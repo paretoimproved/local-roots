@@ -1,0 +1,135 @@
+import { type Farm, type NewFarm, db, desc, eq, farms, newId } from "@repo/db";
+import { and as drizzleAnd, ilike, lt, or } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+
+export const farmService = {
+  // Get all farms with cursor pagination
+  async getFarms(cursor?: string, limit = 20, search?: string) {
+    let query = db
+      .select()
+      .from(farms)
+      .orderBy(desc(farms.createdAt), desc(farms.id))
+      .limit(limit + 1);
+    let whereClause: SQL<unknown> | undefined;
+
+    if (cursor) {
+      // Decode cursor to get createdAt and id
+      const decodedCursor = this.decodeCursor(cursor);
+      if (decodedCursor) {
+        const { createdAt, id } = decodedCursor;
+        // Cursor pagination: get items before the cursor (since we order DESC)
+        const cursorCondition = or(
+          lt(farms.createdAt, createdAt),
+          drizzleAnd(eq(farms.createdAt, createdAt), lt(farms.id, id)),
+        );
+
+        whereClause = whereClause ? drizzleAnd(whereClause, cursorCondition) : cursorCondition;
+      }
+    }
+
+    if (search && search.trim().length > 0) {
+      const normalizedSearch = `%${search.trim()}%`;
+      const searchCondition = or(
+        ilike(farms.name, normalizedSearch),
+        ilike(farms.city, normalizedSearch),
+        ilike(farms.state, normalizedSearch),
+        ilike(farms.description, normalizedSearch),
+      );
+
+      whereClause = whereClause ? drizzleAnd(whereClause, searchCondition) : searchCondition;
+    }
+
+    if (whereClause) {
+      query = query.where(whereClause);
+    }
+
+    const results = await query;
+    const hasMore = results.length > limit;
+    const data = hasMore ? results.slice(0, -1) : results;
+
+    let nextCursor = null;
+    if (hasMore && data.length > 0) {
+      const lastItem = data[data.length - 1];
+      nextCursor = this.encodeCursor(lastItem.createdAt!, lastItem.id);
+    }
+
+    return {
+      data,
+      nextCursor,
+      hasMore,
+    };
+  },
+
+  // Get all farms (legacy method for backwards compatibility)
+  async getAllFarms() {
+    return db.select().from(farms);
+  },
+
+  // Encode cursor for pagination
+  encodeCursor(createdAt: Date, id: string): string {
+    return Buffer.from(`${createdAt.toISOString()}|${id}`).toString("base64");
+  },
+
+  // Decode cursor for pagination
+  decodeCursor(cursor: string): { createdAt: Date; id: string } | null {
+    try {
+      const decoded = Buffer.from(cursor, "base64").toString("utf-8");
+      const separatorIndex = decoded.indexOf("|");
+
+      if (separatorIndex === -1) return null;
+
+      const createdAtStr = decoded.slice(0, separatorIndex);
+      const id = decoded.slice(separatorIndex + 1);
+
+      if (!createdAtStr || !id) return null;
+
+      const createdAt = new Date(createdAtStr);
+      if (Number.isNaN(createdAt.getTime())) return null;
+
+      return { createdAt, id };
+    } catch {
+      return null;
+    }
+  },
+
+  // Get farms by user ID
+  async getFarmsByUserId(userId: string) {
+    return db.select().from(farms).where(eq(farms.userId, userId));
+  },
+
+  // Get a farm by ID
+  async getFarmById(id: string) {
+    const result = await db.select().from(farms).where(eq(farms.id, id));
+    return result[0] || null;
+  },
+
+  // Create a new farm
+  async createFarm(data: Omit<NewFarm, "id" | "userId">, userId: string) {
+    const farmId = newId("farm");
+    const result = await db
+      .insert(farms)
+      .values({
+        id: farmId,
+        userId,
+        ...data,
+      })
+      .returning();
+    return result[0];
+  },
+
+  // Update a farm
+  async updateFarm(id: string, data: Partial<Omit<Farm, "id" | "userId">>) {
+    const result = await db
+      .update(farms)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(farms.id, id))
+      .returning();
+    return result[0];
+  },
+
+  // Delete a farm
+  async deleteFarm(id: string) {
+    await db.delete(farms).where(eq(farms.id, id));
+    return { success: true };
+  },
+};

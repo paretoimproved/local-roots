@@ -1,0 +1,28 @@
+{
+  "name": "@repo/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "db:generate": "drizzle-kit generate:pg",
+    "db:push": "drizzle-kit push:pg",
+    "db:migrate": "drizzle-kit migrate:pg",
+    "db:studio": "drizzle-kit studio",
+    "db:seed": "bun ./src/seed.ts",
+    "lint": "biome check .",
+    "clean": "rm -rf .turbo node_modules"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.28.6",
+    "postgres": "^3.4.3",
+    "drizzle-zod": "^0.5.1"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.19.13",
+    "@types/pg": "^8.10.9",
+    "@types/node": "^20.10.6",
+    "dotenv": "^16.3.1",
+    "zod": "^3.22.4"
+  }
+}
