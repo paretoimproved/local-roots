@@ -28,6 +28,7 @@ export function CheckoutForm({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const items = useMemo(() => {
     return offerings
@@ -63,22 +64,58 @@ export function CheckoutForm({
     }
   }
 
+  async function copyAccessLink() {
+    if (!order) return;
+    const url = `${window.location.origin}/orders/${order.id}?t=${encodeURIComponent(order.buyer_token)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1400);
+    } catch {
+      setError("Could not copy link. Your browser may block clipboard access.");
+    }
+  }
+
   if (order) {
     return (
-      <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
-        <h2 className="text-base font-semibold text-zinc-950">Order placed</h2>
-        <p className="mt-2 text-sm text-zinc-600">
+      <section className="lr-card lr-card-strong p-6">
+        <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+          Order placed
+        </h2>
+        <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
           Order ID: <span className="font-mono text-xs">{order.id}</span>
         </p>
-        <p className="mt-2 text-sm text-zinc-600">
-          Total: <span className="font-medium text-zinc-950">{formatMoney(order.total_cents)}</span>
+        <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+          Total:{" "}
+          <span className="font-medium text-[color:var(--lr-ink)]">
+            {formatMoney(order.total_cents)}
+          </span>
         </p>
-        <p className="mt-2 text-sm text-zinc-600">
-          <a className="underline" href={`/orders/${order.id}`}>
-            View order status
-          </a>
-        </p>
-        <div className="mt-4 rounded-xl bg-zinc-50 p-4 text-sm text-zinc-700 ring-1 ring-zinc-950/5">
+        <div className="mt-4 grid gap-2 rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
+          <div className="text-sm font-medium text-[color:var(--lr-ink)]">
+            Save your access link
+          </div>
+          <div className="text-sm text-[color:var(--lr-muted)]">
+            You will need it to check status or leave a review on another device.
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <a
+              className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+              href={`/orders/${order.id}`}
+            >
+              View order
+            </a>
+            <button
+              className="lr-btn lr-btn-primary px-4 py-2 text-sm font-medium"
+              type="button"
+              onClick={copyAccessLink}
+            >
+              {copied ? "Copied" : "Copy access link"}
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
           Payment method: <span className="font-medium">Pay at pickup</span>.
         </div>
       </section>
@@ -86,9 +123,11 @@ export function CheckoutForm({
   }
 
   return (
-    <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
-      <h2 className="text-base font-semibold text-zinc-950">Checkout</h2>
-      <p className="mt-1 text-sm text-zinc-600">
+    <section className="lr-card lr-card-strong p-6">
+      <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+        Checkout
+      </h2>
+      <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
         Select quantities, then place an order for local pickup.
       </p>
 
@@ -105,16 +144,18 @@ export function CheckoutForm({
           return (
             <div
               key={o.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-950/5"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/60 px-4 py-3 ring-1 ring-[color:var(--lr-border)]"
             >
               <div>
-                <div className="font-medium text-zinc-950">{o.product.title}</div>
-                <div className="text-sm text-zinc-600">
+                <div className="font-medium text-[color:var(--lr-ink)]">
+                  {o.product.title}
+                </div>
+                <div className="text-sm text-[color:var(--lr-muted)]">
                   {formatMoney(o.price_cents)} · {o.product.unit} · {remaining} left
                 </div>
               </div>
               <input
-                className="w-24 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+                className="lr-field w-24 px-3 py-2 text-sm"
                 type="number"
                 min={0}
                 max={remaining}
@@ -131,16 +172,22 @@ export function CheckoutForm({
         })}
       </div>
 
-      <div className="mt-4 grid gap-2 rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-950/5">
+      <div className="mt-4 grid gap-2 rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
         <div className="flex items-baseline justify-between">
-          <div className="text-sm font-medium text-zinc-800">Total</div>
-          <div className="text-sm font-semibold text-zinc-950">{formatMoney(total)}</div>
+          <div className="text-sm font-medium text-[color:var(--lr-muted)]">
+            Total
+          </div>
+          <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
+            {formatMoney(total)}
+          </div>
         </div>
 
         <label className="grid gap-1">
-          <span className="text-xs font-medium text-zinc-700">Email</span>
+          <span className="text-xs font-medium text-[color:var(--lr-muted)]">
+            Email
+          </span>
           <input
-            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+            className="lr-field px-3 py-2 text-sm"
             type="email"
             value={buyerEmail}
             onChange={(e) => setBuyerEmail(e.target.value)}
@@ -149,17 +196,21 @@ export function CheckoutForm({
         </label>
         <div className="grid gap-2 md:grid-cols-2">
           <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-700">Name (optional)</span>
+            <span className="text-xs font-medium text-[color:var(--lr-muted)]">
+              Name (optional)
+            </span>
             <input
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+              className="lr-field px-3 py-2 text-sm"
               value={buyerName}
               onChange={(e) => setBuyerName(e.target.value)}
             />
           </label>
           <label className="grid gap-1">
-            <span className="text-xs font-medium text-zinc-700">Phone (optional)</span>
+            <span className="text-xs font-medium text-[color:var(--lr-muted)]">
+              Phone (optional)
+            </span>
             <input
-              className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm"
+              className="lr-field px-3 py-2 text-sm"
               value={buyerPhone}
               onChange={(e) => setBuyerPhone(e.target.value)}
             />
@@ -167,14 +218,14 @@ export function CheckoutForm({
         </div>
 
         <button
-          className="mt-2 inline-flex items-center justify-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-800 disabled:opacity-50"
+          className="lr-btn lr-btn-primary mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50"
           disabled={submitting || items.length === 0 || !buyerEmail.trim()}
           onClick={placeOrder}
           type="button"
         >
           {submitting ? "Placing order…" : "Place order"}
         </button>
-        <div className="text-xs text-zinc-500">
+        <div className="text-xs text-[color:var(--lr-muted)]">
           Payment method: pay at pickup (for now).
         </div>
       </div>

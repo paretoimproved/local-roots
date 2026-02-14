@@ -43,26 +43,35 @@ export default async function StorePickupWindowsPage({
     <div className="grid gap-6">
       <div className="flex items-baseline justify-between">
         <div className="grid gap-1">
-          <h1 className="text-2xl font-semibold tracking-tight">Pickup windows</h1>
-          <p className="text-sm text-zinc-600">Store: {storeId}</p>
+          <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
+            Pickup windows
+          </h1>
+          <p className="text-sm text-[color:var(--lr-muted)]">
+            Store: <span className="font-mono text-xs">{storeId}</span>
+          </p>
         </div>
-        <Link className="text-sm text-zinc-600 hover:text-zinc-950" href="/stores">
+        <Link
+          className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+          href="/stores"
+        >
           Back to stores
         </Link>
       </div>
 
       {error ? (
-        <div className="rounded-xl bg-white p-6 ring-1 ring-zinc-950/5">
-          <p className="text-sm font-medium text-zinc-950">
+        <div className="lr-card lr-card-strong p-6">
+          <p className="text-sm font-medium text-[color:var(--lr-ink)]">
             Could not load pickup windows
           </p>
-          <p className="mt-2 text-sm text-zinc-600">{error}</p>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">{error}</p>
         </div>
       ) : null}
 
       {windows && windows.length === 0 ? (
-        <div className="rounded-xl bg-white p-6 ring-1 ring-zinc-950/5">
-          <p className="text-sm text-zinc-600">No upcoming pickup windows.</p>
+        <div className="lr-card lr-card-strong p-6">
+          <p className="text-sm text-[color:var(--lr-muted)]">
+            No upcoming pickup windows.
+          </p>
         </div>
       ) : null}
 
@@ -71,11 +80,11 @@ export default async function StorePickupWindowsPage({
           {windows.map((pw) => (
             <li
               key={pw.id}
-              className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5"
+              className="lr-card lr-card-strong p-6 transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
             >
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <h2 className="text-base font-semibold text-zinc-950">
+                  <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
                     <Link
                       className="hover:underline"
                       href={`/pickup-windows/${pw.id}`}
@@ -83,7 +92,7 @@ export default async function StorePickupWindowsPage({
                       {formatWindowLabel(pw)}
                     </Link>
                   </h2>
-                  <p className="mt-2 text-sm text-zinc-600">
+                  <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
                     {pw.pickup_location.label
                       ? `${pw.pickup_location.label} · `
                       : ""}
@@ -91,7 +100,11 @@ export default async function StorePickupWindowsPage({
                     {pw.pickup_location.region} {pw.pickup_location.postal_code}
                   </p>
                 </div>
-                <div className="text-xs text-zinc-500">Status: {pw.status}</div>
+                <div className="text-xs text-[color:var(--lr-muted)]">
+                  <span className="inline-flex items-center rounded-full px-2 py-1 ring-1 ring-[color:var(--lr-border)]">
+                    {pw.status}
+                  </span>
+                </div>
               </div>
             </li>
           ))}

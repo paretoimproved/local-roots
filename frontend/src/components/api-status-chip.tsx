@@ -46,11 +46,11 @@ export function ApiStatusChip() {
       ? "bg-emerald-500"
       : status === "offline"
         ? "bg-rose-500"
-        : "bg-zinc-400";
+        : "bg-[color:var(--lr-muted)]";
 
   return (
     <a
-      className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-medium text-zinc-800 ring-1 ring-zinc-950/15 hover:bg-zinc-50"
+      className="lr-btn lr-chip inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
       href={`${apiBase}/health`}
       target="_blank"
       rel="noreferrer"
@@ -62,4 +62,3 @@ export function ApiStatusChip() {
     </a>
   );
 }
-

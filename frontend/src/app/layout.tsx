@@ -1,17 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist_Mono, Spline_Sans } from "next/font/google";
 import Link from "next/link";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const lrSans = Spline_Sans({
+  variable: "--font-lr-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const lrSerif = Fraunces({
+  variable: "--font-lr-serif",
   subsets: ["latin"],
 });
+
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "LocalRoots",
@@ -26,22 +28,33 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-zinc-50 text-zinc-950`}
+        className={`${lrSans.variable} ${lrSerif.variable} ${geistMono.variable} lr-body antialiased`}
       >
         <div className="mx-auto max-w-5xl px-6 py-10">
-          <header className="flex items-baseline justify-between">
-            <Link href="/" className="text-xl font-semibold tracking-tight">
-              LocalRoots
+          <header className="flex flex-wrap items-end justify-between gap-4">
+            <Link href="/" className="group grid gap-1">
+              <div className="text-xl font-semibold tracking-tight">
+                <span className="mr-2 font-[family-name:var(--font-lr-serif)]">
+                  LocalRoots
+                </span>
+                <span className="inline-flex translate-y-[-1px] items-center rounded-full px-2 py-0.5 text-xs font-medium text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
+                  pickup only
+                </span>
+              </div>
+              <div className="text-sm text-[color:var(--lr-muted)] group-hover:text-[color:var(--lr-ink)]">
+                Seasonal food, sold by neighbors.
+              </div>
             </Link>
-            <nav className="flex items-center gap-4 text-sm text-zinc-600">
-              <Link className="hover:text-zinc-950" href="/stores">
-                Stores
+
+            <nav className="flex flex-wrap items-center gap-2 text-sm">
+              <Link className="lr-btn px-4 py-2 text-[color:var(--lr-ink)]" href="/stores">
+                Browse
               </Link>
-              <Link className="hover:text-zinc-950" href="/seller">
+              <Link className="lr-btn px-4 py-2 text-[color:var(--lr-ink)]" href="/seller">
                 Sell
               </Link>
               <a
-                className="hover:text-zinc-950"
+                className="lr-btn px-4 py-2 text-[color:var(--lr-ink)]"
                 href="https://github.com/paretoimproved/local-roots"
                 target="_blank"
                 rel="noreferrer"
@@ -50,6 +63,7 @@ export default function RootLayout({
               </a>
             </nav>
           </header>
+
           <main className="mt-10">{children}</main>
         </div>
       </body>

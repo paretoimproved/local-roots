@@ -90,8 +90,10 @@ export default function OrderPage() {
   return (
     <div className="grid gap-6">
       <div className="grid gap-1">
-        <h1 className="text-2xl font-semibold tracking-tight">Order</h1>
-        <p className="text-sm text-zinc-600">
+        <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
+          Order
+        </h1>
+        <p className="text-sm text-[color:var(--lr-muted)]">
           <span className="font-mono text-xs">{orderId}</span>
         </p>
       </div>
@@ -103,20 +105,22 @@ export default function OrderPage() {
       ) : null}
 
       {!token ? (
-        <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
-          <h2 className="text-base font-semibold text-zinc-950">Access token</h2>
-          <p className="mt-1 text-sm text-zinc-600">
+        <section className="lr-card lr-card-strong p-6">
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            Access token
+          </h2>
+          <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
             Paste the token from your confirmation (or add `?t=...` to the URL).
           </p>
           <div className="mt-4 flex gap-2">
             <input
-              className="w-full rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+              className="lr-field w-full px-3 py-2 text-sm"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
               placeholder="token"
             />
             <button
-              className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-800"
+              className="lr-btn lr-btn-primary px-4 py-2 text-sm font-medium"
               type="button"
               onClick={submitToken}
             >
@@ -128,17 +132,19 @@ export default function OrderPage() {
 
       {data ? (
         <>
-          <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+          <section className="lr-card lr-card-strong p-6">
             <div className="flex flex-wrap items-baseline justify-between gap-4">
               <div>
-                <div className="text-sm text-zinc-600">Status</div>
-                <div className="text-lg font-semibold text-zinc-950">
+                <div className="text-sm text-[color:var(--lr-muted)]">
+                  Status
+                </div>
+                <div className="text-lg font-semibold text-[color:var(--lr-ink)]">
                   {data.order.status}
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm text-zinc-600">Total</div>
-                <div className="text-lg font-semibold text-zinc-950">
+                <div className="text-sm text-[color:var(--lr-muted)]">Total</div>
+                <div className="text-lg font-semibold text-[color:var(--lr-ink)]">
                   {formatMoney(data.order.total_cents)}
                 </div>
               </div>
@@ -148,39 +154,44 @@ export default function OrderPage() {
               {data.order.items.map((it) => (
                 <div
                   key={it.id}
-                  className="flex items-baseline justify-between rounded-xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-950/5"
+                  className="flex items-baseline justify-between rounded-xl bg-white/60 px-4 py-3 ring-1 ring-[color:var(--lr-border)]"
                 >
                   <div>
-                    <div className="font-medium text-zinc-950">
+                    <div className="font-medium text-[color:var(--lr-ink)]">
                       {it.product_title}
                     </div>
-                    <div className="text-sm text-zinc-600">
-                      {it.quantity} × {formatMoney(it.price_cents)} ({it.product_unit})
+                    <div className="text-sm text-[color:var(--lr-muted)]">
+                      {it.quantity} × {formatMoney(it.price_cents)} (
+                      {it.product_unit})
                     </div>
                   </div>
-                  <div className="text-sm font-medium text-zinc-950">
+                  <div className="text-sm font-medium text-[color:var(--lr-ink)]">
                     {formatMoney(it.line_total_cents)}
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="mt-4 rounded-xl bg-zinc-50 p-4 text-sm text-zinc-700 ring-1 ring-zinc-950/5">
+            <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
               Payment method: <span className="font-medium">Pay at pickup</span>.
             </div>
           </section>
 
           {canReview ? (
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
-              <h2 className="text-base font-semibold text-zinc-950">Leave a review</h2>
-              <p className="mt-1 text-sm text-zinc-600">
+            <section className="lr-card lr-card-strong p-6">
+              <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+                Leave a review
+              </h2>
+              <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
                 Reviews unlock after pickup is marked complete.
               </p>
               <div className="mt-4 grid gap-3">
                 <label className="grid gap-1">
-                  <span className="text-sm font-medium text-zinc-800">Rating</span>
+                  <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+                    Rating
+                  </span>
                   <select
-                    className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                    className="lr-field px-3 py-2 text-sm"
                     value={rating}
                     onChange={(e) => setRating(Number(e.target.value))}
                   >
@@ -192,18 +203,18 @@ export default function OrderPage() {
                   </select>
                 </label>
                 <label className="grid gap-1">
-                  <span className="text-sm font-medium text-zinc-800">
+                  <span className="text-sm font-medium text-[color:var(--lr-muted)]">
                     Comment (optional)
                   </span>
                   <textarea
-                    className="min-h-24 rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+                    className="lr-field min-h-24 px-3 py-2 text-sm"
                     value={body}
                     onChange={(e) => setBody(e.target.value)}
                     placeholder="What went well?"
                   />
                 </label>
                 <button
-                  className="inline-flex items-center justify-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-800 disabled:opacity-50"
+                  className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50"
                   disabled={submitting}
                   onClick={submitReview}
                   type="button"
@@ -213,20 +224,23 @@ export default function OrderPage() {
               </div>
             </section>
           ) : reviewDone ? (
-            <section className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
-              <h2 className="text-base font-semibold text-zinc-950">Review submitted</h2>
-              <p className="mt-1 text-sm text-zinc-600">Thanks for the feedback.</p>
+            <section className="lr-card lr-card-strong p-6">
+              <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+                Review submitted
+              </h2>
+              <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                Thanks for the feedback.
+              </p>
             </section>
           ) : null}
         </>
       ) : null}
 
       <div>
-        <Link className="text-sm text-zinc-600 hover:text-zinc-950" href="/stores">
+        <Link className="text-sm text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]" href="/stores">
           Back to stores
         </Link>
       </div>
     </div>
   );
 }
-

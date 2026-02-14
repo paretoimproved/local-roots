@@ -35,10 +35,12 @@ export default function SellerRegisterPage() {
 
   return (
     <div className="mx-auto max-w-md">
-      <h1 className="text-2xl font-semibold tracking-tight">Create seller account</h1>
-      <p className="mt-1 text-sm text-zinc-600">
+      <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
+        Create seller account
+      </h1>
+      <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
         Already have one?{" "}
-        <Link className="text-zinc-950 underline" href="/seller/login">
+        <Link className="text-[color:var(--lr-ink)] underline" href="/seller/login">
           Sign in
         </Link>
         .
@@ -52,12 +54,14 @@ export default function SellerRegisterPage() {
 
       <form
         onSubmit={onSubmit}
-        className="mt-6 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5"
+        className="lr-card lr-card-strong mt-6 p-6"
       >
         <label className="grid gap-1">
-          <span className="text-sm font-medium text-zinc-800">Display name</span>
+          <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+            Display name
+          </span>
           <input
-            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+            className="lr-field px-3 py-2 text-sm"
             value={displayName}
             onChange={(e) => setDisplayName(e.target.value)}
             autoComplete="name"
@@ -65,9 +69,11 @@ export default function SellerRegisterPage() {
           />
         </label>
         <label className="mt-3 grid gap-1">
-          <span className="text-sm font-medium text-zinc-800">Email</span>
+          <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+            Email
+          </span>
           <input
-            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+            className="lr-field px-3 py-2 text-sm"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             type="email"
@@ -76,9 +82,11 @@ export default function SellerRegisterPage() {
           />
         </label>
         <label className="mt-3 grid gap-1">
-          <span className="text-sm font-medium text-zinc-800">Password</span>
+          <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+            Password
+          </span>
           <input
-            className="rounded-xl border border-zinc-200 px-3 py-2 text-sm"
+            className="lr-field px-3 py-2 text-sm"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             type="password"
@@ -86,10 +94,12 @@ export default function SellerRegisterPage() {
             required
             minLength={8}
           />
-          <span className="text-xs text-zinc-500">Minimum 8 characters.</span>
+          <span className="text-xs text-[color:var(--lr-muted)]">
+            Minimum 8 characters.
+          </span>
         </label>
         <button
-          className="mt-5 inline-flex w-full items-center justify-center rounded-full bg-zinc-950 px-5 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-800 disabled:opacity-50"
+          className="lr-btn lr-btn-primary mt-5 inline-flex w-full items-center justify-center px-5 py-2 text-sm font-medium disabled:opacity-50"
           disabled={submitting}
           type="submit"
         >

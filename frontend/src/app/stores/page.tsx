@@ -14,22 +14,24 @@ export default async function StoresPage() {
   return (
     <div className="grid gap-6">
       <div className="flex items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Stores</h1>
-        <p className="text-sm text-zinc-600">
+        <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
+          Stores
+        </h1>
+        <p className="text-sm text-[color:var(--lr-muted)]">
           {stores ? `${stores.length} active` : ""}
         </p>
       </div>
 
       {error ? (
-        <div className="rounded-xl bg-white p-6 ring-1 ring-zinc-950/5">
-          <p className="text-sm font-medium text-zinc-950">
+        <div className="lr-card lr-card-strong p-6">
+          <p className="text-sm font-medium text-[color:var(--lr-ink)]">
             Could not load stores
           </p>
-          <p className="mt-2 text-sm text-zinc-600">{error}</p>
-          <p className="mt-3 text-sm text-zinc-600">
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">{error}</p>
+          <p className="mt-3 text-sm text-[color:var(--lr-muted)]">
             If you have not set up Postgres yet, start it and run migrations:
           </p>
-          <pre className="mt-2 overflow-x-auto rounded-lg bg-zinc-950 p-4 text-xs text-zinc-50">
+          <pre className="mt-2 overflow-x-auto rounded-2xl border border-[color:var(--lr-border)] bg-[color:var(--lr-ink)] p-4 text-xs text-[color:var(--lr-bg)] shadow-[0_18px_45px_rgba(38,28,10,0.18)]">
             <code>{`docker compose up -d
 export DATABASE_URL="postgres://localroots:localroots@localhost:5432/localroots?sslmode=disable"
 pnpm migrate:up`}</code>
@@ -38,8 +40,8 @@ pnpm migrate:up`}</code>
       ) : null}
 
       {stores && stores.length === 0 ? (
-        <div className="rounded-xl bg-white p-6 ring-1 ring-zinc-950/5">
-          <p className="text-sm text-zinc-600">No stores yet.</p>
+        <div className="lr-card lr-card-strong p-6">
+          <p className="text-sm text-[color:var(--lr-muted)]">No stores yet.</p>
         </div>
       ) : null}
 
@@ -48,22 +50,22 @@ pnpm migrate:up`}</code>
           {stores.map((s) => (
             <li
               key={s.id}
-              className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5"
+              className="lr-card lr-card-strong p-6 transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
             >
               <div className="flex items-start justify-between gap-6">
                 <div>
-                  <h2 className="text-base font-semibold text-zinc-950">
+                  <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
                     <Link className="hover:underline" href={`/stores/${s.id}`}>
                       {s.name}
                     </Link>
                   </h2>
                   {s.description ? (
-                    <p className="mt-2 text-sm text-zinc-600">
+                    <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
                       {s.description}
                     </p>
                   ) : null}
                 </div>
-                <div className="text-xs text-zinc-500">
+                <div className="text-xs text-[color:var(--lr-muted)]">
                   Added {new Date(s.created_at).toLocaleDateString("en-US")}
                 </div>
               </div>
@@ -74,4 +76,3 @@ pnpm migrate:up`}</code>
     </div>
   );
 }
-
