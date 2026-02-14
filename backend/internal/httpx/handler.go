@@ -30,6 +30,11 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/stores/{storeId}/pickup-windows", public.ListStorePickupWindows)
 	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}/offerings", public.ListPickupWindowOfferings)
 
+	sub := v1.SubscriptionAPI{DB: deps.DB}
+	mux.HandleFunc("GET /v1/stores/{storeId}/subscription-plans", sub.ListStorePlans)
+	mux.HandleFunc("GET /v1/subscription-plans/{planId}", sub.GetPlan)
+	mux.HandleFunc("POST /v1/subscription-plans/{planId}/subscribe", sub.Subscribe)
+
 	orders := v1.OrdersAPI{DB: deps.DB}
 	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/orders", orders.CreateOrder)
 
@@ -62,6 +67,11 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(sellerOrders.ListOrdersForPickupWindow))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(sellerOrders.UpdateOrderStatus))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(sellerOrders.ConfirmPickup))
+
+	sellerSub := v1.SellerSubscriptionAPI{DB: deps.DB}
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(sellerSub.ListPlans))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(sellerSub.CreatePlan))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(sellerSub.GenerateNextCycle))
 
 	return withCORS(deps.Config, mux)
 }

@@ -44,6 +44,26 @@ export type SellerPickupWindow = {
   updated_at: string;
 };
 
+export type SellerSubscriptionPlan = {
+  id: string;
+  store_id: string;
+  pickup_location_id: string;
+  product_id: string;
+  title: string;
+  description: string | null;
+  cadence: string;
+  price_cents: number;
+  subscriber_limit: number;
+  first_start_at: string;
+  duration_minutes: number;
+  cutoff_hours: number;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+  next_start_at: string;
+  pickup_location: SellerPickupLocation;
+};
+
 export type SellerProduct = {
   id: string;
   title: string;
@@ -270,4 +290,40 @@ export const sellerApi = {
         body: JSON.stringify({ pickup_code: pickupCode }),
       },
     ),
+
+  listSubscriptionPlans: (token: string, storeId: string) =>
+    requestJSON<SellerSubscriptionPlan[]>(
+      `/v1/seller/stores/${storeId}/subscription-plans`,
+      { token },
+    ),
+  createSubscriptionPlan: (
+    token: string,
+    storeId: string,
+    input: {
+      pickup_location_id: string;
+      title: string;
+      description?: string | null;
+      cadence: "weekly" | "biweekly" | "monthly";
+      price_cents: number;
+      subscriber_limit: number;
+      first_start_at_local: string; // "YYYY-MM-DDTHH:MM"
+      duration_minutes: number;
+      cutoff_hours: number;
+    },
+  ) =>
+    requestJSON<SellerSubscriptionPlan>(
+      `/v1/seller/stores/${storeId}/subscription-plans`,
+      { method: "POST", token, body: JSON.stringify(input) },
+    ),
+  generateNextCycle: (token: string, storeId: string, planId: string) =>
+    requestJSON<{
+      pickup_window_id: string;
+      offering_id: string;
+      orders_created: number;
+      start_at: string;
+    }>(`/v1/seller/stores/${storeId}/subscription-plans/${planId}/generate-cycle`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({}),
+    }),
 };

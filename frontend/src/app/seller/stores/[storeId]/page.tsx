@@ -10,9 +10,11 @@ import {
   type SellerPickupLocation,
   type SellerPickupWindow,
   type SellerProduct,
+  type SellerSubscriptionPlan,
 } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { QrScannerModal } from "@/components/qr-scanner-modal";
+import { QrCode } from "@/components/qr-code";
 
 function toIso(dtLocal: string): string {
   // dtLocal is like "2026-02-14T10:30" in local time.
@@ -97,6 +99,7 @@ export default function SellerStorePage() {
   const [products, setProducts] = useState<SellerProduct[] | null>(null);
   const [offerings, setOfferings] = useState<SellerOffering[] | null>(null);
   const [orders, setOrders] = useState<SellerOrder[] | null>(null);
+  const [plans, setPlans] = useState<SellerSubscriptionPlan[] | null>(null);
 
   const [selectedWindowId, setSelectedWindowId] = useState<string>("");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
@@ -135,6 +138,19 @@ export default function SellerStorePage() {
   const [offeringPriceCents, setOfferingPriceCents] = useState(0);
   const [offeringQty, setOfferingQty] = useState(0);
 
+  // Create subscription plan (seasonal box)
+  const [planTitle, setPlanTitle] = useState("");
+  const [planDesc, setPlanDesc] = useState("");
+  const [planCadence, setPlanCadence] = useState<
+    "weekly" | "biweekly" | "monthly"
+  >("weekly");
+  const [planPriceCents, setPlanPriceCents] = useState(0);
+  const [planLimit, setPlanLimit] = useState(25);
+  const [planLocationId, setPlanLocationId] = useState("");
+  const [planFirstStartLocal, setPlanFirstStartLocal] = useState("");
+  const [planDurationMin, setPlanDurationMin] = useState(120);
+  const [planCutoffHours, setPlanCutoffHours] = useState(24);
+
   const readyForOfferings = useMemo(
     () => !!selectedWindowId && !!products?.length,
     [selectedWindowId, products],
@@ -169,6 +185,11 @@ export default function SellerStorePage() {
     return base;
   }, [orders]);
 
+  const siteOrigin = useMemo(() => {
+    if (typeof window === "undefined") return "";
+    return window.location.origin;
+  }, []);
+
   useEffect(() => {
     const t = session.getToken();
     if (!t) {
@@ -179,14 +200,16 @@ export default function SellerStorePage() {
   }, [router]);
 
   async function refreshAll(t: string) {
-    const [ls, ws, ps] = await Promise.all([
+    const [ls, ws, ps, sps] = await Promise.all([
       sellerApi.listPickupLocations(t, storeId),
       sellerApi.listPickupWindows(t, storeId),
       sellerApi.listProducts(t, storeId),
+      sellerApi.listSubscriptionPlans(t, storeId),
     ]);
     setLocations(ls);
     setWindows(ws);
     setProducts(ps);
+    setPlans(sps);
     if (!windowLocationId && ls.length) setWindowLocationId(ls[0].id);
     if (!selectedWindowId && ws.length) setSelectedWindowId(ws[0].id);
   }
@@ -295,6 +318,46 @@ export default function SellerStorePage() {
       setOfferings(
         await sellerApi.listOfferings(token, storeId, selectedWindowId),
       );
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  }
+
+  useEffect(() => {
+    if (!planLocationId && locations?.length) setPlanLocationId(locations[0].id);
+  }, [locations, planLocationId]);
+
+  async function createPlan() {
+    if (!token) return;
+    setError(null);
+    try {
+      await sellerApi.createSubscriptionPlan(token, storeId, {
+        pickup_location_id: planLocationId,
+        title: planTitle,
+        description: planDesc || null,
+        cadence: planCadence,
+        price_cents: planPriceCents,
+        subscriber_limit: planLimit,
+        first_start_at_local: planFirstStartLocal,
+        duration_minutes: planDurationMin,
+        cutoff_hours: planCutoffHours,
+      });
+      setPlanTitle("");
+      setPlanDesc("");
+      setPlanPriceCents(0);
+      setPlanFirstStartLocal("");
+      await refreshAll(token);
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  }
+
+  async function generateNextCycle(planId: string) {
+    if (!token) return;
+    setError(null);
+    try {
+      await sellerApi.generateNextCycle(token, storeId, planId);
+      await refreshAll(token);
     } catch (e: unknown) {
       setError(String(e));
     }
@@ -922,6 +985,225 @@ export default function SellerStorePage() {
               type="button"
             >
               Create offering
+            </button>
+          </div>
+        </section>
+
+        <section className="lr-card lr-animate grid gap-4 p-6">
+          <div>
+            <h2 className="text-base font-semibold">Subscription boxes</h2>
+            <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+              Curated seasonal boxes for recurring buyers. Print a farmstand QR
+              to turn walk-up buyers into subscriptions.
+            </p>
+          </div>
+
+          {plans?.length ? (
+            <ul className="grid gap-3">
+              {plans.map((p) => (
+                <li key={p.id} className="lr-chip rounded-2xl p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                    <div className="min-w-[240px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="font-semibold text-[color:var(--lr-ink)]">
+                          {p.title}
+                        </div>
+                        <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-muted)]">
+                          {p.cadence}
+                        </span>
+                        {!p.is_active ? (
+                          <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-clay)]">
+                            inactive
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                        ${(p.price_cents / 100).toFixed(2)} · cap{" "}
+                        {p.subscriber_limit} · next{" "}
+                        {new Date(p.next_start_at).toLocaleString()}
+                      </div>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <Link
+                          className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+                          href={`/boxes/${p.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Buyer page
+                        </Link>
+                        <button
+                          type="button"
+                          className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
+                          onClick={() => generateNextCycle(p.id)}
+                        >
+                          Generate next cycle
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-2 justify-items-end">
+                      <QrCode
+                        value={siteOrigin ? `${siteOrigin}/boxes/${p.id}` : `/boxes/${p.id}`}
+                        size={140}
+                        label="Farmstand QR"
+                      />
+                      <div className="max-w-[14rem] text-right text-xs text-[color:var(--lr-muted)]">
+                        Tip: print this QR at the farmstand.
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-sm text-[color:var(--lr-muted)]">
+              No subscription boxes yet.
+            </div>
+          )}
+
+          <div className="lr-chip grid gap-3 rounded-2xl p-4">
+            <div>
+              <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
+                Create a box
+              </div>
+              <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                Start with a curated seasonal box. Add-ons come later.
+              </div>
+            </div>
+
+            <div className="grid gap-2 md:grid-cols-2">
+              <label className="grid gap-1 md:col-span-2">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  Title
+                </span>
+                <input
+                  className="lr-field px-3 py-2 text-sm"
+                  value={planTitle}
+                  onChange={(e) => setPlanTitle(e.target.value)}
+                  placeholder="Seasonal box"
+                />
+              </label>
+              <label className="grid gap-1 md:col-span-2">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  Description (optional)
+                </span>
+                <input
+                  className="lr-field px-3 py-2 text-sm"
+                  value={planDesc}
+                  onChange={(e) => setPlanDesc(e.target.value)}
+                  placeholder="A rotating selection of what's fresh."
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  Cadence
+                </span>
+                <select
+                  className="lr-field px-3 py-2 text-sm"
+                  value={planCadence}
+                  onChange={(e) =>
+                    setPlanCadence(
+                      e.target.value as "weekly" | "biweekly" | "monthly",
+                    )
+                  }
+                >
+                  <option value="weekly">weekly</option>
+                  <option value="biweekly">biweekly</option>
+                  <option value="monthly">monthly</option>
+                </select>
+              </label>
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  Capacity
+                </span>
+                <input
+                  className="lr-field px-3 py-2 text-sm"
+                  type="number"
+                  min={1}
+                  value={planLimit}
+                  onChange={(e) => setPlanLimit(Number(e.target.value))}
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  Price (cents)
+                </span>
+                <input
+                  className="lr-field px-3 py-2 text-sm"
+                  type="number"
+                  min={0}
+                  value={planPriceCents}
+                  onChange={(e) => setPlanPriceCents(Number(e.target.value))}
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  Pickup location
+                </span>
+                <select
+                  className="lr-field px-3 py-2 text-sm"
+                  value={planLocationId}
+                  onChange={(e) => setPlanLocationId(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Select…
+                  </option>
+                  {(locations ?? []).map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label ?? "Pickup"} ({l.city})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="grid gap-1 md:col-span-2">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  First pickup start (local)
+                </span>
+                <input
+                  className="lr-field px-3 py-2 text-sm"
+                  type="datetime-local"
+                  value={planFirstStartLocal}
+                  onChange={(e) => setPlanFirstStartLocal(e.target.value)}
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  Duration (minutes)
+                </span>
+                <input
+                  className="lr-field px-3 py-2 text-sm"
+                  type="number"
+                  min={30}
+                  value={planDurationMin}
+                  onChange={(e) => setPlanDurationMin(Number(e.target.value))}
+                />
+              </label>
+              <label className="grid gap-1">
+                <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                  Cutoff (hours before)
+                </span>
+                <input
+                  className="lr-field px-3 py-2 text-sm"
+                  type="number"
+                  min={0}
+                  value={planCutoffHours}
+                  onChange={(e) => setPlanCutoffHours(Number(e.target.value))}
+                />
+              </label>
+            </div>
+
+            <button
+              type="button"
+              className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              disabled={
+                !planTitle.trim() ||
+                !planLocationId ||
+                !planFirstStartLocal ||
+                planLimit <= 0
+              }
+              onClick={createPlan}
+            >
+              Create box
             </button>
           </div>
         </section>

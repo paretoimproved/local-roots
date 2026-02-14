@@ -40,6 +40,20 @@ export type Order = {
   items: OrderItem[];
 };
 
+export type Subscription = {
+  id: string;
+  plan_id: string;
+  store_id: string;
+  buyer_token: string;
+  status: string;
+  created_at: string;
+};
+
+export type SubscribeResponse = {
+  subscription: Subscription;
+  first_order: Order;
+};
+
 export type GetOrderResponse = {
   order: Order;
   has_review: boolean;
@@ -82,6 +96,21 @@ export const buyerApi = {
       `/v1/orders/${orderId}?token=${encodeURIComponent(token)}`,
       { method: "GET" },
     ),
+
+  subscribeToPlan: (
+    planId: string,
+    input: { buyer: { email: string; name?: string | null; phone?: string | null } },
+  ) =>
+    requestJSON<SubscribeResponse>(`/v1/subscription-plans/${planId}/subscribe`, {
+      method: "POST",
+      body: JSON.stringify({
+        buyer: {
+          email: input.buyer.email,
+          name: input.buyer.name ?? null,
+          phone: input.buyer.phone ?? null,
+        },
+      }),
+    }),
 
   createReview: (
     orderId: string,

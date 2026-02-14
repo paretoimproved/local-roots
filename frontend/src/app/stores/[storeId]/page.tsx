@@ -50,12 +50,20 @@ export default async function StorePickupWindowsPage({
             Store: <span className="font-mono text-xs">{storeId}</span>
           </p>
         </div>
-        <Link
-          className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-          href="/stores"
-        >
-          Back to stores
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            className="lr-btn px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+            href={`/stores/${storeId}/boxes`}
+          >
+            Seasonal boxes
+          </Link>
+          <Link
+            className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
+            href="/stores"
+          >
+            Back to stores
+          </Link>
+        </div>
       </div>
 
       {error ? (

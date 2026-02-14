@@ -41,6 +41,22 @@ export type Offering = {
   product: Product;
 };
 
+export type SubscriptionPlan = {
+  id: string;
+  store_id: string;
+  title: string;
+  description: string | null;
+  cadence: "weekly" | "biweekly" | "monthly" | string;
+  price_cents: number;
+  subscriber_limit: number;
+  first_start_at: string;
+  duration_minutes: number;
+  cutoff_hours: number;
+  is_active: boolean;
+  next_start_at: string;
+  pickup_location: PickupLocation;
+};
+
 function apiBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ||
@@ -68,5 +84,8 @@ export const api = {
     getJSON<PickupWindow[]>(`/v1/stores/${storeId}/pickup-windows`),
   listPickupWindowOfferings: (pickupWindowId: string) =>
     getJSON<Offering[]>(`/v1/pickup-windows/${pickupWindowId}/offerings`),
+  listStoreSubscriptionPlans: (storeId: string) =>
+    getJSON<SubscriptionPlan[]>(`/v1/stores/${storeId}/subscription-plans`),
+  getSubscriptionPlan: (planId: string) =>
+    getJSON<SubscriptionPlan>(`/v1/subscription-plans/${planId}`),
 };
-
