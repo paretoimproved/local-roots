@@ -163,7 +163,11 @@ jobs:
             exit $ec
           fi
 
-          url=$(echo "$out" | tail -n 1 | tr -d '\r')
+          url=$(echo "$out" | tr -d '\r' | grep -Eo 'https?://[^[:space:]]+' | tail -n 1)
+          if [[ -z "$url" ]]; then
+            echo "Could not parse Vercel deployment URL from output."
+            exit 1
+          fi
           echo "skipped=false" >> "$GITHUB_OUTPUT"
           echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
 
@@ -264,7 +268,11 @@ jobs:
             exit $ec
           fi
 
-          url=$(echo "$out" | tail -n 1 | tr -d '\r')
+          url=$(echo "$out" | tr -d '\r' | grep -Eo 'https?://[^[:space:]]+' | tail -n 1)
+          if [[ -z "$url" ]]; then
+            echo "Could not parse Vercel deployment URL from output."
+            exit 1
+          fi
           echo "skipped=false" >> "$GITHUB_OUTPUT"
           echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
 
@@ -273,8 +281,8 @@ jobs:
         run: |
           echo "Running smoke tests on ${{ steps.deploy-prod.outputs.deployment_url }}"
           # Add curl commands to test critical endpoints
-          curl -f "${{ steps.deploy-prod.outputs.deployment_url }}" || exit 1
-          curl -f "${{ steps.deploy-prod.outputs.deployment_url }}/stores" || exit 1
+          curl --globoff -f "${{ steps.deploy-prod.outputs.deployment_url }}" || exit 1
+          curl --globoff -f "${{ steps.deploy-prod.outputs.deployment_url }}/stores" || exit 1
 
       - name: Notify deployment success
         if: steps.vercel_secrets.outputs.ok == 'true' && steps.deploy-prod.outputs.skipped != 'true'
