@@ -11,6 +11,7 @@ type Config struct {
 	GooglePlacesAPIKey  string
 	StripeSecretKey     string
 	StripeWebhookSecret string
+	InternalCronSecret  string
 }
 
 func FromEnv() Config {
@@ -33,6 +34,7 @@ func FromEnv() Config {
 	googlePlacesAPIKey := os.Getenv("GOOGLE_PLACES_API_KEY")
 	stripeSecretKey := os.Getenv("STRIPE_SECRET_KEY")
 	stripeWebhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
+	internalCronSecret := os.Getenv("INTERNAL_CRON_SECRET")
 
 	return Config{
 		Addr:                addr,
@@ -43,5 +45,6 @@ func FromEnv() Config {
 		GooglePlacesAPIKey:  googlePlacesAPIKey,
 		StripeSecretKey:     stripeSecretKey,
 		StripeWebhookSecret: stripeWebhookSecret,
+		InternalCronSecret:  internalCronSecret,
 	}
 }

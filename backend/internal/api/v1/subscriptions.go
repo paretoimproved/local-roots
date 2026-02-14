@@ -224,8 +224,9 @@ type CheckoutRequest struct {
 }
 
 type CheckoutResponse struct {
-	PaymentIntentID string `json:"payment_intent_id"`
-	ClientSecret    string `json:"client_secret"`
+	Mode         string `json:"mode"` // "payment_intent" | "setup_intent"
+	ID           string `json:"id"`
+	ClientSecret string `json:"client_secret"`
 }
 
 type Subscription struct {
@@ -335,11 +336,7 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 	now := time.Now().UTC()
 	nextStart := nextStartAt(now, firstStartAt, cadence, loc, cutoffHours)
 	endAt := nextStart.Add(time.Duration(durationMin) * time.Minute)
-	// Stripe manual capture authorizations generally expire after ~7 days; enforce a safe window.
-	if endAt.Sub(now) > 7*24*time.Hour {
-		resp.BadRequest(w, "next pickup is too far away to authorize a card. Please try again closer to pickup.")
-		return
-	}
+	withinAuthWindow := endAt.Sub(now) <= 7*24*time.Hour
 
 	ctx := r.Context()
 	cusID, err := a.Stripe.CreateCustomer(ctx, buyerEmail, in.Buyer.Name, in.Buyer.Phone)
@@ -348,21 +345,33 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	piID, secret, err := a.Stripe.CreateCheckoutPaymentIntent(ctx, stripepay.CreateCheckoutPaymentIntentInput{
-		AmountCents: priceCents,
-		Currency:    "usd",
-		CustomerID:  cusID,
-		Metadata: map[string]string{
-			"plan_id":  planID,
-			"store_id": storeID,
-		},
+	if withinAuthWindow {
+		piID, secret, err := a.Stripe.CreateCheckoutPaymentIntent(ctx, stripepay.CreateCheckoutPaymentIntentInput{
+			AmountCents: priceCents,
+			Currency:    "usd",
+			CustomerID:  cusID,
+			Metadata: map[string]string{
+				"plan_id":  planID,
+				"store_id": storeID,
+			},
+		})
+		if err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		resp.OK(w, CheckoutResponse{Mode: "payment_intent", ID: piID, ClientSecret: secret})
+		return
+	}
+
+	siID, secret, err := a.Stripe.CreateSetupIntent(ctx, cusID, map[string]string{
+		"plan_id":  planID,
+		"store_id": storeID,
 	})
 	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
-
-	resp.OK(w, CheckoutResponse{PaymentIntentID: piID, ClientSecret: secret})
+	resp.OK(w, CheckoutResponse{Mode: "setup_intent", ID: siID, ClientSecret: secret})
 }
 
 func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
@@ -382,6 +391,7 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 	type SubscribeRequest struct {
 		PaymentIntentID string `json:"payment_intent_id"`
+		SetupIntentID   string `json:"setup_intent_id"`
 		Buyer           struct {
 			Email string  `json:"email"`
 			Name  *string `json:"name"`
@@ -401,8 +411,13 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	paymentIntentID := strings.TrimSpace(in.PaymentIntentID)
-	if paymentIntentID == "" {
-		resp.BadRequest(w, "payment_intent_id is required")
+	setupIntentID := strings.TrimSpace(in.SetupIntentID)
+	if paymentIntentID == "" && setupIntentID == "" {
+		resp.BadRequest(w, "payment_intent_id or setup_intent_id is required")
+		return
+	}
+	if paymentIntentID != "" && setupIntentID != "" {
+		resp.BadRequest(w, "provide only one of payment_intent_id or setup_intent_id")
 		return
 	}
 
@@ -477,37 +492,82 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate the authorized Stripe PaymentIntent matches this plan.
-	pi, err := a.Stripe.RetrievePaymentIntent(ctx, paymentIntentID)
-	if err != nil {
-		resp.BadRequest(w, "could not verify payment authorization")
-		return
-	}
-	if pi == nil || pi.ID == "" {
-		resp.BadRequest(w, "invalid payment authorization")
-		return
-	}
-	if pi.Metadata != nil {
-		if v, ok := pi.Metadata["plan_id"]; ok && v != "" && v != planID {
-			resp.BadRequest(w, "payment authorization does not match this plan")
+	var (
+		stripeCustomerID   string
+		stripePMID         string
+		orderPaymentStatus string
+		orderStripePI      *string
+	)
+
+	if paymentIntentID != "" {
+		// Validate the authorized Stripe PaymentIntent matches this plan.
+		pi, err := a.Stripe.RetrievePaymentIntent(ctx, paymentIntentID)
+		if err != nil {
+			resp.BadRequest(w, "could not verify payment authorization")
 			return
 		}
-	}
-	if pi.Amount != int64(priceCents) {
-		resp.BadRequest(w, "payment authorization amount does not match")
-		return
-	}
-	if pi.Status != stripe.PaymentIntentStatusRequiresCapture {
-		resp.BadRequest(w, "payment is not authorized yet")
-		return
-	}
-	if pi.PaymentMethod == nil || pi.PaymentMethod.ID == "" {
-		resp.BadRequest(w, "payment method missing")
-		return
-	}
-	if pi.Customer == nil || pi.Customer.ID == "" {
-		resp.BadRequest(w, "payment customer missing")
-		return
+		if pi == nil || pi.ID == "" {
+			resp.BadRequest(w, "invalid payment authorization")
+			return
+		}
+		if pi.Metadata != nil {
+			if v, ok := pi.Metadata["plan_id"]; ok && v != "" && v != planID {
+				resp.BadRequest(w, "payment authorization does not match this plan")
+				return
+			}
+		}
+		if pi.Amount != int64(priceCents) {
+			resp.BadRequest(w, "payment authorization amount does not match")
+			return
+		}
+		if pi.Status != stripe.PaymentIntentStatusRequiresCapture {
+			resp.BadRequest(w, "payment is not authorized yet")
+			return
+		}
+		if pi.PaymentMethod == nil || pi.PaymentMethod.ID == "" {
+			resp.BadRequest(w, "payment method missing")
+			return
+		}
+		if pi.Customer == nil || pi.Customer.ID == "" {
+			resp.BadRequest(w, "payment customer missing")
+			return
+		}
+		stripeCustomerID = pi.Customer.ID
+		stripePMID = pi.PaymentMethod.ID
+		orderPaymentStatus = "authorized"
+		orderStripePI = &paymentIntentID
+	} else {
+		si, err := a.Stripe.RetrieveSetupIntent(ctx, setupIntentID)
+		if err != nil {
+			resp.BadRequest(w, "could not verify card setup")
+			return
+		}
+		if si == nil || si.ID == "" {
+			resp.BadRequest(w, "invalid card setup")
+			return
+		}
+		if si.Metadata != nil {
+			if v, ok := si.Metadata["plan_id"]; ok && v != "" && v != planID {
+				resp.BadRequest(w, "card setup does not match this plan")
+				return
+			}
+		}
+		if si.Status != stripe.SetupIntentStatusSucceeded {
+			resp.BadRequest(w, "card was not saved yet")
+			return
+		}
+		if si.PaymentMethod == nil || si.PaymentMethod.ID == "" {
+			resp.BadRequest(w, "payment method missing")
+			return
+		}
+		if si.Customer == nil || si.Customer.ID == "" {
+			resp.BadRequest(w, "payment customer missing")
+			return
+		}
+		stripeCustomerID = si.Customer.ID
+		stripePMID = si.PaymentMethod.ID
+		orderPaymentStatus = "pending"
+		orderStripePI = nil
 	}
 
 	// Enforce subscriber limit (only counts active subscriptions).
@@ -522,7 +582,9 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 	if activeCount >= subscriberLimit {
 		// Best-effort: void authorization.
-		_ = a.Stripe.CancelPaymentIntent(ctx, paymentIntentID, "cancel-plan-full-"+paymentIntentID)
+		if paymentIntentID != "" {
+			_ = a.Stripe.CancelPaymentIntent(ctx, paymentIntentID, "cancel-plan-full-"+paymentIntentID)
+		}
 		resp.BadRequest(w, "this box is currently full")
 		return
 	}
@@ -535,7 +597,7 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		)
 		values ($1::uuid, $2::uuid, $3, $4, $5, 'active', $6, $7)
 		returning id::text, plan_id::text, store_id::text, buyer_token, status, created_at
-	`, planID, storeID, buyerEmail, in.Buyer.Name, in.Buyer.Phone, pi.Customer.ID, pi.PaymentMethod.ID).Scan(
+	`, planID, storeID, buyerEmail, in.Buyer.Name, in.Buyer.Phone, stripeCustomerID, stripePMID).Scan(
 		&sub.ID,
 		&sub.PlanID,
 		&sub.StoreID,
@@ -582,13 +644,15 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		buyerPhone:            in.Buyer.Phone,
 		quantity:              1,
 		paymentMethod:         "card",
-		paymentStatus:         "authorized",
-		stripePaymentIntentID: &paymentIntentID,
+		paymentStatus:         orderPaymentStatus,
+		stripePaymentIntentID: orderStripePI,
 	})
 	if err != nil {
 		if errors.Is(err, errInsufficientInventory) {
 			// Best-effort: void authorization.
-			_ = a.Stripe.CancelPaymentIntent(ctx, paymentIntentID, "cancel-inventory-"+paymentIntentID)
+			if paymentIntentID != "" {
+				_ = a.Stripe.CancelPaymentIntent(ctx, paymentIntentID, "cancel-inventory-"+paymentIntentID)
+			}
 			resp.BadRequest(w, "this box is currently full")
 			return
 		}
@@ -1075,6 +1139,8 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			next = addCadence(next, cadence, loc).UTC()
 		}
 	}
+	endAt := next.Add(time.Duration(durationMin) * time.Minute)
+	withinAuthWindow := endAt.Sub(now) <= 7*24*time.Hour
 
 	windowID, offeringID, err := ensureCycleAndOffering(ctx, tx, ensureCycleInput{
 		planID:          planID,
@@ -1138,6 +1204,30 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			continue
 		}
 
+		if !withinAuthWindow {
+			if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
+				storeID:        storeID,
+				pickupWindowID: windowID,
+				offeringID:     offeringID,
+				subscriptionID: &subID,
+				buyerEmail:     email,
+				buyerName:      name,
+				buyerPhone:     phone,
+				quantity:       1,
+				paymentMethod:  "card",
+				paymentStatus:  "pending",
+			}); err != nil {
+				if errors.Is(err, errInsufficientInventory) {
+					resp.BadRequest(w, "subscriber limit exceeded for this cycle")
+					return
+				}
+				resp.Internal(w, err)
+				return
+			}
+			created++
+			continue
+		}
+
 		piID, piStatus, err := a.Stripe.CreateOffSessionAuthorization(ctx, stripepay.CreateOffSessionPaymentIntentInput{
 			AmountCents:     priceCents,
 			Currency:        "usd",
@@ -1156,14 +1246,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			continue
 		}
 
-		paymentStatus := "failed"
-		switch piStatus {
-		case string(stripe.PaymentIntentStatusRequiresCapture):
-			paymentStatus = "authorized"
-		case string(stripe.PaymentIntentStatusRequiresAction):
-			paymentStatus = "requires_action"
-		default:
-			// Best-effort: void any non-capturable intent.
+		if piStatus != string(stripe.PaymentIntentStatusRequiresCapture) {
 			_ = a.Stripe.CancelPaymentIntent(ctx, piID, "cancel-"+piID)
 			continue
 		}
@@ -1178,7 +1261,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			buyerPhone:            phone,
 			quantity:              1,
 			paymentMethod:         "card",
-			paymentStatus:         paymentStatus,
+			paymentStatus:         "authorized",
 			stripePaymentIntentID: &piID,
 		}); err != nil {
 			if errors.Is(err, errInsufficientInventory) {

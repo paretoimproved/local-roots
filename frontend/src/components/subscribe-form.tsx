@@ -28,11 +28,13 @@ function AuthorizeCardInner({
   submitting,
   setSubmitting,
   setError,
+  mode,
 }: {
   onAuthorized: () => Promise<void>;
   submitting: boolean;
   setSubmitting: (v: boolean) => void;
   setError: (v: string | null) => void;
+  mode: "payment_intent" | "setup_intent";
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -42,18 +44,34 @@ function AuthorizeCardInner({
     setSubmitting(true);
     setError(null);
     try {
-      const res = await stripe.confirmPayment({
-        elements,
-        redirect: "if_required",
-      });
-      if (res.error) {
-        setError(res.error.message ?? "Payment failed. Please try again.");
-        return;
-      }
-      const status = res.paymentIntent?.status ?? "";
-      if (status !== "requires_capture") {
-        setError("Payment was not authorized. Please try another card.");
-        return;
+      if (mode === "payment_intent") {
+        const res = await stripe.confirmPayment({
+          elements,
+          redirect: "if_required",
+        });
+        if (res.error) {
+          setError(res.error.message ?? "Payment failed. Please try again.");
+          return;
+        }
+        const status = res.paymentIntent?.status ?? "";
+        if (status !== "requires_capture") {
+          setError("Payment was not authorized. Please try another card.");
+          return;
+        }
+      } else {
+        const res = await stripe.confirmSetup({
+          elements,
+          redirect: "if_required",
+        });
+        if (res.error) {
+          setError(res.error.message ?? "Could not save card. Please try again.");
+          return;
+        }
+        const status = res.setupIntent?.status ?? "";
+        if (status !== "succeeded") {
+          setError("Card was not saved. Please try again.");
+          return;
+        }
       }
       await onAuthorized();
     } catch (e: unknown) {
@@ -77,7 +95,9 @@ function AuthorizeCardInner({
         {submitting ? "Authorizing…" : "Authorize card"}
       </button>
       <div className="text-xs text-[color:var(--lr-muted)]">
-        Your card will be authorized now and captured when pickup is confirmed.
+        {mode === "payment_intent"
+          ? "Your card will be authorized now and captured when pickup is confirmed."
+          : "Your card will be saved now. We will authorize each pickup within 7 days of the pickup and capture when pickup is confirmed."}
       </div>
     </div>
   );
@@ -89,12 +109,14 @@ function AuthorizeCard({
   submitting,
   setSubmitting,
   setError,
+  mode,
 }: {
   clientSecret: string;
   onAuthorized: () => Promise<void>;
   submitting: boolean;
   setSubmitting: (v: boolean) => void;
   setError: (v: string | null) => void;
+  mode: "payment_intent" | "setup_intent";
 }) {
   return (
     <Elements
@@ -109,6 +131,7 @@ function AuthorizeCard({
         submitting={submitting}
         setSubmitting={setSubmitting}
         setError={setError}
+        mode={mode}
       />
     </Elements>
   );
@@ -151,7 +174,13 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         },
       });
       setCheckout(res);
-      showToast({ kind: "success", message: "Card authorization started." });
+      showToast({
+        kind: "success",
+        message:
+          res.mode === "payment_intent"
+            ? "Card authorization started."
+            : "Card setup started.",
+      });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
     } finally {
@@ -162,7 +191,8 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   async function completeSubscribe() {
     if (!checkout) return;
     const res = await buyerApi.subscribeToPlan(plan.id, {
-      payment_intent_id: checkout.payment_intent_id,
+      payment_intent_id: checkout.mode === "payment_intent" ? checkout.id : undefined,
+      setup_intent_id: checkout.mode === "setup_intent" ? checkout.id : undefined,
       buyer: {
         email,
         name: name || null,
@@ -207,7 +237,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             </Link>
           </div>
           <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
-            Payment: your card is authorized now and will be captured when pickup is confirmed.
+            Payment: your card is on file. If this pickup is within 7 days, it should already be authorized. We capture when pickup is confirmed.
           </div>
         </section>
 
@@ -315,6 +345,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             setSubmitting={setSubmitting}
             setError={setError}
             onAuthorized={completeSubscribe}
+            mode={checkout.mode}
           />
         ) : (
           <div className="text-xs text-[color:var(--lr-muted)]">

@@ -56,7 +56,8 @@ export type SubscribeResponse = {
 };
 
 export type PlanCheckoutResponse = {
-  payment_intent_id: string;
+  mode: "payment_intent" | "setup_intent";
+  id: string;
   client_secret: string;
 };
 
@@ -82,13 +83,15 @@ export const buyerApi = {
     planId: string,
     input: {
       buyer: { email: string; name?: string | null; phone?: string | null };
-      payment_intent_id: string;
+      payment_intent_id?: string;
+      setup_intent_id?: string;
     },
   ) =>
     requestJSON<SubscribeResponse>(`/v1/subscription-plans/${planId}/subscribe`, {
       method: "POST",
       body: JSON.stringify({
-        payment_intent_id: input.payment_intent_id,
+        payment_intent_id: input.payment_intent_id ?? null,
+        setup_intent_id: input.setup_intent_id ?? null,
         buyer: {
           email: input.buyer.email,
           name: input.buyer.name ?? null,

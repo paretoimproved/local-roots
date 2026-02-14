@@ -84,5 +84,12 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/geo/places/autocomplete", authAPI.RequireUser(geo.PlacesAutocomplete))
 	mux.HandleFunc("POST /v1/seller/geo/places/details", authAPI.RequireUser(geo.PlacesDetails))
 
+	internalBilling := v1.InternalBillingAPI{
+		DB:     deps.DB,
+		Stripe: stripeClient,
+		Secret: deps.Config.InternalCronSecret,
+	}
+	mux.HandleFunc("POST /v1/internal/billing/authorize-pending", internalBilling.AuthorizePending)
+
 	return withCORS(deps.Config, mux)
 }

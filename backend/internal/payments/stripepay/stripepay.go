@@ -7,6 +7,7 @@ import (
 
 	stripe "github.com/stripe/stripe-go/v78"
 	"github.com/stripe/stripe-go/v78/client"
+	"github.com/stripe/stripe-go/v78/setupintent"
 )
 
 var ErrNotConfigured = errors.New("stripe not configured")
@@ -43,6 +44,41 @@ func (c *Client) CreateCustomer(ctx context.Context, email string, name *string,
 		return "", err
 	}
 	return cus.ID, nil
+}
+
+func (c *Client) CreateSetupIntent(ctx context.Context, customerID string, metadata map[string]string) (setupIntentID string, clientSecret string, err error) {
+	if !c.Enabled() {
+		return "", "", ErrNotConfigured
+	}
+	if customerID == "" {
+		return "", "", fmt.Errorf("missing customer_id")
+	}
+	p := &stripe.SetupIntentParams{
+		Customer: stripe.String(customerID),
+		Usage:    stripe.String(string(stripe.SetupIntentUsageOffSession)),
+	}
+	for k, v := range metadata {
+		p.AddMetadata(k, v)
+	}
+	p.Context = ctx
+
+	si, err := setupintent.New(p)
+	if err != nil {
+		return "", "", err
+	}
+	return si.ID, si.ClientSecret, nil
+}
+
+func (c *Client) RetrieveSetupIntent(ctx context.Context, setupIntentID string) (*stripe.SetupIntent, error) {
+	if !c.Enabled() {
+		return nil, ErrNotConfigured
+	}
+	if setupIntentID == "" {
+		return nil, fmt.Errorf("missing setup_intent_id")
+	}
+	p := &stripe.SetupIntentParams{}
+	p.Context = ctx
+	return setupintent.Get(setupIntentID, p)
 }
 
 type CreateCheckoutPaymentIntentInput struct {
