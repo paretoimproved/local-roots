@@ -358,7 +358,11 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
           />
         ) : (
           <div className="text-xs text-[color:var(--lr-muted)]">
-            Cancel/skip/refunds follow the pickup window cutoff policy.
+            Cancel/skip/refunds follow the cutoff policy.{" "}
+            <Link className="underline" href="/policies">
+              Policies
+            </Link>
+            .
           </div>
         )}
       </div>
