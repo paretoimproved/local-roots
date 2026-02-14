@@ -44,12 +44,12 @@ func SignJWT(secret []byte, userID string, role string, ttl time.Duration) (stri
 }
 
 func ParseJWT(secret []byte, tokenString string) (*Claims, error) {
-	tok, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(t *jwt.Token) (any, error) {
-		if t.Method != jwt.SigningMethodHS256 {
-			return nil, ErrInvalidToken
-		}
-		return secret, nil
-	})
+	tok, err := jwt.ParseWithClaims(
+		tokenString,
+		&Claims{},
+		func(t *jwt.Token) (any, error) { return secret, nil },
+		jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}),
+	)
 	if err != nil {
 		return nil, ErrInvalidToken
 	}

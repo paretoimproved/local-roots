@@ -1,3 +1,5 @@
+import { requestJSON } from "@/lib/http";
+
 export type Store = {
   id: string;
   name: string;
@@ -58,35 +60,27 @@ export type SubscriptionPlan = {
   pickup_location: PickupLocation;
 };
 
-function apiBaseUrl() {
-  return (
-    process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ||
-    "http://localhost:8080"
-  );
-}
-
-async function getJSON<T>(path: string): Promise<T> {
-  const res = await fetch(`${apiBaseUrl()}${path}`, {
-    // Keep dev behavior simple and predictable for now.
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`API ${res.status}: ${text || res.statusText}`);
-  }
-
-  return (await res.json()) as T;
-}
-
 export const api = {
-  listStores: () => getJSON<Store[]>("/v1/stores"),
+  listStores: () =>
+    requestJSON<Store[]>("/v1/stores", { method: "GET", next: { revalidate: 30 } }),
   listStorePickupWindows: (storeId: string) =>
-    getJSON<PickupWindow[]>(`/v1/stores/${storeId}/pickup-windows`),
+    requestJSON<PickupWindow[]>(`/v1/stores/${storeId}/pickup-windows`, {
+      method: "GET",
+      next: { revalidate: 30 },
+    }),
   listPickupWindowOfferings: (pickupWindowId: string) =>
-    getJSON<Offering[]>(`/v1/pickup-windows/${pickupWindowId}/offerings`),
+    requestJSON<Offering[]>(`/v1/pickup-windows/${pickupWindowId}/offerings`, {
+      method: "GET",
+      next: { revalidate: 10 },
+    }),
   listStoreSubscriptionPlans: (storeId: string) =>
-    getJSON<SubscriptionPlan[]>(`/v1/stores/${storeId}/subscription-plans`),
+    requestJSON<SubscriptionPlan[]>(
+      `/v1/stores/${storeId}/subscription-plans`,
+      { method: "GET", next: { revalidate: 30 } },
+    ),
   getSubscriptionPlan: (planId: string) =>
-    getJSON<SubscriptionPlan>(`/v1/subscription-plans/${planId}`),
+    requestJSON<SubscriptionPlan>(`/v1/subscription-plans/${planId}`, {
+      method: "GET",
+      next: { revalidate: 30 },
+    }),
 };

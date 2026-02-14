@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -78,11 +77,20 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 			o.payment_status,
 			o.subtotal_cents,
 			o.total_cents,
-			o.created_at
+			o.created_at,
+
+			oi.id::text,
+			oi.offering_id::text,
+			oi.product_title,
+			oi.product_unit,
+			oi.price_cents,
+			oi.quantity,
+			oi.line_total_cents
 		from orders o
+		left join order_items oi on oi.order_id = o.id
 		where o.store_id = $1::uuid and o.pickup_window_id = $2::uuid
-		order by o.created_at desc
-		limit 200
+		order by o.created_at desc, oi.created_at asc
+		limit 20000
 	`, storeID, windowID)
 	if err != nil {
 		resp.Internal(w, err)
@@ -91,8 +99,19 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 	defer rows.Close()
 
 	out := make([]SellerOrder, 0)
+	byID := make(map[string]int)
 	for rows.Next() {
-		var o SellerOrder
+		var (
+			o         SellerOrder
+			itemID    *string
+			offering  *string
+			title     *string
+			unit      *string
+			price     *int
+			qty       *int
+			lineTotal *int
+		)
+
 		if err := rows.Scan(
 			&o.ID,
 			&o.StoreID,
@@ -106,56 +125,58 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 			&o.SubtotalCents,
 			&o.TotalCents,
 			&o.CreatedAt,
+
+			&itemID,
+			&offering,
+			&title,
+			&unit,
+			&price,
+			&qty,
+			&lineTotal,
 		); err != nil {
 			resp.Internal(w, err)
 			return
 		}
-		out = append(out, o)
+
+		idx, ok := byID[o.ID]
+		if !ok {
+			out = append(out, o)
+			idx = len(out) - 1
+			byID[o.ID] = idx
+		}
+
+		// Append item if present.
+		if itemID != nil {
+			it := OrderItem{
+				ID:           *itemID,
+				OfferingID:   offering,
+				ProductTitle: "",
+				ProductUnit:  "",
+			}
+			if title != nil {
+				it.ProductTitle = *title
+			}
+			if unit != nil {
+				it.ProductUnit = *unit
+			}
+			if price != nil {
+				it.PriceCents = *price
+			}
+			if qty != nil {
+				it.Quantity = *qty
+			}
+			if lineTotal != nil {
+				it.LineTotalCents = *lineTotal
+			}
+			out[idx].Items = append(out[idx].Items, it)
+		}
 	}
 	if rows.Err() != nil {
 		resp.Internal(w, rows.Err())
 		return
 	}
 
-	// Load items per order (N+1 is fine for small MVP; keeps SQL simple).
-	for i := range out {
-		items, err := a.listOrderItems(r.Context(), out[i].ID)
-		if err != nil {
-			resp.Internal(w, err)
-			return
-		}
-		out[i].Items = items
-	}
-
 	resp.OK(w, out)
-}
-
-func (a SellerOrdersAPI) listOrderItems(ctx context.Context, orderID string) ([]OrderItem, error) {
-	rows, err := a.DB.Query(ctx, `
-		select id::text, offering_id::text, product_title, product_unit, price_cents, quantity, line_total_cents
-		from order_items
-		where order_id = $1::uuid
-		order by created_at asc
-	`, orderID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	out := make([]OrderItem, 0)
-	for rows.Next() {
-		var it OrderItem
-		var offeringID *string
-		if err := rows.Scan(&it.ID, &offeringID, &it.ProductTitle, &it.ProductUnit, &it.PriceCents, &it.Quantity, &it.LineTotalCents); err != nil {
-			return nil, err
-		}
-		it.OfferingID = offeringID
-		out = append(out, it)
-	}
-	if rows.Err() != nil {
-		return nil, rows.Err()
-	}
-	return out, nil
 }
 
 type UpdateOrderStatusRequest struct {
@@ -184,7 +205,7 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 	}
 
 	var in UpdateOrderStatusRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -250,12 +271,8 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 			return
 		}
 	}
-	if currentStatus == "ready" && (in.Status == "picked_up") {
-		if err := adjustOfferingsForOrder(ctx, tx, orderID, "finalize"); err != nil {
-			resp.Internal(w, err)
-			return
-		}
-	}
+	// Note: ready -> picked_up is intentionally handled via ConfirmPickup (pickup-code handshake),
+	// not via this generic status endpoint.
 
 	if _, err := tx.Exec(ctx, `
 		update orders
@@ -314,7 +331,7 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 	}
 
 	var in ConfirmPickupRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}

@@ -12,7 +12,7 @@ func withCORS(cfg config.Config, next http.Handler) http.Handler {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		origin := r.Header.Get("Origin")
-		if origin != "" && isOriginAllowed(origin, allowed) {
+		if origin != "" && isOriginAllowed(cfg, origin, allowed) {
 			w.Header().Set("Access-Control-Allow-Origin", origin)
 			w.Header().Set("Vary", "Origin")
 			w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -42,7 +42,7 @@ func parseAllowedOrigins(v string) []string {
 	return out
 }
 
-func isOriginAllowed(origin string, allowed []string) bool {
+func isOriginAllowed(cfg config.Config, origin string, allowed []string) bool {
 	// Explicit allow list wins.
 	for _, a := range allowed {
 		if origin == a {
@@ -50,7 +50,13 @@ func isOriginAllowed(origin string, allowed []string) bool {
 		}
 	}
 
-	// Reasonable default for Vercel preview/prod.
+	// In production, require explicit allowlisting to avoid accidentally accepting
+	// requests from unrelated browser clients.
+	if cfg.Env == "prod" {
+		return false
+	}
+
+	// Reasonable default for Vercel previews in non-prod environments.
 	if strings.HasSuffix(origin, ".vercel.app") && strings.HasPrefix(origin, "https://") {
 		return true
 	}

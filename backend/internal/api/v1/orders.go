@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -69,7 +68,7 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var in CreateOrderRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}

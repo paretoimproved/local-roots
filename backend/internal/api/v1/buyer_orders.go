@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
 	"time"
@@ -36,11 +35,13 @@ func (a BuyerOrdersAPI) GetOrder(w http.ResponseWriter, r *http.Request) {
 
 	token := strings.TrimSpace(r.URL.Query().Get("token"))
 	if token == "" {
-		var body struct {
-			Token string `json:"token"`
+		// Accept buyer token via Authorization header for consistency with other auth patterns.
+		// Note: this is not a JWT; it is the opaque buyer_token issued when placing an order.
+		authz := strings.TrimSpace(r.Header.Get("Authorization"))
+		parts := strings.SplitN(authz, " ", 2)
+		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
+			token = strings.TrimSpace(parts[1])
 		}
-		_ = json.NewDecoder(r.Body).Decode(&body)
-		token = strings.TrimSpace(body.Token)
 	}
 	if token == "" {
 		resp.Unauthorized(w, "missing token")
@@ -159,7 +160,7 @@ func (a BuyerOrdersAPI) CreateReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var in CreateReviewRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}

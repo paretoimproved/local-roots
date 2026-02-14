@@ -2,7 +2,6 @@ package v1
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -246,7 +245,7 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var in SubscribeRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -585,7 +584,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 	}
 
 	var in CreatePlanRequest
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
 		return
 	}
@@ -895,19 +894,24 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Create orders for all active subscriptions that don't already have an order for this pickup window.
-	rows, err := tx.Query(ctx, `
-		select id::text, buyer_email, buyer_name, buyer_phone
-		from subscriptions
-		where plan_id = $1::uuid and status = 'active'
-		order by created_at asc
-		limit 5000
-	`, planID)
-	if err != nil {
-		resp.Internal(w, err)
-		return
-	}
-	defer rows.Close()
+		// Create orders for all active subscriptions that don't already have an order for this pickup window.
+		rows, err := tx.Query(ctx, `
+			select s.id::text, s.buyer_email, s.buyer_name, s.buyer_phone
+			from subscriptions s
+			left join orders o
+				on o.subscription_id = s.id
+				and o.pickup_window_id = $2::uuid
+			where s.plan_id = $1::uuid
+				and s.status = 'active'
+				and o.id is null
+			order by s.created_at asc
+			limit 5000
+		`, planID, windowID)
+		if err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		defer rows.Close()
 
 	created := 0
 	for rows.Next() {
@@ -922,21 +926,10 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			return
 		}
 
-		var exists bool
-		if err := tx.QueryRow(ctx, `
-			select exists(select 1 from orders where subscription_id = $1::uuid and pickup_window_id = $2::uuid)
-		`, subID, windowID).Scan(&exists); err != nil {
-			resp.Internal(w, err)
-			return
-		}
-		if exists {
-			continue
-		}
-
-		if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
-			storeID:        storeID,
-			pickupWindowID: windowID,
-			offeringID:     offeringID,
+			if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
+				storeID:        storeID,
+				pickupWindowID: windowID,
+				offeringID:     offeringID,
 			subscriptionID: &subID,
 			buyerEmail:     email,
 			buyerName:      name,
