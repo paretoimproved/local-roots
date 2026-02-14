@@ -21,6 +21,9 @@ coverage
 # Vercel
 .vercel
 
+# Claude/Cursor AI scratch
+.claude/
+
 # Build Outputs
 .next/
 out/

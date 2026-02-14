@@ -53,7 +53,7 @@ func (a SellerAPI) ListMyStores(w http.ResponseWriter, r *http.Request, u AuthUs
 	}
 	defer rows.Close()
 
-	var out []SellerStore
+	out := make([]SellerStore, 0)
 	for rows.Next() {
 		var s SellerStore
 		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.Phone, &s.IsActive, &s.CreatedAt, &s.UpdatedAt); err != nil {
@@ -221,7 +221,7 @@ func (a SellerAPI) ListPickupLocations(w http.ResponseWriter, r *http.Request, u
 	}
 	defer rows.Close()
 
-	var out []SellerPickupLocation
+	out := make([]SellerPickupLocation, 0)
 	for rows.Next() {
 		var pl SellerPickupLocation
 		if err := rows.Scan(&pl.ID, &pl.Label, &pl.Address1, &pl.Address2, &pl.City, &pl.Region, &pl.PostalCode, &pl.Country, &pl.Timezone); err != nil {
@@ -384,7 +384,7 @@ func (a SellerAPI) ListPickupWindows(w http.ResponseWriter, r *http.Request, u A
 	}
 	defer rows.Close()
 
-	var out []SellerPickupWindow
+	out := make([]SellerPickupWindow, 0)
 	for rows.Next() {
 		var pw SellerPickupWindow
 		if err := rows.Scan(
@@ -551,7 +551,7 @@ func (a SellerAPI) ListProducts(w http.ResponseWriter, r *http.Request, u AuthUs
 	}
 	defer rows.Close()
 
-	var out []SellerProduct
+	out := make([]SellerProduct, 0)
 	for rows.Next() {
 		var p SellerProduct
 		if err := rows.Scan(&p.ID, &p.Title, &p.Description, &p.Unit, &p.IsPerishable, &p.IsActive); err != nil {
@@ -697,7 +697,7 @@ func (a SellerAPI) ListOfferings(w http.ResponseWriter, r *http.Request, u AuthU
 	}
 	defer rows.Close()
 
-	var out []SellerOffering
+	out := make([]SellerOffering, 0)
 	for rows.Next() {
 		var o SellerOffering
 		if err := rows.Scan(

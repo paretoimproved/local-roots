@@ -39,7 +39,7 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
-	var out []Store
+	out := make([]Store, 0)
 	for rows.Next() {
 		var s Store
 		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.CreatedAt); err != nil {
@@ -128,7 +128,7 @@ func (a PublicAPI) ListStorePickupWindows(w http.ResponseWriter, r *http.Request
 	}
 	defer rows.Close()
 
-	var out []PickupWindow
+	out := make([]PickupWindow, 0)
 	for rows.Next() {
 		var pw PickupWindow
 		if err := rows.Scan(
@@ -211,7 +211,7 @@ func (a PublicAPI) ListPickupWindowOfferings(w http.ResponseWriter, r *http.Requ
 	}
 	defer rows.Close()
 
-	var out []Offering
+	out := make([]Offering, 0)
 	for rows.Next() {
 		var o Offering
 		if err := rows.Scan(

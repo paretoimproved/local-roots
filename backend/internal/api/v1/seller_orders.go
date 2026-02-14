@@ -90,7 +90,7 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 	}
 	defer rows.Close()
 
-	var out []SellerOrder
+	out := make([]SellerOrder, 0)
 	for rows.Next() {
 		var o SellerOrder
 		if err := rows.Scan(
@@ -142,7 +142,7 @@ func (a SellerOrdersAPI) listOrderItems(ctx context.Context, orderID string) ([]
 	}
 	defer rows.Close()
 
-	var out []OrderItem
+	out := make([]OrderItem, 0)
 	for rows.Next() {
 		var it OrderItem
 		var offeringID *string

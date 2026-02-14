@@ -40,6 +40,46 @@ function formatWindowLabel(w: SellerPickupWindow): string {
   return `${start.toLocaleString()}–${end.toLocaleTimeString()} (${w.status})`;
 }
 
+function toUSDInput(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
+
+function parseUSDToCents(raw: string): number | null {
+  const v = raw.trim();
+  if (!v) return 0;
+  const n = Number.parseFloat(v);
+  if (!Number.isFinite(n)) return null;
+  const cents = Math.round(n * 100);
+  if (cents < 0) return null;
+  return cents;
+}
+
+function friendlyErrorMessage(e: unknown): string {
+  const msg = e instanceof Error ? e.message : String(e);
+  // Never show raw JS runtime errors in the UI.
+  if (/\b(TypeError|ReferenceError|SyntaxError)\b/.test(msg)) {
+    return "Something went wrong while loading this page. Please refresh. If this keeps happening, contact support.";
+  }
+
+  // Translate common API error shapes into something a seller can act on.
+  // requestJSON throws: `API <status>: <text>`
+  const m = msg.match(/^API\s+\d+:\s*(.*)$/);
+  if (m && m[1]) {
+    const text = m[1].trim();
+    try {
+      const parsed = JSON.parse(text) as { error?: string };
+      if (parsed && typeof parsed.error === "string" && parsed.error.trim()) {
+        return parsed.error.trim();
+      }
+    } catch {
+      // ignore
+    }
+    return text || "Request failed. Please try again.";
+  }
+
+  return msg;
+}
+
 function StatusPill({
   status,
 }: {
@@ -104,6 +144,8 @@ export default function SellerStorePage() {
   const [selectedWindowId, setSelectedWindowId] = useState<string>("");
   const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showLocationSetup, setShowLocationSetup] = useState(false);
+  const [showBoxSetup, setShowBoxSetup] = useState(false);
   const [pickupCodeByOrderId, setPickupCodeByOrderId] = useState<
     Record<string, string>
   >({});
@@ -136,7 +178,7 @@ export default function SellerStorePage() {
 
   // Create offering
   const [offeringProductId, setOfferingProductId] = useState("");
-  const [offeringPriceCents, setOfferingPriceCents] = useState(0);
+  const [offeringPriceUsd, setOfferingPriceUsd] = useState("");
   const [offeringQty, setOfferingQty] = useState(0);
 
   // Create subscription plan (seasonal box)
@@ -205,6 +247,16 @@ export default function SellerStorePage() {
     return { hasLocation, hasPlan, isLive, done, total, pct };
   }, [locations, primaryPlan]);
 
+  const isLoading = locations === null || plans === null;
+  const isOnboarding = !setupProgress.isLive;
+  const onboardingStep = !setupProgress.hasLocation
+    ? 1
+    : !setupProgress.hasPlan
+      ? 2
+      : 3;
+  const showFullLocation = !isOnboarding || onboardingStep === 1 || showLocationSetup;
+  const showFullBox = !isOnboarding || onboardingStep === 2 || showBoxSetup;
+
   function scrollToSection(id: string) {
     const el =
       typeof document !== "undefined" ? document.getElementById(id) : null;
@@ -239,7 +291,7 @@ export default function SellerStorePage() {
   useEffect(() => {
     if (!token) return;
     setError(null);
-    refreshAll(token).catch((e: unknown) => setError(String(e)));
+    refreshAll(token).catch((e: unknown) => setError(friendlyErrorMessage(e)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId]);
 
@@ -249,7 +301,7 @@ export default function SellerStorePage() {
     sellerApi
       .listOfferings(token, storeId, selectedWindowId)
       .then(setOfferings)
-      .catch((e: unknown) => setError(String(e)));
+      .catch((e: unknown) => setError(friendlyErrorMessage(e)));
   }, [token, storeId, selectedWindowId]);
 
   useEffect(() => {
@@ -258,7 +310,7 @@ export default function SellerStorePage() {
     sellerApi
       .listOrders(token, storeId, selectedWindowId)
       .then(setOrders)
-      .catch((e: unknown) => setError(String(e)));
+      .catch((e: unknown) => setError(friendlyErrorMessage(e)));
   }, [token, storeId, selectedWindowId]);
 
   async function createLocation() {
@@ -280,7 +332,7 @@ export default function SellerStorePage() {
       setLocPostal("");
       await refreshAll(token);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -302,7 +354,7 @@ export default function SellerStorePage() {
       setWindowNotes("");
       await refreshAll(token);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -321,7 +373,7 @@ export default function SellerStorePage() {
       setProductDesc("");
       await refreshAll(token);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -329,19 +381,24 @@ export default function SellerStorePage() {
     if (!token || !selectedWindowId) return;
     setError(null);
     try {
+      const cents = parseUSDToCents(offeringPriceUsd);
+      if (cents === null) {
+        setError("Offering price must be a valid USD amount (e.g. 5.00).");
+        return;
+      }
       await sellerApi.createOffering(token, storeId, selectedWindowId, {
         product_id: offeringProductId,
-        price_cents: offeringPriceCents,
+        price_cents: cents,
         quantity_available: offeringQty,
         status: "active",
       });
       setOfferingQty(0);
-      setOfferingPriceCents(0);
+      setOfferingPriceUsd("");
       setOfferings(
         await sellerApi.listOfferings(token, storeId, selectedWindowId),
       );
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -353,9 +410,8 @@ export default function SellerStorePage() {
     if (!token) return;
     setError(null);
     try {
-      const parsed = Number.parseFloat(planPriceUsd || "0");
-      const cents = Math.round(parsed * 100);
-      if (!Number.isFinite(cents) || cents < 0) {
+      const cents = parseUSDToCents(planPriceUsd);
+      if (cents === null) {
         setError("Box price must be a valid USD amount (e.g. 25.00).");
         return;
       }
@@ -376,7 +432,7 @@ export default function SellerStorePage() {
       setPlanFirstStartLocal("");
       await refreshAll(token);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -388,7 +444,7 @@ export default function SellerStorePage() {
       await refreshAll(token);
       setSelectedWindowId(res.pickup_window_id);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -420,7 +476,7 @@ export default function SellerStorePage() {
       setOrders(os);
       setOfferings(ofs);
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -447,7 +503,7 @@ export default function SellerStorePage() {
         return next;
       });
     } catch (e: unknown) {
-      setError(String(e));
+      setError(friendlyErrorMessage(e));
     }
   }
 
@@ -464,11 +520,9 @@ export default function SellerStorePage() {
           </Link>
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Store</h1>
-            <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-[color:var(--lr-muted)]">
-              <span>Store ID</span>
-              <span className="lr-chip rounded-full px-3 py-1 font-mono text-xs text-[color:var(--lr-ink)]">
-                {storeId}
-              </span>
+            <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+              Set up your pickup location, launch your seasonal box, then start
+              fulfilling pickups.
             </div>
           </div>
         </div>
@@ -480,23 +534,54 @@ export default function SellerStorePage() {
             onClick={() => {
               if (!token) return;
               setError(null);
-              refreshAll(token).catch((e: unknown) => setError(String(e)));
+              refreshAll(token).catch((e: unknown) =>
+                setError(friendlyErrorMessage(e)),
+              );
             }}
           >
             Refresh
           </button>
-          <button
-            type="button"
-            className={`lr-btn px-4 py-2 text-sm font-medium ${
-              showAdvanced
-                ? "lr-btn-primary"
-                : "lr-chip text-[color:var(--lr-ink)]"
-            }`}
-            onClick={() => setShowAdvanced((v) => !v)}
-            aria-pressed={showAdvanced}
-          >
-            Advanced tools
-          </button>
+          <details className="relative">
+            <summary className="lr-btn lr-chip cursor-pointer list-none px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]">
+              Support
+            </summary>
+            <div className="absolute right-0 mt-2 w-[18rem] rounded-2xl border border-[color:var(--lr-border)] bg-white/90 p-3 text-sm shadow-[0_22px_60px_rgba(38,28,10,0.16)] backdrop-blur">
+              <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
+                Store ID
+              </div>
+              <div className="mt-2 flex items-center gap-2">
+                <span className="lr-chip grow rounded-xl px-3 py-2 font-mono text-xs text-[color:var(--lr-ink)]">
+                  {storeId}
+                </span>
+                <button
+                  type="button"
+                  className="lr-btn lr-btn-primary px-3 py-2 text-xs font-semibold"
+                  onClick={() => {
+                    void navigator.clipboard.writeText(storeId);
+                  }}
+                >
+                  Copy
+                </button>
+              </div>
+              <div className="mt-2 text-xs text-[color:var(--lr-muted)]">
+                Only needed if you contact support.
+              </div>
+            </div>
+          </details>
+          {!isOnboarding ? (
+            <button
+              type="button"
+              className={`lr-btn px-4 py-2 text-sm font-medium ${
+                showAdvanced
+                  ? "lr-btn-primary"
+                  : "lr-chip text-[color:var(--lr-ink)]"
+              }`}
+              onClick={() => setShowAdvanced((v) => !v)}
+              aria-pressed={showAdvanced}
+            >
+              {showAdvanced ? "Hide advanced" : "Show advanced"}
+            </button>
+          ) : null}
           <button
             type="button"
             className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
@@ -516,125 +601,138 @@ export default function SellerStorePage() {
         </div>
       ) : null}
 
-      <section className="lr-card lr-card-strong lr-animate sticky top-3 z-10 grid gap-3 p-4 md:p-5">
-        <div className="grid gap-3">
+      {isOnboarding ? (
+        <section className="lr-card lr-card-strong lr-animate grid gap-4 p-4 md:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
-                Setup progress
+                Seller setup
               </div>
               <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                {setupProgress.done}/{setupProgress.total} complete. Go live to
-                let buyers subscribe.
+                Step {onboardingStep} of 3
+                {isLoading ? " (loading…)" : ""}: pickup location → box → go
+                live.
               </div>
             </div>
+
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
                 className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                  setupProgress.hasLocation
-                    ? "lr-chip text-[color:var(--lr-ink)]"
-                    : "lr-btn-primary"
+                  onboardingStep === 1
+                    ? "lr-btn-primary"
+                    : "lr-chip text-[color:var(--lr-ink)]"
                 }`}
                 onClick={() => scrollToSection("setup-location")}
               >
-                1. Pickup location
+                1. Location
               </button>
               <button
                 type="button"
                 className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                  setupProgress.hasPlan
-                    ? "lr-chip text-[color:var(--lr-ink)]"
-                    : "lr-btn-primary"
+                  onboardingStep === 2
+                    ? "lr-btn-primary"
+                    : "lr-chip text-[color:var(--lr-ink)]"
                 }`}
                 onClick={() => scrollToSection("setup-box")}
               >
-                2. Create box
+                2. Box
               </button>
               <button
                 type="button"
                 className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                  setupProgress.isLive
-                    ? "lr-chip text-[color:var(--lr-ink)]"
-                    : "lr-btn-primary"
-                }`}
-                onClick={() => scrollToSection("setup-box")}
+                  onboardingStep === 3
+                    ? "lr-btn-primary"
+                    : "lr-chip text-[color:var(--lr-ink)]"
+                } disabled:opacity-50`}
+                onClick={() => scrollToSection("setup-go-live")}
+                disabled={onboardingStep < 3}
               >
                 3. Go live
               </button>
             </div>
           </div>
 
-          <div className="h-2 overflow-hidden rounded-full bg-[rgba(38,28,10,0.10)]">
-            <div
-              className="h-full rounded-full bg-[color:var(--lr-leaf)] transition-[width] duration-500"
-              style={{ width: `${setupProgress.pct}%` }}
-            />
-          </div>
-        </div>
-
-        <div className="h-px w-full bg-[rgba(38,28,10,0.10)]" />
-
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
-              Active pickup window
-            </div>
-            <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-              Offerings and orders are scoped to a single pickup window.
-            </div>
+          <div className="rounded-2xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
+            Focus: get one box live and start fulfilling. Advanced pickup windows
+            and catalog offerings are optional.
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              className="lr-field px-3 py-2 text-sm"
-              value={selectedWindowId}
-              onChange={(e) => setSelectedWindowId(e.target.value)}
+          <div className="flex flex-wrap items-center justify-between gap-3 text-sm">
+            <div className="text-[color:var(--lr-muted)]">
+              Need more control?
+            </div>
+            <button
+              type="button"
+              className="lr-btn lr-chip px-3 py-1.5 text-sm font-semibold text-[color:var(--lr-ink)]"
+              onClick={() => setShowAdvanced((v) => !v)}
+              aria-pressed={showAdvanced}
             >
-              <option value="">Select a window…</option>
-              {(windows ?? []).map((w) => (
-                <option key={w.id} value={w.id}>
-                  {formatWindowLabel(w)}
-                </option>
-              ))}
-            </select>
-
-            {selectedWindowId ? (
-              <Link
-                className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-                href={`/pickup-windows/${selectedWindowId}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Buyer view
-              </Link>
-            ) : null}
+              {showAdvanced ? "Hide advanced tools" : "Show advanced tools"}
+            </button>
           </div>
-        </div>
-
-        {selectedWindow ? (
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="lr-chip rounded-full px-3 py-1 text-[color:var(--lr-muted)]">
-              {selectedWindow.pickup_location.label ?? "Pickup"} ·{" "}
-              {selectedWindow.pickup_location.city},{" "}
-              {selectedWindow.pickup_location.region}
-            </span>
-            <span className="lr-chip rounded-full px-3 py-1 text-[color:var(--lr-muted)]">
-              Cutoff{" "}
-              <span className="font-medium text-[color:var(--lr-ink)]">
-                {new Date(selectedWindow.cutoff_at).toLocaleString()}
+        </section>
+      ) : (
+        <section className="lr-card lr-card-strong lr-animate sticky top-3 z-10 grid gap-3 p-4 md:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-leaf)]">
+                live
               </span>
-            </span>
-            <StatusPill status={selectedWindow.status} />
+              <div className="text-sm text-[color:var(--lr-muted)]">
+                Manage one pickup window at a time.
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <select
+                className="lr-field px-3 py-2 text-sm"
+                value={selectedWindowId}
+                onChange={(e) => setSelectedWindowId(e.target.value)}
+              >
+                <option value="">Select a window…</option>
+                {(windows ?? []).map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {formatWindowLabel(w)}
+                  </option>
+                ))}
+              </select>
+
+              {selectedWindowId ? (
+                <Link
+                  className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+                  href={`/pickup-windows/${selectedWindowId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Buyer view
+                </Link>
+              ) : null}
+            </div>
           </div>
-        ) : (
-          <div className="text-sm text-[color:var(--lr-muted)]">
-            Generate a box cycle (go live) to create a pickup window, then
-            select it here. Or turn on Advanced tools to create windows
-            manually.
-          </div>
-        )}
-      </section>
+
+          {selectedWindow ? (
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              <span className="lr-chip rounded-full px-3 py-1 text-[color:var(--lr-muted)]">
+                {selectedWindow.pickup_location.label ?? "Pickup"} ·{" "}
+                {selectedWindow.pickup_location.city},{" "}
+                {selectedWindow.pickup_location.region}
+              </span>
+              <span className="lr-chip rounded-full px-3 py-1 text-[color:var(--lr-muted)]">
+                Cutoff{" "}
+                <span className="font-medium text-[color:var(--lr-ink)]">
+                  {new Date(selectedWindow.cutoff_at).toLocaleString()}
+                </span>
+              </span>
+              <StatusPill status={selectedWindow.status} />
+            </div>
+          ) : (
+            <div className="text-sm text-[color:var(--lr-muted)]">
+              Generate a box cycle to create a pickup window.
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="grid gap-8 lg:grid-cols-2">
         <section id="setup-location" className="lr-card lr-animate grid gap-4 p-6">
@@ -646,101 +744,134 @@ export default function SellerStorePage() {
             </p>
           </div>
 
-          <div className="grid gap-2">
-            {locations?.length ? (
-              <ul className="grid gap-2">
-                {locations.map((l) => (
-                  <li
-                    key={l.id}
-                    className="lr-chip rounded-2xl px-4 py-3"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <div className="font-medium text-[color:var(--lr-ink)]">
-                          {l.label ?? "Pickup"}
+          {showFullLocation ? (
+            <>
+              <div className="grid gap-2">
+                {locations?.length ? (
+                  <ul className="grid gap-2">
+                    {locations.map((l) => (
+                      <li key={l.id} className="lr-chip rounded-2xl px-4 py-3">
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div>
+                            <div className="font-medium text-[color:var(--lr-ink)]">
+                              {l.label ?? "Pickup"}
+                            </div>
+                            <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                              {l.address1}, {l.city}, {l.region} {l.postal_code} ·{" "}
+                              {l.timezone}
+                            </div>
+                          </div>
                         </div>
-                        <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                          {l.address1}, {l.city}, {l.region} {l.postal_code} ·{" "}
-                          {l.timezone}
-                        </div>
-                      </div>
-                      <span className="font-mono text-[10px] text-[color:var(--lr-muted)]">
-                        {l.id}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="text-sm text-[color:var(--lr-muted)]">
-                No pickup locations yet.
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="text-sm text-[color:var(--lr-muted)]">
+                    No pickup locations yet.
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="lr-chip grid gap-3 rounded-2xl p-4">
-            <div>
-              <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
-                Add a location
-              </div>
-              <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                Keep it simple: label + address + timezone.
-              </div>
+              <details className="lr-chip rounded-2xl p-4" open={!locations?.length}>
+                <summary className="cursor-pointer text-sm font-semibold text-[color:var(--lr-ink)]">
+                  Add a location
+                </summary>
+                <div className="mt-2 text-sm text-[color:var(--lr-muted)]">
+                  Keep it simple: label + address + timezone.
+                </div>
+
+                <div className="mt-4 grid gap-2 md:grid-cols-2">
+                  <input
+                    className="lr-field px-3 py-2 text-sm"
+                    value={locLabel}
+                    onChange={(e) => setLocLabel(e.target.value)}
+                    placeholder="Label"
+                  />
+                  <input
+                    className="lr-field px-3 py-2 text-sm"
+                    list="tz-list"
+                    value={locTz}
+                    onChange={(e) => setLocTz(e.target.value)}
+                    placeholder="Timezone (e.g. America/Los_Angeles)"
+                  />
+                  <input
+                    className="lr-field px-3 py-2 text-sm md:col-span-2"
+                    value={locAddress1}
+                    onChange={(e) => setLocAddress1(e.target.value)}
+                    placeholder="Address"
+                  />
+                  <input
+                    className="lr-field px-3 py-2 text-sm"
+                    value={locCity}
+                    onChange={(e) => setLocCity(e.target.value)}
+                    placeholder="City"
+                  />
+                  <input
+                    className="lr-field px-3 py-2 text-sm"
+                    value={locRegion}
+                    onChange={(e) => setLocRegion(e.target.value)}
+                    placeholder="State/Region"
+                  />
+                  <input
+                    className="lr-field px-3 py-2 text-sm"
+                    value={locPostal}
+                    onChange={(e) => setLocPostal(e.target.value)}
+                    placeholder="Postal code"
+                  />
+                </div>
+
+                <datalist id="tz-list">
+                  <option value="America/Los_Angeles" />
+                  <option value="America/Denver" />
+                  <option value="America/Chicago" />
+                  <option value="America/New_York" />
+                  <option value="America/Phoenix" />
+                  <option value="America/Anchorage" />
+                  <option value="Pacific/Honolulu" />
+                </datalist>
+
+                <button
+                  className="mt-4 lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                  disabled={
+                    !locAddress1.trim() ||
+                    !locCity.trim() ||
+                    !locRegion.trim() ||
+                    !locPostal.trim()
+                  }
+                  onClick={createLocation}
+                  type="button"
+                >
+                  Save location
+                </button>
+              </details>
+            </>
+          ) : (
+            <div className="grid gap-3">
+              {locations?.[0] ? (
+                <div className="lr-chip rounded-2xl px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
+                    Current location
+                  </div>
+                  <div className="mt-1 font-semibold text-[color:var(--lr-ink)]">
+                    {locations[0].label ?? "Pickup"}
+                  </div>
+                  <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                    {locations[0].address1}, {locations[0].city},{" "}
+                    {locations[0].region} {locations[0].postal_code}
+                  </div>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className="lr-btn lr-chip w-fit px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+                onClick={() => {
+                  setShowLocationSetup(true);
+                }}
+              >
+                Edit pickup location
+              </button>
             </div>
-
-            <div className="grid gap-2 md:grid-cols-2">
-              <input
-                className="lr-field px-3 py-2 text-sm"
-                value={locLabel}
-                onChange={(e) => setLocLabel(e.target.value)}
-                placeholder="Label"
-              />
-              <input
-                className="lr-field px-3 py-2 text-sm"
-                value={locTz}
-                onChange={(e) => setLocTz(e.target.value)}
-                placeholder="Timezone (e.g. America/Los_Angeles)"
-              />
-              <input
-                className="lr-field px-3 py-2 text-sm md:col-span-2"
-                value={locAddress1}
-                onChange={(e) => setLocAddress1(e.target.value)}
-                placeholder="Address"
-              />
-              <input
-                className="lr-field px-3 py-2 text-sm"
-                value={locCity}
-                onChange={(e) => setLocCity(e.target.value)}
-                placeholder="City"
-              />
-              <input
-                className="lr-field px-3 py-2 text-sm"
-                value={locRegion}
-                onChange={(e) => setLocRegion(e.target.value)}
-                placeholder="State/Region"
-              />
-              <input
-                className="lr-field px-3 py-2 text-sm"
-                value={locPostal}
-                onChange={(e) => setLocPostal(e.target.value)}
-                placeholder="Postal code"
-              />
-            </div>
-
-            <button
-              className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
-              disabled={
-                !locAddress1.trim() ||
-                !locCity.trim() ||
-                !locRegion.trim() ||
-                !locPostal.trim()
-              }
-              onClick={createLocation}
-              type="button"
-            >
-              Create location
-            </button>
-          </div>
+          )}
         </section>
 
         {showAdvanced ? (
@@ -1059,14 +1190,14 @@ export default function SellerStorePage() {
 
               <label className="grid gap-1">
                 <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
-                  Price (cents)
+                  Price (USD)
                 </span>
                 <input
                   className="lr-field px-3 py-2 text-sm"
-                  type="number"
-                  value={offeringPriceCents}
-                  onChange={(e) => setOfferingPriceCents(Number(e.target.value))}
-                  min={0}
+                  inputMode="decimal"
+                  value={offeringPriceUsd}
+                  onChange={(e) => setOfferingPriceUsd(e.target.value)}
+                  placeholder={toUSDInput(500)}
                 />
               </label>
 
@@ -1096,6 +1227,7 @@ export default function SellerStorePage() {
         </section>
         ) : null}
 
+        {!isOnboarding || onboardingStep >= 2 || showBoxSetup ? (
         <section id="setup-box" className="lr-card lr-animate grid gap-4 p-6">
           <div>
             <h2 className="text-base font-semibold">Subscription boxes</h2>
@@ -1196,17 +1328,19 @@ export default function SellerStorePage() {
             </div>
           )}
 
-          <div className="lr-chip grid gap-3 rounded-2xl p-4">
-            <div>
-              <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
-                Create a box
-              </div>
-              <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                Start with a curated seasonal box. Add-ons come later.
-              </div>
+          {showFullBox ? (
+          <details
+            className="lr-chip rounded-2xl p-4"
+            open={!plans?.length}
+          >
+            <summary className="cursor-pointer text-sm font-semibold text-[color:var(--lr-ink)]">
+              Create a box
+            </summary>
+            <div className="mt-2 text-sm text-[color:var(--lr-muted)]">
+              Start with a curated seasonal box. Add-ons come later.
             </div>
 
-            <div className="grid gap-2 md:grid-cols-2">
+            <div className="mt-4 grid gap-2 md:grid-cols-2">
               <label className="grid gap-1 md:col-span-2">
                 <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
                   Title
@@ -1329,7 +1463,7 @@ export default function SellerStorePage() {
 
             <button
               type="button"
-              className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              className="mt-4 lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
               disabled={
                 !planTitle.trim() ||
                 !planLocationId ||
@@ -1340,10 +1474,105 @@ export default function SellerStorePage() {
             >
               Create box
             </button>
-          </div>
+          </details>
+          ) : (
+            <div className="rounded-2xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
+              Box created. You can edit box details later.
+              <button
+                type="button"
+                className="ml-2 lr-btn lr-chip px-3 py-1.5 text-sm font-semibold text-[color:var(--lr-ink)]"
+                onClick={() => setShowBoxSetup(true)}
+              >
+                Edit
+              </button>
+            </div>
+          )}
         </section>
+        ) : (
+          <section id="setup-box" className="lr-card lr-animate grid gap-4 p-6">
+            <div>
+              <h2 className="text-base font-semibold">Subscription boxes</h2>
+              <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                Next step: add a pickup location, then create your first seasonal box.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="lr-btn lr-chip w-fit px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+              onClick={() => scrollToSection("setup-location")}
+            >
+              Go to pickup locations
+            </button>
+          </section>
+        )}
       </div>
 
+      {isOnboarding && onboardingStep === 3 ? (
+        <section
+          id="setup-go-live"
+          className="lr-card lr-card-strong lr-animate grid gap-4 p-6"
+        >
+          <div>
+            <h2 className="text-base font-semibold">Go live</h2>
+            <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+              Going live generates your first pickup cycle. That unlocks the
+              farmstand QR and lets buyers start subscribing.
+            </p>
+          </div>
+
+          {!primaryPlan ? (
+            <div className="grid gap-3">
+              <div className="rounded-2xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
+                Create your first box to continue.
+              </div>
+              <button
+                type="button"
+                className="lr-btn lr-btn-primary w-fit px-4 py-2 text-sm font-semibold"
+                onClick={() => scrollToSection("setup-box")}
+              >
+                Go to box setup
+              </button>
+            </div>
+          ) : primaryPlan.is_live ? (
+            <div className="rounded-2xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
+              You are live.
+            </div>
+          ) : (
+            <div className="grid gap-3">
+              <div className="lr-chip rounded-2xl px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <div className="font-semibold text-[color:var(--lr-ink)]">
+                      {primaryPlan.title}
+                    </div>
+                    <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                      {primaryPlan.cadence} · {formatMoney(primaryPlan.price_cents)} · cap{" "}
+                      {primaryPlan.subscriber_limit}
+                    </div>
+                  </div>
+                  <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-clay)]">
+                    draft
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
+                onClick={() => generateNextCycle(primaryPlan.id)}
+              >
+                Generate first cycle and go live
+              </button>
+
+              <div className="text-xs text-[color:var(--lr-muted)]">
+                This creates a pickup window automatically and sets your box to live.
+              </div>
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {!isOnboarding ? (
       <section className="lr-card lr-animate grid gap-4 p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -1511,6 +1740,7 @@ export default function SellerStorePage() {
           </div>
         )}
       </section>
+      ) : null}
 
       <QrScannerModal
         open={scanOrderId !== null}
