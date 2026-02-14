@@ -83,6 +83,10 @@ function friendlyErrorMessage(e: unknown): string {
   return msg;
 }
 
+function fieldClass(base: string, hasError: boolean): string {
+  return `${base} ${hasError ? "border-rose-300 bg-rose-50/70" : ""}`.trim();
+}
+
 function StatusPill({
   status,
 }: {
@@ -299,6 +303,8 @@ export default function SellerStorePage() {
   const [locRegion, setLocRegion] = useState("");
   const [locPostal, setLocPostal] = useState("");
   const [locCountry, setLocCountry] = useState("US");
+  const [locTouched, setLocTouched] = useState<Record<string, boolean>>({});
+  const [locErrors, setLocErrors] = useState<Record<string, string>>({});
   const [locTz, setLocTz] = useState(
     typeof Intl !== "undefined"
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -348,6 +354,8 @@ export default function SellerStorePage() {
   const [planCutoffHours, setPlanCutoffHours] = useState(24);
   const [creatingPlan, setCreatingPlan] = useState(false);
   const [generatingCycle, setGeneratingCycle] = useState(false);
+  const [planTouched, setPlanTouched] = useState<Record<string, boolean>>({});
+  const [planErrors, setPlanErrors] = useState<Record<string, string>>({});
 
   const readyForOfferings = useMemo(
     () => !!selectedWindowId && !!products?.length,
@@ -549,6 +557,27 @@ export default function SellerStorePage() {
     if (!token) return;
     setError(null);
     setToast(null);
+
+    const nextErrors: Record<string, string> = {};
+    if (!locAddress1.trim()) nextErrors.address1 = "Address is required.";
+    if (!locCity.trim()) nextErrors.city = "City is required.";
+    if (!locRegion.trim()) nextErrors.region = "State/region is required.";
+    if (!locPostal.trim()) nextErrors.postal = "Postal code is required.";
+    if (!locTz.trim()) nextErrors.timezone = "Timezone is required.";
+    setLocErrors(nextErrors);
+    setLocTouched({
+      address1: true,
+      city: true,
+      region: true,
+      postal: true,
+      timezone: true,
+      label: true,
+    });
+    if (Object.keys(nextErrors).length) {
+      setToast({ kind: "error", message: "Check the highlighted fields." });
+      return;
+    }
+
     setSavingLocation(true);
     try {
       await sellerApi.createPickupLocation(token, storeId, {
@@ -561,6 +590,8 @@ export default function SellerStorePage() {
         country: locCountry,
         timezone: locTz,
       });
+      setLocErrors({});
+      setLocTouched({});
       setLocAddress1("");
       setLocCity("");
       setLocRegion("");
@@ -744,17 +775,36 @@ export default function SellerStorePage() {
     setToast(null);
     setCreatingPlan(true);
     try {
+      const nextErrors: Record<string, string> = {};
+      if (!planTitle.trim()) nextErrors.title = "Title is required.";
+      if (!planLocationId) nextErrors.pickup_location_id = "Pickup location is required.";
+      if (!planFirstStartLocal) nextErrors.first_start_at_local = "Start time is required.";
+
       const cents = parseUSDToCents(planPriceUsd);
       if (cents === null) {
-        setError("Box price must be a valid USD amount (e.g. 25.00).");
+        nextErrors.price = "Price must be a valid USD amount (e.g. 25.00).";
+      } else if (cents <= 0) {
+        nextErrors.price = "Price must be greater than $0.00.";
+      }
+
+      setPlanErrors(nextErrors);
+      setPlanTouched({
+        title: true,
+        price: true,
+        pickup_location_id: true,
+        first_start_at_local: true,
+      });
+      if (Object.keys(nextErrors).length) {
+        setToast({ kind: "error", message: "Check the highlighted fields." });
         return;
       }
+
       await sellerApi.createSubscriptionPlan(token, storeId, {
         pickup_location_id: planLocationId,
         title: planTitle,
         description: planDesc || null,
         cadence: planCadence,
-        price_cents: cents,
+        price_cents: cents ?? 0,
         subscriber_limit: planLimit,
         first_start_at_local: planFirstStartLocal,
         duration_minutes: planDurationMin,
@@ -764,6 +814,8 @@ export default function SellerStorePage() {
       setPlanDesc("");
       setPlanPriceUsd("");
       setPlanFirstStartLocal("");
+      setPlanErrors({});
+      setPlanTouched({});
       setToast({ kind: "success", message: "Box created." });
       await refreshAll(token);
     } catch (e: unknown) {
@@ -991,15 +1043,13 @@ export default function SellerStorePage() {
                         : "lr-chip text-[color:var(--lr-ink)]"
                     } ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() => {
+                      goToStep(2, "setup-box");
                       if (locked) {
                         setToast({
                           kind: "error",
                           message: "Add a pickup location to unlock box setup.",
                         });
-                        goToStep(1, "setup-location");
-                        return;
                       }
-                      goToStep(2, "setup-box");
                     }}
                   >
                     2. Box
@@ -1019,6 +1069,7 @@ export default function SellerStorePage() {
                         : "lr-chip text-[color:var(--lr-ink)]"
                     } ${locked ? "opacity-50 cursor-not-allowed" : ""}`}
                     onClick={() => {
+                      goToStep(3, "setup-go-live");
                       if (locked) {
                         setToast({
                           kind: "error",
@@ -1026,13 +1077,7 @@ export default function SellerStorePage() {
                             ? "Add a pickup location first."
                             : "Create a box to unlock go-live.",
                         });
-                        goToStep(
-                          setupProgress.hasLocation ? 2 : 1,
-                          setupProgress.hasLocation ? "setup-box" : "setup-location",
-                        );
-                        return;
                       }
-                      goToStep(3, "setup-go-live");
                     }}
                   >
                     3. Go live
@@ -1270,40 +1315,73 @@ export default function SellerStorePage() {
                   </div>
 
                   <input
-                    className="lr-field px-3 py-2 text-sm md:col-span-2"
+                    className={fieldClass(
+                      "lr-field px-3 py-2 text-sm md:col-span-2",
+                      !!(locTouched.address1 && locErrors.address1),
+                    )}
                     value={locAddress1}
                     onChange={(e) => setLocAddress1(e.target.value)}
+                    onBlur={() =>
+                      setLocTouched((p) => ({ ...p, address1: true }))
+                    }
                     placeholder="Address"
+                    aria-invalid={!!(locTouched.address1 && locErrors.address1)}
                   />
                   <input
-                    className="lr-field px-3 py-2 text-sm"
+                    className={fieldClass(
+                      "lr-field px-3 py-2 text-sm",
+                      !!(locTouched.city && locErrors.city),
+                    )}
                     value={locCity}
                     onChange={(e) => setLocCity(e.target.value)}
+                    onBlur={() => setLocTouched((p) => ({ ...p, city: true }))}
                     placeholder="City"
+                    aria-invalid={!!(locTouched.city && locErrors.city)}
                   />
                   <input
-                    className="lr-field px-3 py-2 text-sm"
+                    className={fieldClass(
+                      "lr-field px-3 py-2 text-sm",
+                      !!(locTouched.region && locErrors.region),
+                    )}
                     value={locRegion}
                     onChange={(e) => setLocRegion(e.target.value)}
+                    onBlur={() =>
+                      setLocTouched((p) => ({ ...p, region: true }))
+                    }
                     placeholder="State/Region"
+                    aria-invalid={!!(locTouched.region && locErrors.region)}
                   />
                   <input
-                    className="lr-field px-3 py-2 text-sm"
+                    className={fieldClass(
+                      "lr-field px-3 py-2 text-sm",
+                      !!(locTouched.postal && locErrors.postal),
+                    )}
                     value={locPostal}
                     onChange={(e) => setLocPostal(e.target.value)}
+                    onBlur={() =>
+                      setLocTouched((p) => ({ ...p, postal: true }))
+                    }
                     placeholder="Postal code"
+                    aria-invalid={!!(locTouched.postal && locErrors.postal)}
                   />
                 </div>
+
+                {(locErrors.address1 ||
+                  locErrors.city ||
+                  locErrors.region ||
+                  locErrors.postal ||
+                  locErrors.timezone) && (
+                  <div className="mt-3 text-sm text-rose-900">
+                    Please fill the required fields.
+                  </div>
+                )}
 
                 <button
                   className="mt-4 lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
                   style={{ width: isOnboarding && wizardStep === 1 ? "100%" : undefined }}
                   disabled={
                     savingLocation ||
-                    !locAddress1.trim() ||
-                    !locCity.trim() ||
-                    !locRegion.trim() ||
-                    !locPostal.trim()
+                    false
                   }
                   onClick={createLocation}
                   type="button"
@@ -1829,11 +1907,21 @@ export default function SellerStorePage() {
                   Title
                 </span>
                 <input
-                  className="lr-field px-3 py-2 text-sm"
+                  className={fieldClass(
+                    "lr-field px-3 py-2 text-sm",
+                    !!(planTouched.title && planErrors.title),
+                  )}
                   value={planTitle}
                   onChange={(e) => setPlanTitle(e.target.value)}
+                  onBlur={() => setPlanTouched((p) => ({ ...p, title: true }))}
                   placeholder="Seasonal box"
+                  aria-invalid={!!(planTouched.title && planErrors.title)}
                 />
+                {planTouched.title && planErrors.title ? (
+                  <span className="text-[11px] text-rose-900">
+                    {planErrors.title}
+                  </span>
+                ) : null}
               </label>
               <label className="grid gap-1 md:col-span-2">
                 <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
@@ -1881,21 +1969,46 @@ export default function SellerStorePage() {
                   Price (USD)
                 </span>
                 <input
-                  className="lr-field px-3 py-2 text-sm"
+                  className={fieldClass(
+                    "lr-field px-3 py-2 text-sm",
+                    !!(planTouched.price && planErrors.price),
+                  )}
                   inputMode="decimal"
                   value={planPriceUsd}
                   onChange={(e) => setPlanPriceUsd(e.target.value)}
+                  onBlur={() => setPlanTouched((p) => ({ ...p, price: true }))}
                   placeholder="25.00"
+                  aria-invalid={!!(planTouched.price && planErrors.price)}
                 />
+                {planTouched.price && planErrors.price ? (
+                  <span className="text-[11px] text-rose-900">
+                    {planErrors.price}
+                  </span>
+                ) : null}
               </label>
               <label className="grid gap-1">
                 <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
                   Pickup location
                 </span>
                 <select
-                  className="lr-field px-3 py-2 text-sm"
+                  className={fieldClass(
+                    "lr-field px-3 py-2 text-sm",
+                    !!(
+                      planTouched.pickup_location_id &&
+                      planErrors.pickup_location_id
+                    ),
+                  )}
                   value={planLocationId}
                   onChange={(e) => setPlanLocationId(e.target.value)}
+                  onBlur={() =>
+                    setPlanTouched((p) => ({ ...p, pickup_location_id: true }))
+                  }
+                  aria-invalid={
+                    !!(
+                      planTouched.pickup_location_id &&
+                      planErrors.pickup_location_id
+                    )
+                  }
                 >
                   <option value="" disabled>
                     Select…
@@ -1906,17 +2019,44 @@ export default function SellerStorePage() {
                     </option>
                   ))}
                 </select>
+                {planTouched.pickup_location_id &&
+                planErrors.pickup_location_id ? (
+                  <span className="text-[11px] text-rose-900">
+                    {planErrors.pickup_location_id}
+                  </span>
+                ) : null}
               </label>
               <label className="grid gap-1 md:col-span-2">
                 <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
                   First pickup start (local)
                 </span>
                 <input
-                  className="lr-field px-3 py-2 text-sm"
+                  className={fieldClass(
+                    "lr-field px-3 py-2 text-sm",
+                    !!(
+                      planTouched.first_start_at_local &&
+                      planErrors.first_start_at_local
+                    ),
+                  )}
                   type="datetime-local"
                   value={planFirstStartLocal}
                   onChange={(e) => setPlanFirstStartLocal(e.target.value)}
+                  onBlur={() =>
+                    setPlanTouched((p) => ({ ...p, first_start_at_local: true }))
+                  }
+                  aria-invalid={
+                    !!(
+                      planTouched.first_start_at_local &&
+                      planErrors.first_start_at_local
+                    )
+                  }
                 />
+                {planTouched.first_start_at_local &&
+                planErrors.first_start_at_local ? (
+                  <span className="text-[11px] text-rose-900">
+                    {planErrors.first_start_at_local}
+                  </span>
+                ) : null}
               </label>
               <label className="grid gap-1">
                 <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
@@ -1954,13 +2094,7 @@ export default function SellerStorePage() {
               type="button"
               className="mt-4 lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
               style={{ width: isOnboarding && wizardStep === 2 ? "100%" : undefined }}
-              disabled={
-                creatingPlan ||
-                !planTitle.trim() ||
-                !planLocationId ||
-                !planFirstStartLocal ||
-                planLimit <= 0
-              }
+              disabled={creatingPlan}
               onClick={createPlan}
             >
               {creatingPlan ? "Creating…" : "Create box"}
