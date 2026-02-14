@@ -10,11 +10,13 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
 
 type SellerOrdersAPI struct {
-	DB *pgxpool.Pool
+	DB     *pgxpool.Pool
+	Stripe *stripepay.Client
 }
 
 type SellerOrder struct {
@@ -239,12 +241,20 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 
 	var currentStatus string
 	var pickupWindowID string
+	var paymentMethod string
+	var paymentStatus string
+	var stripePI *string
 	if err := tx.QueryRow(ctx, `
-		select status, pickup_window_id::text
+		select
+			status,
+			pickup_window_id::text,
+			payment_method,
+			payment_status,
+			stripe_payment_intent_id
 		from orders
 		where id = $1::uuid and store_id = $2::uuid
 		for update
-	`, orderID, storeID).Scan(&currentStatus, &pickupWindowID); err != nil {
+	`, orderID, storeID).Scan(&currentStatus, &pickupWindowID, &paymentMethod, &paymentStatus, &stripePI); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "order not found")
 			return
@@ -258,11 +268,24 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	newPaymentStatus := paymentStatus
+
 	// Adjust inventory reservations/availability based on transition.
 	if currentStatus == "placed" && (in.Status == "canceled") {
 		if err := adjustOfferingsForOrder(ctx, tx, orderID, "release"); err != nil {
 			resp.Internal(w, err)
 			return
+		}
+		if paymentMethod == "card" && stripePI != nil && strings.TrimSpace(*stripePI) != "" && paymentStatus == "authorized" {
+			if a.Stripe == nil || !a.Stripe.Enabled() {
+				resp.ServiceUnavailable(w, "payments not configured")
+				return
+			}
+			if err := a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID); err != nil {
+				resp.Internal(w, err)
+				return
+			}
+			newPaymentStatus = "voided"
 		}
 	}
 	if currentStatus == "ready" && (in.Status == "no_show") {
@@ -270,15 +293,26 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 			resp.Internal(w, err)
 			return
 		}
+		if paymentMethod == "card" && stripePI != nil && strings.TrimSpace(*stripePI) != "" && paymentStatus == "authorized" {
+			if a.Stripe == nil || !a.Stripe.Enabled() {
+				resp.ServiceUnavailable(w, "payments not configured")
+				return
+			}
+			if err := a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID); err != nil {
+				resp.Internal(w, err)
+				return
+			}
+			newPaymentStatus = "voided"
+		}
 	}
 	// Note: ready -> picked_up is intentionally handled via ConfirmPickup (pickup-code handshake),
 	// not via this generic status endpoint.
 
 	if _, err := tx.Exec(ctx, `
 		update orders
-		set status = $2, updated_at = now()
+		set status = $2, payment_status = $3, updated_at = now()
 		where id = $1::uuid
-	`, orderID, in.Status); err != nil {
+	`, orderID, in.Status, newPaymentStatus); err != nil {
 		resp.Internal(w, err)
 		return
 	}
@@ -366,12 +400,21 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 	var currentStatus string
 	var pickupWindowID string
 	var pickupCode string
+	var paymentMethod string
+	var paymentStatus string
+	var stripePI *string
 	if err := tx.QueryRow(ctx, `
-		select status, pickup_window_id::text, pickup_code
+		select
+			status,
+			pickup_window_id::text,
+			pickup_code,
+			payment_method,
+			payment_status,
+			stripe_payment_intent_id
 		from orders
 		where id = $1::uuid and store_id = $2::uuid
 		for update
-	`, orderID, storeID).Scan(&currentStatus, &pickupWindowID, &pickupCode); err != nil {
+	`, orderID, storeID).Scan(&currentStatus, &pickupWindowID, &pickupCode, &paymentMethod, &paymentStatus, &stripePI); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "order not found")
 			return
@@ -389,6 +432,25 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
+	if paymentMethod == "card" {
+		if stripePI == nil || strings.TrimSpace(*stripePI) == "" {
+			resp.BadRequest(w, "missing payment authorization")
+			return
+		}
+		if paymentStatus != "authorized" {
+			resp.BadRequest(w, "payment is not authorized")
+			return
+		}
+		if a.Stripe == nil || !a.Stripe.Enabled() {
+			resp.ServiceUnavailable(w, "payments not configured")
+			return
+		}
+		if err := a.Stripe.CaptureAuthorization(ctx, strings.TrimSpace(*stripePI), "capture-"+orderID); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+	}
+
 	if err := adjustOfferingsForOrder(ctx, tx, orderID, "finalize"); err != nil {
 		resp.Internal(w, err)
 		return
@@ -396,7 +458,9 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 
 	if _, err := tx.Exec(ctx, `
 		update orders
-		set status = 'picked_up', updated_at = now()
+		set status = 'picked_up',
+			payment_status = case when payment_method = 'card' then 'paid' else payment_status end,
+			updated_at = now()
 		where id = $1::uuid
 	`, orderID); err != nil {
 		resp.Internal(w, err)

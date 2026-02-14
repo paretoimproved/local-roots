@@ -9,16 +9,20 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	stripe "github.com/stripe/stripe-go/v78"
 
+	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
 
 type SubscriptionAPI struct {
-	DB *pgxpool.Pool
+	DB     *pgxpool.Pool
+	Stripe *stripepay.Client
 }
 
 type SellerSubscriptionAPI struct {
-	DB *pgxpool.Pool
+	DB     *pgxpool.Pool
+	Stripe *stripepay.Client
 }
 
 type SubscriptionPlanPublic struct {
@@ -211,12 +215,17 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 	resp.OK(w, sp)
 }
 
-type SubscribeRequest struct {
+type CheckoutRequest struct {
 	Buyer struct {
 		Email string  `json:"email"`
 		Name  *string `json:"name"`
 		Phone *string `json:"phone"`
 	} `json:"buyer"`
+}
+
+type CheckoutResponse struct {
+	PaymentIntentID string `json:"payment_intent_id"`
+	ClientSecret    string `json:"client_secret"`
 }
 
 type Subscription struct {
@@ -233,15 +242,151 @@ type SubscribeResponse struct {
 	FirstOrder   Order        `json:"first_order"`
 }
 
+func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if a.Stripe == nil || !a.Stripe.Enabled() {
+		resp.ServiceUnavailable(w, "payments not configured")
+		return
+	}
+
+	planID := r.PathValue("planId")
+	if planID == "" {
+		resp.BadRequest(w, "missing planId")
+		return
+	}
+
+	var in CheckoutRequest
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+	buyerEmail := strings.ToLower(strings.TrimSpace(in.Buyer.Email))
+	if buyerEmail == "" || !strings.Contains(buyerEmail, "@") {
+		resp.BadRequest(w, "invalid buyer email")
+		return
+	}
+
+	// Load plan + location.
+	var (
+		storeID          string
+		locationTimezone string
+		cadence          string
+		priceCents       int
+		firstStartAt     time.Time
+		durationMin      int
+		cutoffHours      int
+		isActive         bool
+		isLive           bool
+	)
+	if err := a.DB.QueryRow(r.Context(), `
+		select
+			sp.store_id::text,
+			pl.timezone,
+			sp.cadence,
+			sp.price_cents,
+			sp.first_start_at,
+			sp.duration_minutes,
+			sp.cutoff_hours,
+			sp.is_active,
+			sp.is_live
+		from subscription_plans sp
+		join pickup_locations pl on pl.id = sp.pickup_location_id
+		where sp.id = $1::uuid
+		limit 1
+	`, planID).Scan(
+		&storeID,
+		&locationTimezone,
+		&cadence,
+		&priceCents,
+		&firstStartAt,
+		&durationMin,
+		&cutoffHours,
+		&isActive,
+		&isLive,
+	); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "plan not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+	if !isActive {
+		resp.BadRequest(w, "plan is not active")
+		return
+	}
+	if !isLive {
+		resp.BadRequest(w, "plan is not live yet")
+		return
+	}
+	if priceCents <= 0 {
+		resp.BadRequest(w, "plan price must be greater than $0.00")
+		return
+	}
+
+	loc, err := time.LoadLocation(locationTimezone)
+	if err != nil {
+		loc = time.UTC
+	}
+
+	now := time.Now().UTC()
+	nextStart := nextStartAt(now, firstStartAt, cadence, loc, cutoffHours)
+	endAt := nextStart.Add(time.Duration(durationMin) * time.Minute)
+	// Stripe manual capture authorizations generally expire after ~7 days; enforce a safe window.
+	if endAt.Sub(now) > 7*24*time.Hour {
+		resp.BadRequest(w, "next pickup is too far away to authorize a card. Please try again closer to pickup.")
+		return
+	}
+
+	ctx := r.Context()
+	cusID, err := a.Stripe.CreateCustomer(ctx, buyerEmail, in.Buyer.Name, in.Buyer.Phone)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	piID, secret, err := a.Stripe.CreateCheckoutPaymentIntent(ctx, stripepay.CreateCheckoutPaymentIntentInput{
+		AmountCents: priceCents,
+		Currency:    "usd",
+		CustomerID:  cusID,
+		Metadata: map[string]string{
+			"plan_id":  planID,
+			"store_id": storeID,
+		},
+	})
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, CheckoutResponse{PaymentIntentID: piID, ClientSecret: secret})
+}
+
 func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	if a.DB == nil {
 		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if a.Stripe == nil || !a.Stripe.Enabled() {
+		resp.ServiceUnavailable(w, "payments not configured")
 		return
 	}
 	planID := r.PathValue("planId")
 	if planID == "" {
 		resp.BadRequest(w, "missing planId")
 		return
+	}
+
+	type SubscribeRequest struct {
+		PaymentIntentID string `json:"payment_intent_id"`
+		Buyer           struct {
+			Email string  `json:"email"`
+			Name  *string `json:"name"`
+			Phone *string `json:"phone"`
+		} `json:"buyer"`
 	}
 
 	var in SubscribeRequest
@@ -252,6 +397,12 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	buyerEmail := strings.ToLower(strings.TrimSpace(in.Buyer.Email))
 	if buyerEmail == "" || !strings.Contains(buyerEmail, "@") {
 		resp.BadRequest(w, "invalid buyer email")
+		return
+	}
+
+	paymentIntentID := strings.TrimSpace(in.PaymentIntentID)
+	if paymentIntentID == "" {
+		resp.BadRequest(w, "payment_intent_id is required")
 		return
 	}
 
@@ -326,6 +477,39 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Validate the authorized Stripe PaymentIntent matches this plan.
+	pi, err := a.Stripe.RetrievePaymentIntent(ctx, paymentIntentID)
+	if err != nil {
+		resp.BadRequest(w, "could not verify payment authorization")
+		return
+	}
+	if pi == nil || pi.ID == "" {
+		resp.BadRequest(w, "invalid payment authorization")
+		return
+	}
+	if pi.Metadata != nil {
+		if v, ok := pi.Metadata["plan_id"]; ok && v != "" && v != planID {
+			resp.BadRequest(w, "payment authorization does not match this plan")
+			return
+		}
+	}
+	if pi.Amount != int64(priceCents) {
+		resp.BadRequest(w, "payment authorization amount does not match")
+		return
+	}
+	if pi.Status != stripe.PaymentIntentStatusRequiresCapture {
+		resp.BadRequest(w, "payment is not authorized yet")
+		return
+	}
+	if pi.PaymentMethod == nil || pi.PaymentMethod.ID == "" {
+		resp.BadRequest(w, "payment method missing")
+		return
+	}
+	if pi.Customer == nil || pi.Customer.ID == "" {
+		resp.BadRequest(w, "payment customer missing")
+		return
+	}
+
 	// Enforce subscriber limit (only counts active subscriptions).
 	var activeCount int
 	if err := tx.QueryRow(ctx, `
@@ -337,16 +521,21 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if activeCount >= subscriberLimit {
+		// Best-effort: void authorization.
+		_ = a.Stripe.CancelPaymentIntent(ctx, paymentIntentID, "cancel-plan-full-"+paymentIntentID)
 		resp.BadRequest(w, "this box is currently full")
 		return
 	}
 
 	var sub Subscription
 	err = tx.QueryRow(ctx, `
-		insert into subscriptions (plan_id, store_id, buyer_email, buyer_name, buyer_phone, status)
-		values ($1::uuid, $2::uuid, $3, $4, $5, 'active')
+		insert into subscriptions (
+			plan_id, store_id, buyer_email, buyer_name, buyer_phone, status,
+			stripe_customer_id, stripe_payment_method_id
+		)
+		values ($1::uuid, $2::uuid, $3, $4, $5, 'active', $6, $7)
 		returning id::text, plan_id::text, store_id::text, buyer_token, status, created_at
-	`, planID, storeID, buyerEmail, in.Buyer.Name, in.Buyer.Phone).Scan(
+	`, planID, storeID, buyerEmail, in.Buyer.Name, in.Buyer.Phone, pi.Customer.ID, pi.PaymentMethod.ID).Scan(
 		&sub.ID,
 		&sub.PlanID,
 		&sub.StoreID,
@@ -384,17 +573,22 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 	// Create an order for this subscription for the upcoming pickup window.
 	order, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
-		storeID:        storeID,
-		pickupWindowID: windowID,
-		offeringID:     offeringID,
-		subscriptionID: &sub.ID,
-		buyerEmail:     buyerEmail,
-		buyerName:      in.Buyer.Name,
-		buyerPhone:     in.Buyer.Phone,
-		quantity:       1,
+		storeID:               storeID,
+		pickupWindowID:        windowID,
+		offeringID:            offeringID,
+		subscriptionID:        &sub.ID,
+		buyerEmail:            buyerEmail,
+		buyerName:             in.Buyer.Name,
+		buyerPhone:            in.Buyer.Phone,
+		quantity:              1,
+		paymentMethod:         "card",
+		paymentStatus:         "authorized",
+		stripePaymentIntentID: &paymentIntentID,
 	})
 	if err != nil {
 		if errors.Is(err, errInsufficientInventory) {
+			// Best-effort: void authorization.
+			_ = a.Stripe.CancelPaymentIntent(ctx, paymentIntentID, "cancel-inventory-"+paymentIntentID)
 			resp.BadRequest(w, "this box is currently full")
 			return
 		}
@@ -758,6 +952,10 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		resp.ServiceUnavailable(w, "database not configured")
 		return
 	}
+	if a.Stripe == nil || !a.Stripe.Enabled() {
+		resp.ServiceUnavailable(w, "payments not configured")
+		return
+	}
 	if u.Role != "seller" && u.Role != "admin" {
 		resp.Forbidden(w, "seller access required")
 		return
@@ -894,49 +1092,97 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		return
 	}
 
-		// Create orders for all active subscriptions that don't already have an order for this pickup window.
-		rows, err := tx.Query(ctx, `
-			select s.id::text, s.buyer_email, s.buyer_name, s.buyer_phone
-			from subscriptions s
-			left join orders o
-				on o.subscription_id = s.id
-				and o.pickup_window_id = $2::uuid
-			where s.plan_id = $1::uuid
-				and s.status = 'active'
-				and o.id is null
-			order by s.created_at asc
-			limit 5000
-		`, planID, windowID)
-		if err != nil {
-			resp.Internal(w, err)
-			return
-		}
-		defer rows.Close()
+	// Create orders for all active subscriptions that don't already have an order for this pickup window.
+	// We authorize the card off-session at order creation (manual capture).
+	rows, err := tx.Query(ctx, `
+		select
+			s.id::text,
+			s.buyer_email,
+			s.buyer_name,
+			s.buyer_phone,
+			s.stripe_customer_id,
+			s.stripe_payment_method_id
+		from subscriptions s
+		left join orders o
+			on o.subscription_id = s.id
+			and o.pickup_window_id = $2::uuid
+		where s.plan_id = $1::uuid
+			and s.status = 'active'
+			and o.id is null
+		order by s.created_at asc
+		limit 5000
+	`, planID, windowID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
 
 	created := 0
 	for rows.Next() {
 		var (
-			subID string
-			email string
-			name  *string
-			phone *string
+			subID            string
+			email            string
+			name             *string
+			phone            *string
+			stripeCustomerID *string
+			stripePMID       *string
 		)
-		if err := rows.Scan(&subID, &email, &name, &phone); err != nil {
+		if err := rows.Scan(&subID, &email, &name, &phone, &stripeCustomerID, &stripePMID); err != nil {
 			resp.Internal(w, err)
 			return
 		}
 
-			if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
-				storeID:        storeID,
-				pickupWindowID: windowID,
-				offeringID:     offeringID,
-			subscriptionID: &subID,
-			buyerEmail:     email,
-			buyerName:      name,
-			buyerPhone:     phone,
-			quantity:       1,
+		if stripeCustomerID == nil || stripePMID == nil || *stripeCustomerID == "" || *stripePMID == "" {
+			// Subscription exists but doesn't have a saved payment method. Skip creating an order for now.
+			continue
+		}
+
+		piID, piStatus, err := a.Stripe.CreateOffSessionAuthorization(ctx, stripepay.CreateOffSessionPaymentIntentInput{
+			AmountCents:     priceCents,
+			Currency:        "usd",
+			CustomerID:      *stripeCustomerID,
+			PaymentMethodID: *stripePMID,
+			Metadata: map[string]string{
+				"plan_id":          planID,
+				"store_id":         storeID,
+				"subscription_id":  subID,
+				"pickup_window_id": windowID,
+			},
+			IdempotencyKey: "auth-" + windowID + "-" + subID,
+		})
+		if err != nil {
+			// If authorization fails (SCA required, card declined, etc), skip the order for now.
+			continue
+		}
+
+		paymentStatus := "failed"
+		switch piStatus {
+		case string(stripe.PaymentIntentStatusRequiresCapture):
+			paymentStatus = "authorized"
+		case string(stripe.PaymentIntentStatusRequiresAction):
+			paymentStatus = "requires_action"
+		default:
+			// Best-effort: void any non-capturable intent.
+			_ = a.Stripe.CancelPaymentIntent(ctx, piID, "cancel-"+piID)
+			continue
+		}
+
+		if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
+			storeID:               storeID,
+			pickupWindowID:        windowID,
+			offeringID:            offeringID,
+			subscriptionID:        &subID,
+			buyerEmail:            email,
+			buyerName:             name,
+			buyerPhone:            phone,
+			quantity:              1,
+			paymentMethod:         "card",
+			paymentStatus:         paymentStatus,
+			stripePaymentIntentID: &piID,
 		}); err != nil {
 			if errors.Is(err, errInsufficientInventory) {
+				_ = a.Stripe.CancelPaymentIntent(ctx, piID, "cancel-inventory-"+piID)
 				resp.BadRequest(w, "subscriber limit exceeded for this cycle")
 				return
 			}
@@ -1099,6 +1345,10 @@ type createOrderForOfferingInput struct {
 	buyerName      *string
 	buyerPhone     *string
 	quantity       int
+	paymentMethod  string
+	paymentStatus  string
+	// Optional: set when payment_method == "card".
+	stripePaymentIntentID *string
 }
 
 func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOfferingInput) (Order, error) {
@@ -1162,17 +1412,35 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 	out.SubtotalCents = subtotal
 	out.TotalCents = total
 
-	// Create order. Payment method remains pay_at_pickup until Stripe Billing is added.
+	paymentMethod := strings.TrimSpace(in.paymentMethod)
+	if paymentMethod == "" {
+		paymentMethod = "pay_at_pickup"
+	}
+	paymentStatus := strings.TrimSpace(in.paymentStatus)
+	if paymentStatus == "" {
+		paymentStatus = "unpaid"
+	}
+
 	var subID any = nil
 	if in.subscriptionID != nil {
 		subID = *in.subscriptionID
 	}
+	var stripePI any = nil
+	if in.stripePaymentIntentID != nil && *in.stripePaymentIntentID != "" {
+		stripePI = *in.stripePaymentIntentID
+	}
 
 	if err := tx.QueryRow(ctx, `
-		insert into orders (store_id, pickup_window_id, buyer_email, buyer_name, buyer_phone, status, payment_method, payment_status, subtotal_cents, total_cents, subscription_id)
-		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', 'pay_at_pickup', 'unpaid', $6, $7, $8::uuid)
+		insert into orders (
+			store_id, pickup_window_id, buyer_email, buyer_name, buyer_phone,
+			status, payment_method, payment_status,
+			subtotal_cents, total_cents,
+			subscription_id,
+			stripe_payment_intent_id
+		)
+		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', $6, $7, $8, $9, $10::uuid, $11)
 		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, created_at
-	`, in.storeID, in.pickupWindowID, in.buyerEmail, in.buyerName, in.buyerPhone, subtotal, total, subID).Scan(
+	`, in.storeID, in.pickupWindowID, in.buyerEmail, in.buyerName, in.buyerPhone, paymentMethod, paymentStatus, subtotal, total, subID, stripePI).Scan(
 		&out.ID,
 		&out.BuyerToken,
 		&out.PickupCode,

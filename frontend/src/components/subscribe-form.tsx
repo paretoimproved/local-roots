@@ -3,11 +3,14 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { SubscriptionPlan } from "@/lib/api";
-import { buyerApi, type SubscribeResponse } from "@/lib/buyer-api";
+import { buyerApi, type PlanCheckoutResponse, type SubscribeResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { subscriptionToken } from "@/lib/subscription-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
+import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
+import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import { loadStripe } from "@stripe/stripe-js";
 
 function cadenceLabel(c: string) {
   if (c === "weekly") return "Weekly";
@@ -16,13 +19,112 @@ function cadenceLabel(c: string) {
   return c;
 }
 
+const stripePromise = loadStripe(
+  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
+);
+
+function AuthorizeCardInner({
+  onAuthorized,
+  submitting,
+  setSubmitting,
+  setError,
+}: {
+  onAuthorized: () => Promise<void>;
+  submitting: boolean;
+  setSubmitting: (v: boolean) => void;
+  setError: (v: string | null) => void;
+}) {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  async function confirm() {
+    if (!stripe || !elements) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await stripe.confirmPayment({
+        elements,
+        redirect: "if_required",
+      });
+      if (res.error) {
+        setError(res.error.message ?? "Payment failed. Please try again.");
+        return;
+      }
+      const status = res.paymentIntent?.status ?? "";
+      if (status !== "requires_capture") {
+        setError("Payment was not authorized. Please try another card.");
+        return;
+      }
+      await onAuthorized();
+    } catch (e: unknown) {
+      setError(friendlyErrorMessage(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 grid gap-3">
+      <div className="rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
+        <PaymentElement />
+      </div>
+      <button
+        type="button"
+        className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
+        disabled={submitting || !stripe || !elements}
+        onClick={confirm}
+      >
+        {submitting ? "Authorizing…" : "Authorize card"}
+      </button>
+      <div className="text-xs text-[color:var(--lr-muted)]">
+        Your card will be authorized now and captured when pickup is confirmed.
+      </div>
+    </div>
+  );
+}
+
+function AuthorizeCard({
+  clientSecret,
+  onAuthorized,
+  submitting,
+  setSubmitting,
+  setError,
+}: {
+  clientSecret: string;
+  onAuthorized: () => Promise<void>;
+  submitting: boolean;
+  setSubmitting: (v: boolean) => void;
+  setError: (v: string | null) => void;
+}) {
+  return (
+    <Elements
+      stripe={stripePromise}
+      options={{
+        clientSecret,
+        appearance: { theme: "stripe" },
+      }}
+    >
+      <AuthorizeCardInner
+        onAuthorized={onAuthorized}
+        submitting={submitting}
+        setSubmitting={setSubmitting}
+        setError={setError}
+      />
+    </Elements>
+  );
+}
+
 export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
+  const { showToast } = useToast();
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<SubscribeResponse | null>(null);
+  const [checkout, setCheckout] = useState<PlanCheckoutResponse | null>(null);
+
+  const paymentsReady = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
 
   const nextLabel = useMemo(() => {
     const tz = plan.pickup_location.timezone || "UTC";
@@ -37,25 +139,41 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
     }).format(start);
   }, [plan.next_start_at, plan.pickup_location.timezone]);
 
-  async function subscribe() {
+  async function startCheckout() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await buyerApi.subscribeToPlan(plan.id, {
+      const res = await buyerApi.checkoutPlan(plan.id, {
         buyer: {
           email,
           name: name || null,
           phone: phone || null,
         },
       });
-      subscriptionToken.set(res.subscription.id, res.subscription.buyer_token);
-      orderToken.set(res.first_order.id, res.first_order.buyer_token);
-      setDone(res);
+      setCheckout(res);
+      showToast({ kind: "success", message: "Card authorization started." });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function completeSubscribe() {
+    if (!checkout) return;
+    const res = await buyerApi.subscribeToPlan(plan.id, {
+      payment_intent_id: checkout.payment_intent_id,
+      buyer: {
+        email,
+        name: name || null,
+        phone: phone || null,
+      },
+    });
+    subscriptionToken.set(res.subscription.id, res.subscription.buyer_token);
+    orderToken.set(res.first_order.id, res.first_order.buyer_token);
+    setDone(res);
+    setCheckout(null);
+    showToast({ kind: "success", message: "Subscription started." });
   }
 
   if (done) {
@@ -89,8 +207,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             </Link>
           </div>
           <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
-            Payments: card billing is next phase. For now, this order uses{" "}
-            <span className="font-medium">pay at pickup</span>.
+            Payment: your card is authorized now and will be captured when pickup is confirmed.
           </div>
         </section>
 
@@ -178,18 +295,32 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         <button
           type="button"
           className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
-          disabled={submitting || !email.trim() || !plan.is_live}
-          onClick={subscribe}
+          disabled={submitting || !email.trim() || !plan.is_live || !paymentsReady || !!checkout}
+          onClick={startCheckout}
         >
           {!plan.is_live
             ? "Not live yet"
-            : submitting
-              ? "Starting…"
-              : "Start subscription"}
+            : !paymentsReady
+              ? "Payments not configured"
+              : checkout
+                ? "Continue below…"
+                : submitting
+                  ? "Starting…"
+                  : "Start subscription"}
         </button>
-        <div className="text-xs text-[color:var(--lr-muted)]">
-          Cancel/skip/refunds follow the pickup window cutoff policy.
-        </div>
+        {checkout ? (
+          <AuthorizeCard
+            clientSecret={checkout.client_secret}
+            submitting={submitting}
+            setSubmitting={setSubmitting}
+            setError={setError}
+            onAuthorized={completeSubscribe}
+          />
+        ) : (
+          <div className="text-xs text-[color:var(--lr-muted)]">
+            Cancel/skip/refunds follow the pickup window cutoff policy.
+          </div>
+        )}
       </div>
     </section>
   );

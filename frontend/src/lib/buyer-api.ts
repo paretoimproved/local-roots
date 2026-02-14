@@ -55,6 +55,11 @@ export type SubscribeResponse = {
   first_order: Order;
 };
 
+export type PlanCheckoutResponse = {
+  payment_intent_id: string;
+  client_secret: string;
+};
+
 export type GetOrderResponse = {
   order: Order;
   has_review: boolean;
@@ -75,9 +80,28 @@ export const buyerApi = {
 
   subscribeToPlan: (
     planId: string,
-    input: { buyer: { email: string; name?: string | null; phone?: string | null } },
+    input: {
+      buyer: { email: string; name?: string | null; phone?: string | null };
+      payment_intent_id: string;
+    },
   ) =>
     requestJSON<SubscribeResponse>(`/v1/subscription-plans/${planId}/subscribe`, {
+      method: "POST",
+      body: JSON.stringify({
+        payment_intent_id: input.payment_intent_id,
+        buyer: {
+          email: input.buyer.email,
+          name: input.buyer.name ?? null,
+          phone: input.buyer.phone ?? null,
+        },
+      }),
+    }),
+
+  checkoutPlan: (
+    planId: string,
+    input: { buyer: { email: string; name?: string | null; phone?: string | null } },
+  ) =>
+    requestJSON<PlanCheckoutResponse>(`/v1/subscription-plans/${planId}/checkout`, {
       method: "POST",
       body: JSON.stringify({
         buyer: {
