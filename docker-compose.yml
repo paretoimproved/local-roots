@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: localroots
+      POSTGRES_USER: localroots
+      POSTGRES_PASSWORD: localroots
+    ports:
+      - "5432:5432"
+    volumes:
+      - localroots_pgdata:/var/lib/postgresql/data
+
+volumes:
+  localroots_pgdata:
+

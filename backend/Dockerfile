@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS build
+FROM golang:1.24-alpine AS build
 
 WORKDIR /src
 
@@ -24,4 +24,3 @@ ENV ADDR=:8080
 ENV ENV=prod
 
 CMD ["/bin/api"]
-

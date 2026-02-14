@@ -22,7 +22,13 @@ Frontend:
 pnpm dev
 ```
 
-Backend (requires Go 1.22+ installed):
+Database (optional, for backend endpoints/migrations):
+
+```sh
+docker compose up -d
+```
+
+Backend (requires Go 1.24+ installed):
 
 ```sh
 pnpm dev:backend
@@ -33,4 +39,3 @@ pnpm dev:backend
 - Schema + order state machine (pickup-window centric)
 - Stripe Connect (Express) onboarding + checkout + webhook idempotency
 - Seller fulfillment UI + post-fulfillment reviews
-
