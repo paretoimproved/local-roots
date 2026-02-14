@@ -31,6 +31,7 @@ type SellerOrder struct {
 	PaymentStatus  string      `json:"payment_status"`
 	SubtotalCents  int         `json:"subtotal_cents"`
 	TotalCents     int         `json:"total_cents"`
+	CapturedCents  int         `json:"captured_cents"`
 	CreatedAt      time.Time   `json:"created_at"`
 	Items          []OrderItem `json:"items"`
 }
@@ -79,6 +80,7 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 			o.payment_status,
 			o.subtotal_cents,
 			o.total_cents,
+			o.captured_cents,
 			o.created_at,
 
 			oi.id::text,
@@ -126,6 +128,7 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 			&o.PaymentStatus,
 			&o.SubtotalCents,
 			&o.TotalCents,
+			&o.CapturedCents,
 			&o.CreatedAt,
 
 			&itemID,
@@ -182,7 +185,8 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 }
 
 type UpdateOrderStatusRequest struct {
-	Status string `json:"status"`
+	Status   string `json:"status"`
+	WaiveFee bool   `json:"waive_fee"`
 }
 
 // UpdateOrderStatus supports:
@@ -269,6 +273,9 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 	}
 
 	newPaymentStatus := paymentStatus
+	capturedCentsDelta := -1 // -1 means "leave unchanged"
+
+	const defaultNoShowFeeCents = 500
 
 	// Adjust inventory reservations/availability based on transition.
 	if currentStatus == "placed" && (in.Status == "canceled") {
@@ -293,28 +300,82 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 			resp.Internal(w, err)
 			return
 		}
-		if paymentMethod == "card" && stripePI != nil && strings.TrimSpace(*stripePI) != "" && paymentStatus == "authorized" {
+		if paymentMethod == "card" && stripePI != nil && strings.TrimSpace(*stripePI) != "" {
 			if a.Stripe == nil || !a.Stripe.Enabled() {
 				resp.ServiceUnavailable(w, "payments not configured")
 				return
 			}
-			if err := a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID); err != nil {
-				resp.Internal(w, err)
-				return
+			if in.WaiveFee {
+				if err := a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID); err != nil {
+					resp.Internal(w, err)
+					return
+				}
+				newPaymentStatus = "voided"
+				capturedCentsDelta = 0
+			} else {
+				// Charge a small no-show fee by partially capturing the authorization.
+				// This only works if the PaymentIntent is still authorized (requires_capture).
+				if paymentStatus != "authorized" {
+					// Fall back to void; keep the order moving and avoid false "paid" states.
+					if err := a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID); err != nil {
+						resp.Internal(w, err)
+						return
+					}
+					newPaymentStatus = "voided"
+					capturedCentsDelta = 0
+				} else {
+					var totalCents int
+					if err := tx.QueryRow(ctx, `select total_cents from orders where id = $1::uuid`, orderID).Scan(&totalCents); err != nil {
+						resp.Internal(w, err)
+						return
+					}
+					fee := defaultNoShowFeeCents
+					if totalCents < fee {
+						fee = totalCents
+					}
+					if fee <= 0 {
+						if err := a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID); err != nil {
+							resp.Internal(w, err)
+							return
+						}
+						newPaymentStatus = "voided"
+						capturedCentsDelta = 0
+					} else {
+						if err := a.Stripe.CaptureAuthorizationAmount(ctx, strings.TrimSpace(*stripePI), fee, "noshow-"+orderID); err != nil {
+							resp.Internal(w, err)
+							return
+						}
+						newPaymentStatus = "paid"
+						capturedCentsDelta = fee
+					}
+				}
 			}
-			newPaymentStatus = "voided"
 		}
 	}
 	// Note: ready -> picked_up is intentionally handled via ConfirmPickup (pickup-code handshake),
 	// not via this generic status endpoint.
 
-	if _, err := tx.Exec(ctx, `
-		update orders
-		set status = $2, payment_status = $3, updated_at = now()
-		where id = $1::uuid
-	`, orderID, in.Status, newPaymentStatus); err != nil {
-		resp.Internal(w, err)
-		return
+	if capturedCentsDelta >= 0 {
+		if _, err := tx.Exec(ctx, `
+			update orders
+			set status = $2,
+				payment_status = $3,
+				captured_cents = $4,
+				updated_at = now()
+			where id = $1::uuid
+		`, orderID, in.Status, newPaymentStatus, capturedCentsDelta); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+	} else {
+		if _, err := tx.Exec(ctx, `
+			update orders
+			set status = $2, payment_status = $3, updated_at = now()
+			where id = $1::uuid
+		`, orderID, in.Status, newPaymentStatus); err != nil {
+			resp.Internal(w, err)
+			return
+		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -460,6 +521,7 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 		update orders
 		set status = 'picked_up',
 			payment_status = case when payment_method = 'card' then 'paid' else payment_status end,
+			captured_cents = case when payment_method = 'card' then total_cents else captured_cents end,
 			updated_at = now()
 		where id = $1::uuid
 	`, orderID); err != nil {

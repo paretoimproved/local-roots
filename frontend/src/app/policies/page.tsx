@@ -63,7 +63,9 @@ export default function PoliciesPage() {
               After cutoff, the upcoming pickup is locked in for fulfillment.
             </li>
             <li>
-              If you do not pick up, the seller may mark the order as no-show.
+              If you do not pick up, the seller may mark the order as no-show. A
+              small no-show fee (currently $5) may be charged unless the seller
+              waives it.
             </li>
           </ul>
         </div>
@@ -76,4 +78,3 @@ export default function PoliciesPage() {
     </div>
   );
 }
-

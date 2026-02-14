@@ -109,6 +109,7 @@ export type SellerOrder = {
   payment_status: string;
   subtotal_cents: number;
   total_cents: number;
+  captured_cents: number;
   created_at: string;
   items: SellerOrderItem[];
 };
@@ -271,10 +272,11 @@ export const sellerApi = {
     storeId: string,
     orderId: string,
     status: "ready" | "canceled" | "no_show",
+    opts?: { waive_fee?: boolean },
   ) =>
     requestJSON<{ id: string; store_id: string; pickup_window_id: string; status: string }>(
       `/v1/seller/stores/${storeId}/orders/${orderId}/status`,
-      { method: "POST", token, body: JSON.stringify({ status }) },
+      { method: "POST", token, body: JSON.stringify({ status, waive_fee: opts?.waive_fee ?? false }) },
     ),
 
   confirmPickup: (token: string, storeId: string, orderId: string, pickupCode: string) =>

@@ -191,6 +191,25 @@ func (c *Client) CaptureAuthorization(ctx context.Context, paymentIntentID strin
 	return err
 }
 
+func (c *Client) CaptureAuthorizationAmount(ctx context.Context, paymentIntentID string, amountCents int, idempotencyKey string) error {
+	if !c.Enabled() {
+		return ErrNotConfigured
+	}
+	if amountCents < 0 {
+		return fmt.Errorf("amount must be >= 0")
+	}
+	p := &stripe.PaymentIntentCaptureParams{}
+	p.Context = ctx
+	// Stripe supports partial capture on a manually-captured PaymentIntent. Any remaining
+	// amount is automatically canceled.
+	p.AmountToCapture = stripe.Int64(int64(amountCents))
+	if idempotencyKey != "" {
+		p.SetIdempotencyKey(idempotencyKey)
+	}
+	_, err := c.api.PaymentIntents.Capture(paymentIntentID, p)
+	return err
+}
+
 func (c *Client) CancelPaymentIntent(ctx context.Context, paymentIntentID string, idempotencyKey string) error {
 	if !c.Enabled() {
 		return ErrNotConfigured

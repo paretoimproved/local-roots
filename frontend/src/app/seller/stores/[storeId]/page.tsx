@@ -886,6 +886,7 @@ export default function SellerStorePage() {
   async function setOrderStatus(
     orderId: string,
     status: "ready" | "canceled" | "no_show",
+    opts?: { waive_fee?: boolean },
   ) {
     if (!token || !selectedWindowId) return;
     setError(null);
@@ -897,12 +898,12 @@ export default function SellerStorePage() {
         if (!ok) return;
       }
       if (status === "no_show") {
-        const ok = window.confirm(
-          "Mark as no-show? This will release reserved inventory.",
+        const charge = window.confirm(
+          "Mark as no-show?\n\nOK: charge a $5 no-show fee (unless payment isn't authorized)\nCancel: waive the fee\n\nThis will release reserved inventory.",
         );
-        if (!ok) return;
+        opts = { waive_fee: !charge };
       }
-      await sellerApi.updateOrderStatus(token, storeId, orderId, status);
+      await sellerApi.updateOrderStatus(token, storeId, orderId, status, opts);
       // Refresh both orders and offerings since inventory may have changed.
       const [os, ofs] = await Promise.all([
         sellerApi.listOrders(token, storeId, selectedWindowId),
@@ -2343,20 +2344,28 @@ export default function SellerStorePage() {
                         <StatusPill status={o.status} />
                         <PaymentPill status={o.payment_status} />
                       </div>
+                  <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                    Total{" "}
+                    <span className="font-semibold text-[color:var(--lr-ink)]">
+                      {formatMoney(o.total_cents)}
+                    </span>
+                    {" · "}Placed{" "}
+                    <span className="font-medium text-[color:var(--lr-ink)]">
+                      {new Date(o.created_at).toLocaleString()}
+                    </span>
+                  </div>
+                  {o.status === "no_show" && (o.captured_cents ?? 0) > 0 ? (
                     <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                      Total{" "}
+                      No-show fee{" "}
                       <span className="font-semibold text-[color:var(--lr-ink)]">
-                        {formatMoney(o.total_cents)}
-                      </span>
-                      {" · "}Placed{" "}
-                      <span className="font-medium text-[color:var(--lr-ink)]">
-                        {new Date(o.created_at).toLocaleString()}
+                        {formatMoney(o.captured_cents)}
                       </span>
                     </div>
-                    <div className="mt-2 grid gap-1">
-                      {o.items.map((it) => (
-                        <div
-                          key={it.id}
+                  ) : null}
+                  <div className="mt-2 grid gap-1">
+                    {o.items.map((it) => (
+                      <div
+                        key={it.id}
                           className="text-sm text-[color:var(--lr-muted)]"
                         >
                           <span className="font-semibold text-[color:var(--lr-ink)]">
