@@ -55,6 +55,9 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/payment-method/setup", buyerSubs.SetupPaymentMethod)
 	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/payment-method/confirm", buyerSubs.ConfirmPaymentMethod)
 
+	stripeWebhook := v1.StripeWebhookAPI{DB: deps.DB, WebhookSecret: deps.Config.StripeWebhookSecret}
+	mux.HandleFunc("POST /v1/stripe/webhook", stripeWebhook.StripeWebhook)
+
 	authAPI := v1.AuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("POST /v1/auth/register", authAPI.Register)
 	mux.HandleFunc("POST /v1/auth/login", authAPI.Login)
