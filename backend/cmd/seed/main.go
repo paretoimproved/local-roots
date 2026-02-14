@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/paretoimproved/local-roots/backend/internal/auth"
 )
 
 func main() {
@@ -33,6 +34,7 @@ func main() {
 func seed(ctx context.Context, db *pgxpool.Pool) error {
 	// Make the seed idempotent-ish by keying off a stable seller email.
 	const sellerEmail = "seller@example.com"
+	seedPassword := os.Getenv("DEMO_SEED_PASSWORD")
 
 	tx, err := db.Begin(ctx)
 	if err != nil {
@@ -40,13 +42,24 @@ func seed(ctx context.Context, db *pgxpool.Pool) error {
 	}
 	defer tx.Rollback(ctx)
 
+	var passwordHash any
+	if seedPassword != "" {
+		h, err := auth.HashPassword(seedPassword)
+		if err != nil {
+			return err
+		}
+		passwordHash = h
+	}
+
 	var userID string
 	if err := tx.QueryRow(ctx, `
-		insert into users (email, role, display_name)
-		values ($1, 'seller', 'Demo Seller')
-		on conflict (email) do update set updated_at = now()
+		insert into users (email, role, display_name, password_hash)
+		values ($1, 'seller', 'Demo Seller', $2)
+		on conflict (email) do update
+			set updated_at = now(),
+			    password_hash = coalesce(excluded.password_hash, users.password_hash)
 		returning id::text
-	`, sellerEmail).Scan(&userID); err != nil {
+	`, sellerEmail, passwordHash).Scan(&userID); err != nil {
 		return err
 	}
 
@@ -103,12 +116,12 @@ func seed(ctx context.Context, db *pgxpool.Pool) error {
 	}
 
 	type prod struct {
-		title       string
-		unit        string
-		desc        string
-		priceCents  int
-		quantity    int
-		perishable  bool
+		title      string
+		unit       string
+		desc       string
+		priceCents int
+		quantity   int
+		perishable bool
 	}
 	products := []prod{
 		{title: "Eggs (dozen)", unit: "each", desc: "Pasture-raised.", priceCents: 700, quantity: 30, perishable: true},

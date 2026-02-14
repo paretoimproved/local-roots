@@ -22,6 +22,18 @@ func BadRequest(w http.ResponseWriter, msg string) {
 	JSON(w, http.StatusBadRequest, errorResponse{Error: msg})
 }
 
+func Unauthorized(w http.ResponseWriter, msg string) {
+	JSON(w, http.StatusUnauthorized, errorResponse{Error: msg})
+}
+
+func Forbidden(w http.ResponseWriter, msg string) {
+	JSON(w, http.StatusForbidden, errorResponse{Error: msg})
+}
+
+func NotFound(w http.ResponseWriter, msg string) {
+	JSON(w, http.StatusNotFound, errorResponse{Error: msg})
+}
+
 func ServiceUnavailable(w http.ResponseWriter, msg string) {
 	JSON(w, http.StatusServiceUnavailable, errorResponse{Error: msg})
 }
@@ -30,4 +42,3 @@ func Internal(w http.ResponseWriter, err error) {
 	log.Printf("internal error: %v", err)
 	JSON(w, http.StatusInternalServerError, errorResponse{Error: "internal server error"})
 }
-
