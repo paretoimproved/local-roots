@@ -11,6 +11,10 @@
     "lint": "pnpm -C frontend lint",
     "typecheck": "pnpm -C frontend exec tsc -p tsconfig.json --noEmit",
     "dev:backend": "cd backend && go run ./cmd/api",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down -v",
+    "migrate:up": "cd backend && go run ./cmd/migrate up",
+    "migrate:status": "cd backend && go run ./cmd/migrate status",
     "dev:all": "echo \"Terminal 1: pnpm dev:backend   |   Terminal 2: pnpm dev\""
   }
 }

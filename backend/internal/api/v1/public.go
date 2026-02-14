@@ -1,0 +1,243 @@
+package v1
+
+import (
+	"net/http"
+	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/paretoimproved/local-roots/backend/internal/resp"
+)
+
+type PublicAPI struct {
+	DB *pgxpool.Pool
+}
+
+type Store struct {
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Description *string   `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+
+	rows, err := a.DB.Query(r.Context(), `
+		select id::text, name, description, created_at
+		from stores
+		where is_active = true
+		order by created_at desc
+		limit 100
+	`)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
+
+	var out []Store
+	for rows.Next() {
+		var s Store
+		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.CreatedAt); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		out = append(out, s)
+	}
+	if rows.Err() != nil {
+		resp.Internal(w, rows.Err())
+		return
+	}
+
+	resp.OK(w, out)
+}
+
+type PickupWindow struct {
+	ID             string    `json:"id"`
+	StartAt        time.Time `json:"start_at"`
+	EndAt          time.Time `json:"end_at"`
+	CutoffAt       time.Time `json:"cutoff_at"`
+	Status         string    `json:"status"`
+	PickupLocation struct {
+		ID       string  `json:"id"`
+		Label    *string `json:"label"`
+		Address1 string  `json:"address1"`
+		City     string  `json:"city"`
+		Region   string  `json:"region"`
+		Postal   string  `json:"postal_code"`
+		Timezone string  `json:"timezone"`
+	} `json:"pickup_location"`
+}
+
+func (a PublicAPI) ListStorePickupWindows(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+
+	storeID := r.PathValue("storeId")
+	if storeID == "" {
+		resp.BadRequest(w, "missing storeId")
+		return
+	}
+
+	status := r.URL.Query().Get("status")
+	if status == "" {
+		status = "published"
+	}
+
+	from := time.Now().UTC()
+	if q := r.URL.Query().Get("from"); q != "" {
+		t, err := time.Parse(time.RFC3339, q)
+		if err != nil {
+			resp.BadRequest(w, "invalid from (expected RFC3339)")
+			return
+		}
+		from = t
+	}
+
+	rows, err := a.DB.Query(r.Context(), `
+		select
+			pw.id::text,
+			pw.start_at,
+			pw.end_at,
+			pw.cutoff_at,
+			pw.status,
+			pl.id::text,
+			pl.label,
+			pl.address1,
+			pl.city,
+			pl.region,
+			pl.postal_code,
+			pl.timezone
+		from pickup_windows pw
+		join pickup_locations pl on pl.id = pw.pickup_location_id
+		where pw.store_id = $1::uuid
+			and pw.status = $2
+			and pw.start_at >= $3
+		order by pw.start_at asc
+		limit 50
+	`, storeID, status, from)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
+
+	var out []PickupWindow
+	for rows.Next() {
+		var pw PickupWindow
+		if err := rows.Scan(
+			&pw.ID,
+			&pw.StartAt,
+			&pw.EndAt,
+			&pw.CutoffAt,
+			&pw.Status,
+			&pw.PickupLocation.ID,
+			&pw.PickupLocation.Label,
+			&pw.PickupLocation.Address1,
+			&pw.PickupLocation.City,
+			&pw.PickupLocation.Region,
+			&pw.PickupLocation.Postal,
+			&pw.PickupLocation.Timezone,
+		); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		out = append(out, pw)
+	}
+	if rows.Err() != nil {
+		resp.Internal(w, rows.Err())
+		return
+	}
+
+	resp.OK(w, out)
+}
+
+type Offering struct {
+	ID              string  `json:"id"`
+	PriceCents      int     `json:"price_cents"`
+	QuantityAvail   int     `json:"quantity_available"`
+	QuantityReserve int     `json:"quantity_reserved"`
+	QuantityRemain  int     `json:"quantity_remaining"`
+	Status          string  `json:"status"`
+	Product         Product `json:"product"`
+}
+
+type Product struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Unit        string  `json:"unit"`
+	Description *string `json:"description"`
+}
+
+func (a PublicAPI) ListPickupWindowOfferings(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+
+	windowID := r.PathValue("pickupWindowId")
+	if windowID == "" {
+		resp.BadRequest(w, "missing pickupWindowId")
+		return
+	}
+
+	rows, err := a.DB.Query(r.Context(), `
+		select
+			o.id::text,
+			o.price_cents,
+			o.quantity_available,
+			o.quantity_reserved,
+			o.status,
+			p.id::text,
+			p.title,
+			p.unit,
+			p.description
+		from offerings o
+		join products p on p.id = o.product_id
+		where o.pickup_window_id = $1::uuid
+			and o.status = 'active'
+		order by p.title asc
+		limit 200
+	`, windowID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
+
+	var out []Offering
+	for rows.Next() {
+		var o Offering
+		if err := rows.Scan(
+			&o.ID,
+			&o.PriceCents,
+			&o.QuantityAvail,
+			&o.QuantityReserve,
+			&o.Status,
+			&o.Product.ID,
+			&o.Product.Title,
+			&o.Product.Unit,
+			&o.Product.Description,
+		); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		o.QuantityRemain = o.QuantityAvail - o.QuantityReserve
+		if o.QuantityRemain < 0 {
+			o.QuantityRemain = 0
+		}
+		out = append(out, o)
+	}
+	if rows.Err() != nil {
+		resp.Internal(w, rows.Err())
+		return
+	}
+
+	resp.OK(w, out)
+}

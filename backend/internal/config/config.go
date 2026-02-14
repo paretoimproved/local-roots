@@ -3,8 +3,9 @@ package config
 import "os"
 
 type Config struct {
-	Addr string
-	Env  string
+	Addr        string
+	Env         string
+	DatabaseURL string
 }
 
 func FromEnv() Config {
@@ -16,5 +17,12 @@ func FromEnv() Config {
 	if env == "" {
 		env = "dev"
 	}
-	return Config{Addr: addr, Env: env}
+
+	dbURL := os.Getenv("DATABASE_URL")
+
+	return Config{
+		Addr:        addr,
+		Env:         env,
+		DatabaseURL: dbURL,
+	}
 }
