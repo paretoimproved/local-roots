@@ -122,7 +122,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 		if err != nil {
 			loc = time.UTC
 		}
-		sp.NextStartAt = nextStartAt(now, sp.FirstStartAt, sp.Cadence, loc)
+		sp.NextStartAt = nextStartAt(now, sp.FirstStartAt, sp.Cadence, loc, sp.CutoffHours)
 		out = append(out, sp)
 	}
 	if rows.Err() != nil {
@@ -202,7 +202,7 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		loc = time.UTC
 	}
-	sp.NextStartAt = nextStartAt(time.Now().UTC(), sp.FirstStartAt, sp.Cadence, loc)
+	sp.NextStartAt = nextStartAt(time.Now().UTC(), sp.FirstStartAt, sp.Cadence, loc, sp.CutoffHours)
 	resp.OK(w, sp)
 }
 
@@ -353,7 +353,7 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Ensure there's an upcoming cycle + offering.
-	nextStart := nextStartAt(time.Now().UTC(), firstStartAt, cadence, loc)
+	nextStart := nextStartAt(time.Now().UTC(), firstStartAt, cadence, loc, cutoffHours)
 	windowID, offeringID, err := ensureCycleAndOffering(ctx, tx, ensureCycleInput{
 		planID:          planID,
 		storeID:         storeID,
@@ -529,7 +529,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 		if err != nil {
 			loc = time.UTC
 		}
-		sp.NextStartAt = nextStartAt(now, sp.FirstStartAt, sp.Cadence, loc)
+		sp.NextStartAt = nextStartAt(now, sp.FirstStartAt, sp.Cadence, loc, sp.CutoffHours)
 		out = append(out, sp)
 	}
 	if rows.Err() != nil {
@@ -720,7 +720,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	out.NextStartAt = nextStartAt(time.Now().UTC(), out.FirstStartAt, out.Cadence, loc)
+	out.NextStartAt = nextStartAt(time.Now().UTC(), out.FirstStartAt, out.Cadence, loc, out.CutoffHours)
 
 	if err := tx.Commit(ctx); err != nil {
 		resp.Internal(w, err)
@@ -854,7 +854,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 	}
 
 	now := time.Now().UTC()
-	next := nextStartAt(now, firstStartAt, cadence, loc)
+	next := nextStartAt(now, firstStartAt, cadence, loc, cutoffHours)
 	if hasLastStart {
 		next = addCadence(lastStart, cadence, loc).UTC()
 		for !next.After(now) {
@@ -955,11 +955,11 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 
 // --- internals ---
 
-func nextStartAt(nowUTC time.Time, firstUTC time.Time, cadence string, loc *time.Location) time.Time {
+func nextStartAt(nowUTC time.Time, firstUTC time.Time, cadence string, loc *time.Location, cutoffHours int) time.Time {
 	n := nowUTC.In(loc)
 	t := firstUTC.In(loc)
-	// Find the first start strictly after now.
-	for !t.After(n) {
+	// Find the first cycle that starts after now AND whose cutoff is still in the future.
+	for !t.After(n) || !t.Add(-time.Duration(cutoffHours)*time.Hour).After(n) {
 		switch cadence {
 		case "weekly":
 			t = t.AddDate(0, 0, 7)
