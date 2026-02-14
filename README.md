@@ -26,6 +26,9 @@ Database (optional, for backend endpoints/migrations):
 
 ```sh
 docker compose up -d
+export DATABASE_URL="postgres://localroots:localroots@localhost:5432/localroots?sslmode=disable"
+pnpm migrate:up
+pnpm seed
 ```
 
 Backend (requires Go 1.24+ installed):
