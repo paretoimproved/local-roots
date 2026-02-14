@@ -91,7 +91,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 	defer rows.Close()
 
 	now := time.Now().UTC()
-	var out []SubscriptionPlanPublic
+	out := make([]SubscriptionPlanPublic, 0)
 	for rows.Next() {
 		var sp SubscriptionPlanPublic
 		if err := rows.Scan(
@@ -495,7 +495,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 	defer rows.Close()
 
 	now := time.Now().UTC()
-	var out []SubscriptionPlanSeller
+	out := make([]SubscriptionPlanSeller, 0)
 	for rows.Next() {
 		var sp SubscriptionPlanSeller
 		if err := rows.Scan(
