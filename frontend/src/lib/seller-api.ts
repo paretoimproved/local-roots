@@ -64,6 +64,32 @@ export type SellerOffering = {
   product: SellerProduct;
 };
 
+export type SellerOrderItem = {
+  id: string;
+  offering_id: string | null;
+  product_title: string;
+  product_unit: string;
+  price_cents: number;
+  quantity: number;
+  line_total_cents: number;
+};
+
+export type SellerOrder = {
+  id: string;
+  store_id: string;
+  pickup_window_id: string;
+  buyer_email: string;
+  buyer_name: string | null;
+  buyer_phone: string | null;
+  status: string;
+  payment_method: string;
+  payment_status: string;
+  subtotal_cents: number;
+  total_cents: number;
+  created_at: string;
+  items: SellerOrderItem[];
+};
+
 function apiBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ||
@@ -217,5 +243,21 @@ export const sellerApi = {
       `/v1/seller/stores/${storeId}/pickup-windows/${pickupWindowId}/offerings`,
       { method: "POST", token, body: JSON.stringify(input) },
     ),
-};
 
+  listOrders: (token: string, storeId: string, pickupWindowId: string) =>
+    requestJSON<SellerOrder[]>(
+      `/v1/seller/stores/${storeId}/pickup-windows/${pickupWindowId}/orders`,
+      { token },
+    ),
+
+  updateOrderStatus: (
+    token: string,
+    storeId: string,
+    orderId: string,
+    status: "ready" | "picked_up" | "canceled" | "no_show",
+  ) =>
+    requestJSON<{ id: string; store_id: string; pickup_window_id: string; status: string }>(
+      `/v1/seller/stores/${storeId}/orders/${orderId}/status`,
+      { method: "POST", token, body: JSON.stringify({ status }) },
+    ),
+};

@@ -26,6 +26,7 @@ export type Order = {
   id: string;
   store_id: string;
   pickup_window_id: string;
+  buyer_token: string;
   buyer_email: string;
   buyer_name: string | null;
   buyer_phone: string | null;
@@ -36,6 +37,11 @@ export type Order = {
   total_cents: number;
   created_at: string;
   items: OrderItem[];
+};
+
+export type GetOrderResponse = {
+  order: Order;
+  has_review: boolean;
 };
 
 function apiBaseUrl() {
@@ -69,6 +75,32 @@ export const buyerApi = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+
+  getOrder: (orderId: string, token: string) =>
+    requestJSON<GetOrderResponse>(
+      `/v1/orders/${orderId}?token=${encodeURIComponent(token)}`,
+      { method: "GET" },
+    ),
+
+  createReview: (
+    orderId: string,
+    input: { token: string; rating: number; body?: string | null },
+  ) =>
+    requestJSON<{
+      id: string;
+      order_id: string;
+      store_id: string;
+      rating: number;
+      body: string | null;
+      created_at: string;
+    }>(`/v1/orders/${orderId}/review`, {
+      method: "POST",
+      body: JSON.stringify({
+        token: input.token,
+        rating: input.rating,
+        body: input.body ?? null,
+      }),
+    }),
 };
 
 export function defaultItemQty(offerings: Offering[]) {
@@ -76,4 +108,3 @@ export function defaultItemQty(offerings: Offering[]) {
   for (const o of offerings) out[o.id] = 0;
   return out;
 }
-

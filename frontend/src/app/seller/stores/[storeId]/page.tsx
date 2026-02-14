@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   sellerApi,
+  type SellerOrder,
   type SellerOffering,
   type SellerPickupLocation,
   type SellerPickupWindow,
@@ -32,6 +33,7 @@ export default function SellerStorePage() {
   const [windows, setWindows] = useState<SellerPickupWindow[] | null>(null);
   const [products, setProducts] = useState<SellerProduct[] | null>(null);
   const [offerings, setOfferings] = useState<SellerOffering[] | null>(null);
+  const [orders, setOrders] = useState<SellerOrder[] | null>(null);
 
   const [selectedWindowId, setSelectedWindowId] = useState<string>("");
 
@@ -105,6 +107,15 @@ export default function SellerStorePage() {
     sellerApi
       .listOfferings(token, storeId, selectedWindowId)
       .then(setOfferings)
+      .catch((e: unknown) => setError(String(e)));
+  }, [token, storeId, selectedWindowId]);
+
+  useEffect(() => {
+    if (!token || !selectedWindowId) return;
+    setError(null);
+    sellerApi
+      .listOrders(token, storeId, selectedWindowId)
+      .then(setOrders)
       .catch((e: unknown) => setError(String(e)));
   }, [token, storeId, selectedWindowId]);
 
@@ -184,7 +195,29 @@ export default function SellerStorePage() {
       });
       setOfferingQty(0);
       setOfferingPriceCents(0);
-      setOfferings(await sellerApi.listOfferings(token, storeId, selectedWindowId));
+      setOfferings(
+        await sellerApi.listOfferings(token, storeId, selectedWindowId),
+      );
+    } catch (e: unknown) {
+      setError(String(e));
+    }
+  }
+
+  async function setOrderStatus(
+    orderId: string,
+    status: "ready" | "picked_up" | "canceled" | "no_show",
+  ) {
+    if (!token || !selectedWindowId) return;
+    setError(null);
+    try {
+      await sellerApi.updateOrderStatus(token, storeId, orderId, status);
+      // Refresh both orders and offerings since inventory may have changed.
+      const [os, ofs] = await Promise.all([
+        sellerApi.listOrders(token, storeId, selectedWindowId),
+        sellerApi.listOfferings(token, storeId, selectedWindowId),
+      ]);
+      setOrders(os);
+      setOfferings(ofs);
     } catch (e: unknown) {
       setError(String(e));
     }
@@ -501,7 +534,88 @@ export default function SellerStorePage() {
           </button>
         </div>
       </section>
+
+      <section className="grid gap-3 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/5">
+        <h2 className="text-base font-semibold">Orders</h2>
+        <p className="text-sm text-zinc-600">
+          Orders are placed by buyers for this pickup window.
+        </p>
+
+        {orders?.length ? (
+          <ul className="grid gap-2">
+            {orders.map((o) => (
+              <li
+                key={o.id}
+                className="rounded-xl bg-zinc-50 px-4 py-3 ring-1 ring-zinc-950/5"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div>
+                    <div className="font-medium text-zinc-950">
+                      {o.buyer_name ? `${o.buyer_name} · ` : ""}
+                      {o.buyer_email}
+                    </div>
+                    <div className="mt-1 text-sm text-zinc-600">
+                      Status: <span className="font-medium">{o.status}</span>{" "}
+                      · Total ${(o.total_cents / 100).toFixed(2)}
+                    </div>
+                    <div className="mt-2 grid gap-1">
+                      {o.items.map((it) => (
+                        <div key={it.id} className="text-sm text-zinc-700">
+                          {it.quantity} × {it.product_title} ({it.product_unit})
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    {o.status === "placed" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="rounded-full bg-zinc-950 px-3 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-800"
+                          onClick={() => setOrderStatus(o.id, "ready")}
+                        >
+                          Mark ready
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-full px-3 py-2 text-sm font-medium text-zinc-700 ring-1 ring-zinc-950/15 hover:bg-white"
+                          onClick={() => setOrderStatus(o.id, "canceled")}
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : null}
+
+                    {o.status === "ready" ? (
+                      <>
+                        <button
+                          type="button"
+                          className="rounded-full bg-zinc-950 px-3 py-2 text-sm font-medium text-zinc-50 hover:bg-zinc-800"
+                          onClick={() => setOrderStatus(o.id, "picked_up")}
+                        >
+                          Picked up
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-full px-3 py-2 text-sm font-medium text-zinc-700 ring-1 ring-zinc-950/15 hover:bg-white"
+                          onClick={() => setOrderStatus(o.id, "no_show")}
+                        >
+                          No show
+                        </button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : selectedWindowId ? (
+          <div className="text-sm text-zinc-600">No orders yet.</div>
+        ) : (
+          <div className="text-sm text-zinc-600">Select a pickup window.</div>
+        )}
+      </section>
     </div>
   );
 }
-

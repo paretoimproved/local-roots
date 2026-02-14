@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Offering } from "@/lib/api";
 import { buyerApi, defaultItemQty, type Order } from "@/lib/buyer-api";
+import { orderToken } from "@/lib/order-token";
 
 function formatMoney(cents: number) {
   return new Intl.NumberFormat("en-US", {
@@ -53,6 +54,7 @@ export function CheckoutForm({
           quantity: it.quantity,
         })),
       });
+      orderToken.set(res.id, res.buyer_token);
       setOrder(res);
     } catch (e: unknown) {
       setError(String(e));
@@ -70,6 +72,11 @@ export function CheckoutForm({
         </p>
         <p className="mt-2 text-sm text-zinc-600">
           Total: <span className="font-medium text-zinc-950">{formatMoney(order.total_cents)}</span>
+        </p>
+        <p className="mt-2 text-sm text-zinc-600">
+          <a className="underline" href={`/orders/${order.id}`}>
+            View order status
+          </a>
         </p>
         <div className="mt-4 rounded-xl bg-zinc-50 p-4 text-sm text-zinc-700 ring-1 ring-zinc-950/5">
           Payment method: <span className="font-medium">Pay at pickup</span>.
@@ -174,4 +181,3 @@ export function CheckoutForm({
     </section>
   );
 }
-
