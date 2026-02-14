@@ -8,7 +8,7 @@ on:
 
 jobs:
   test:
-    name: Test & Build
+    name: Lint, Typecheck, Build
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -20,16 +20,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v1
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
-          bun-version: latest
+          go-version-file: backend/go.mod
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 8.6.0
+          version: 10.6.5
 
       - name: Get pnpm store directory
         shell: bash
@@ -49,25 +49,17 @@ jobs:
 
       - name: Type check
         run: pnpm typecheck
-        working-directory: ./apps/web
 
       - name: Lint
         run: pnpm lint
-        working-directory: ./apps/web
 
-      - name: Run tests
-        run: pnpm test
-        working-directory: ./apps/web
-        env:
-          DATABASE_URL: postgresql://test:test@localhost:5432/test_db
+      - name: Go tests
+        run: |
+          cd backend
+          go test ./...
 
       - name: Build
         run: pnpm build
-        working-directory: ./apps/web
-        env:
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Upload coverage reports
         uses: codecov/codecov-action@v4
