@@ -151,7 +151,7 @@ export const buyerApi = {
     subscriptionId: string,
     input: { token: string; status: "active" | "paused" | "canceled" },
   ) =>
-    requestJSON<{ ok: boolean; status: string }>(
+    requestJSON<{ ok: boolean; status: string; note?: string }>(
       `/v1/subscriptions/${subscriptionId}/status`,
       {
         method: "POST",

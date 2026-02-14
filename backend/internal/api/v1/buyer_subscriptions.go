@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -318,20 +319,132 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// For now: just set status. (Orders will be created only for active subscriptions.)
-	cmd, err := a.DB.Exec(r.Context(), `
-		update subscriptions
-		set status = $3, updated_at = now()
-		where id = $1::uuid and buyer_token = $2
-	`, subID, token, status)
+	// MVP behavior:
+	// - update subscription status
+	// - if canceling, also cancel the next upcoming order (if cutoff hasn't passed yet)
+	note, err := a.updateStatusAndMaybeCancelUpcomingOrder(r.Context(), subID, token, status)
 	if err != nil {
+		if err == pgx.ErrNoRows {
+			resp.Unauthorized(w, "subscription not found")
+			return
+		}
 		resp.Internal(w, err)
 		return
 	}
-	if cmd.RowsAffected() == 0 {
-		resp.Unauthorized(w, "subscription not found")
-		return
+
+	out := map[string]any{"ok": true, "status": status}
+	if strings.TrimSpace(note) != "" {
+		out["note"] = note
+	}
+	resp.OK(w, out)
+}
+
+func (a BuyerSubscriptionsAPI) updateStatusAndMaybeCancelUpcomingOrder(ctx context.Context, subID string, token string, status string) (note string, err error) {
+	tx, err := a.DB.Begin(ctx)
+	if err != nil {
+		return "", err
+	}
+	defer tx.Rollback(ctx)
+
+	// Ensure token matches and lock the subscription row.
+	var storeID string
+	if err := tx.QueryRow(ctx, `
+		select store_id::text
+		from subscriptions
+		where id = $1::uuid and buyer_token = $2
+		limit 1
+		for update
+	`, subID, token).Scan(&storeID); err != nil {
+		return "", err
 	}
 
-	resp.OK(w, map[string]any{"ok": true, "status": status})
+	if _, err := tx.Exec(ctx, `
+		update subscriptions
+		set status = $3, updated_at = now()
+		where id = $1::uuid and buyer_token = $2
+	`, subID, token, status); err != nil {
+		return "", err
+	}
+
+	if status != "canceled" {
+		if err := tx.Commit(ctx); err != nil {
+			return "", err
+		}
+		return "", nil
+	}
+
+	// Cancel the next upcoming order if it is still before cutoff.
+	var (
+		orderID        string
+		paymentMethod  string
+		paymentStatus  string
+		stripePI       *string
+		cutoffAt       time.Time
+	)
+	row := tx.QueryRow(ctx, `
+		select
+			o.id::text,
+			o.payment_method,
+			o.payment_status,
+			o.stripe_payment_intent_id,
+			w.cutoff_at
+		from orders o
+		join pickup_windows w on w.id = o.pickup_window_id and w.store_id = o.store_id
+		where o.subscription_id = $1::uuid
+			and o.status in ('placed', 'ready')
+		order by w.start_at asc
+		limit 1
+		for update
+	`, subID)
+	if err := row.Scan(&orderID, &paymentMethod, &paymentStatus, &stripePI, &cutoffAt); err != nil {
+		if err == pgx.ErrNoRows {
+			// No upcoming orders to cancel.
+			if err := tx.Commit(ctx); err != nil {
+				return "", err
+			}
+			return "Subscription canceled. No upcoming pickup to cancel.", nil
+		}
+		return "", err
+	}
+
+	if time.Now().After(cutoffAt) {
+		// Keep subscription canceled, but do not cancel the order once cutoff passes.
+		if err := tx.Commit(ctx); err != nil {
+			return "", err
+		}
+		return "Subscription canceled. The next pickup is already locked in (cutoff passed).", nil
+	}
+
+	if paymentMethod == "card" && paymentStatus == "authorized" && stripePI != nil && strings.TrimSpace(*stripePI) != "" {
+		if a.Stripe == nil || !a.Stripe.Enabled() {
+			return "", stripepay.ErrNotConfigured
+		}
+		if err := a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID); err != nil {
+			return "", err
+		}
+	}
+
+	// Release reserved inventory and cancel the order.
+	if err := adjustOfferingsForOrder(ctx, tx, orderID, "release"); err != nil {
+		return "", err
+	}
+	if _, err := tx.Exec(ctx, `
+		update orders
+		set
+			status = 'canceled',
+			payment_status = case
+				when payment_method = 'card' and stripe_payment_intent_id is not null then 'voided'
+				else payment_status
+			end,
+			updated_at = now()
+		where id = $1::uuid
+	`, orderID); err != nil {
+		return "", err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return "", err
+	}
+
+	return "Subscription canceled and the next upcoming pickup order was canceled.", nil
 }

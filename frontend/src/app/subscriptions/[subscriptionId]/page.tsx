@@ -156,8 +156,12 @@ export default function SubscriptionPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await buyerApi.updateSubscriptionStatus(subscriptionId, { token, status });
-      showToast({ kind: "success", message: `Subscription ${status}.` });
+      const res = await buyerApi.updateSubscriptionStatus(subscriptionId, { token, status });
+      const note = (res.note ?? "").trim();
+      showToast({
+        kind: "success",
+        message: note || `Subscription ${status}.`,
+      });
       await load();
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
@@ -349,4 +353,3 @@ export default function SubscriptionPage() {
     </div>
   );
 }
-
