@@ -1,0 +1,8 @@
+# Canonical commands for Local-Roots
+lint = "pnpm -C frontend lint"
+typecheck = "pnpm -C frontend exec tsc -p tsconfig.json --noEmit"
+
+# add when you have a test runner wired
+test = ""
+
+backend_build = "cd backend && go test ./..."

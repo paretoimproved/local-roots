@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import {
   sellerApi,
+  type PlacesAutocompletePrediction,
   type SellerOrder,
   type SellerOffering,
   type SellerPickupLocation,
@@ -157,11 +158,22 @@ export default function SellerStorePage() {
   const [locCity, setLocCity] = useState("");
   const [locRegion, setLocRegion] = useState("");
   const [locPostal, setLocPostal] = useState("");
+  const [locCountry, setLocCountry] = useState("US");
   const [locTz, setLocTz] = useState(
     typeof Intl !== "undefined"
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
       : "America/Los_Angeles",
   );
+
+  // Google address autocomplete (server-side proxied)
+  const [addrQuery, setAddrQuery] = useState("");
+  const [addrSessionToken, setAddrSessionToken] = useState<string>("");
+  const [addrPredictions, setAddrPredictions] = useState<
+    PlacesAutocompletePrediction[]
+  >([]);
+  const [addrOpen, setAddrOpen] = useState(false);
+  const [addrLoading, setAddrLoading] = useState(false);
+  const [addrActiveIndex, setAddrActiveIndex] = useState(0);
 
   // Create pickup window
   const [windowLocationId, setWindowLocationId] = useState("");
@@ -324,15 +336,85 @@ export default function SellerStorePage() {
         city: locCity,
         region: locRegion,
         postal_code: locPostal,
+        country: locCountry,
         timezone: locTz,
       });
       setLocAddress1("");
       setLocCity("");
       setLocRegion("");
       setLocPostal("");
+      setLocCountry("US");
+      setAddrQuery("");
+      setAddrPredictions([]);
+      setAddrOpen(false);
       await refreshAll(token);
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
+    }
+  }
+
+  function newPlacesSessionToken(): string {
+    // Google recommends session tokens to group billing for autocomplete + details.
+    // Browser crypto may be unavailable in some old environments; fallback is fine.
+    try {
+      return typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+    } catch {
+      return String(Date.now()) + "-" + Math.random().toString(16).slice(2);
+    }
+  }
+
+  useEffect(() => {
+    if (!token) return;
+    if (!addrOpen) return;
+    const q = addrQuery.trim();
+    if (q.length < 3) {
+      setAddrPredictions([]);
+      setAddrLoading(false);
+      return;
+    }
+    if (!addrSessionToken) {
+      setAddrSessionToken(newPlacesSessionToken());
+      return;
+    }
+
+    setAddrLoading(true);
+    const handle = window.setTimeout(() => {
+      sellerApi
+        .placesAutocomplete(token, q, addrSessionToken)
+        .then((res) => {
+          setAddrPredictions(res.predictions ?? []);
+          setAddrActiveIndex(0);
+        })
+        .catch((e: unknown) => setError(friendlyErrorMessage(e)))
+        .finally(() => setAddrLoading(false));
+    }, 300);
+
+    return () => window.clearTimeout(handle);
+  }, [token, addrOpen, addrQuery, addrSessionToken]);
+
+  async function selectPrediction(p: PlacesAutocompletePrediction) {
+    if (!token) return;
+    const st = addrSessionToken || newPlacesSessionToken();
+    setAddrLoading(true);
+    setError(null);
+    try {
+      const d = await sellerApi.placesDetails(token, p.place_id, st);
+      setLocAddress1(d.address1 ?? "");
+      setLocCity(d.city ?? "");
+      setLocRegion(d.region ?? "");
+      setLocPostal(d.postal_code ?? "");
+      setLocCountry(d.country ?? "US");
+      setAddrQuery(p.full_text || d.formatted_address || "");
+      setAddrPredictions([]);
+      setAddrOpen(false);
+      // New token for the next search session.
+      setAddrSessionToken("");
+    } catch (e: unknown) {
+      setError(friendlyErrorMessage(e));
+    } finally {
+      setAddrLoading(false);
     }
   }
 
@@ -794,6 +876,94 @@ export default function SellerStorePage() {
                     onChange={(e) => setLocTz(e.target.value)}
                     placeholder="Timezone (e.g. America/Los_Angeles)"
                   />
+
+                  <div className="relative md:col-span-2">
+                    <input
+                      className="lr-field w-full px-3 py-2 text-sm"
+                      value={addrQuery}
+                      onChange={(e) => {
+                        setAddrQuery(e.target.value);
+                        setAddrOpen(true);
+                        if (!addrSessionToken) setAddrSessionToken(newPlacesSessionToken());
+                      }}
+                      onFocus={() => {
+                        setAddrOpen(true);
+                        if (!addrSessionToken) setAddrSessionToken(newPlacesSessionToken());
+                      }}
+                      onBlur={() => {
+                        // Delay close so click selection works.
+                        window.setTimeout(() => setAddrOpen(false), 120);
+                      }}
+                      onKeyDown={(e) => {
+                        if (!addrOpen || !addrPredictions.length) return;
+                        if (e.key === "ArrowDown") {
+                          e.preventDefault();
+                          setAddrActiveIndex((i) =>
+                            Math.min(i + 1, addrPredictions.length - 1),
+                          );
+                        } else if (e.key === "ArrowUp") {
+                          e.preventDefault();
+                          setAddrActiveIndex((i) => Math.max(i - 1, 0));
+                        } else if (e.key === "Enter") {
+                          e.preventDefault();
+                          const p = addrPredictions[addrActiveIndex];
+                          if (p) void selectPrediction(p);
+                        } else if (e.key === "Escape") {
+                          e.preventDefault();
+                          setAddrOpen(false);
+                        }
+                      }}
+                      placeholder="Search address (autocomplete)"
+                      aria-label="Search address"
+                      autoComplete="off"
+                    />
+                    {addrOpen && (addrLoading || addrPredictions.length) ? (
+                      <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[color:var(--lr-border)] bg-white/95 shadow-[0_18px_50px_rgba(38,28,10,0.16)] backdrop-blur">
+                        {addrLoading ? (
+                          <div className="px-3 py-2 text-sm text-[color:var(--lr-muted)]">
+                            Searching…
+                          </div>
+                        ) : null}
+                        {!addrLoading ? (
+                          <ul className="max-h-64 overflow-auto py-1">
+                            {addrPredictions.map((p, idx) => {
+                              const active = idx === addrActiveIndex;
+                              return (
+                                <li key={p.place_id}>
+                                  <button
+                                    type="button"
+                                    className="w-full px-3 py-2 text-left text-sm"
+                                    style={{
+                                      background: active
+                                        ? "rgba(47, 107, 79, 0.10)"
+                                        : "transparent",
+                                    }}
+                                    onMouseDown={(ev) => {
+                                      ev.preventDefault();
+                                      void selectPrediction(p);
+                                    }}
+                                  >
+                                    <div className="font-medium text-[color:var(--lr-ink)]">
+                                      {p.main_text || p.full_text}
+                                    </div>
+                                    {p.secondary_text ? (
+                                      <div className="text-xs text-[color:var(--lr-muted)]">
+                                        {p.secondary_text}
+                                      </div>
+                                    ) : null}
+                                  </button>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        ) : null}
+                        <div className="border-t border-[color:var(--lr-border)] px-3 py-2 text-[11px] text-[color:var(--lr-muted)]">
+                          Powered by Google
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+
                   <input
                     className="lr-field px-3 py-2 text-sm md:col-span-2"
                     value={locAddress1}

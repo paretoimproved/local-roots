@@ -24,6 +24,10 @@ coverage
 # Claude/Cursor AI scratch
 .claude/
 
+# agent-ops artifacts/state (repo adapter folder is committed; artifacts are not)
+.agent-ops/artifacts/
+.agent-ops-state/
+
 # Build Outputs
 .next/
 out/

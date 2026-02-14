@@ -73,5 +73,9 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(sellerSub.CreatePlan))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(sellerSub.GenerateNextCycle))
 
+	geo := v1.GeoAPI{GooglePlacesAPIKey: deps.Config.GooglePlacesAPIKey}
+	mux.HandleFunc("POST /v1/seller/geo/places/autocomplete", authAPI.RequireUser(geo.PlacesAutocomplete))
+	mux.HandleFunc("POST /v1/seller/geo/places/details", authAPI.RequireUser(geo.PlacesDetails))
+
 	return withCORS(deps.Config, mux)
 }

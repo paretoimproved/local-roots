@@ -111,6 +111,28 @@ export type SellerOrder = {
   items: SellerOrderItem[];
 };
 
+export type PlacesAutocompletePrediction = {
+  place_id: string;
+  main_text: string;
+  secondary_text: string;
+  full_text: string;
+};
+
+export type PlacesAutocompleteResponse = {
+  predictions: PlacesAutocompletePrediction[];
+};
+
+export type PlacesDetailsResponse = {
+  address1: string;
+  city: string;
+  region: string;
+  postal_code: string;
+  country: string;
+  formatted_address: string;
+  lat: number | null;
+  lng: number | null;
+};
+
 function apiBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ||
@@ -326,5 +348,19 @@ export const sellerApi = {
       method: "POST",
       token,
       body: JSON.stringify({}),
+    }),
+
+  placesAutocomplete: (token: string, input: string, sessionToken: string) =>
+    requestJSON<PlacesAutocompleteResponse>("/v1/seller/geo/places/autocomplete", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ input, session_token: sessionToken }),
+    }),
+
+  placesDetails: (token: string, placeId: string, sessionToken: string) =>
+    requestJSON<PlacesDetailsResponse>("/v1/seller/geo/places/details", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ place_id: placeId, session_token: sessionToken }),
     }),
 };
