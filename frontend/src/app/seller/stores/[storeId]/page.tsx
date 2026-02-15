@@ -2354,6 +2354,20 @@ export default function SellerStorePage() {
                       {new Date(o.created_at).toLocaleString()}
                     </span>
                   </div>
+                  <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                    Seller payout (est.){" "}
+                    <span className="font-semibold text-[color:var(--lr-ink)]">
+                      {formatMoney(o.subtotal_cents)}
+                    </span>
+                    {o.payment_method === "card" && (o.buyer_fee_cents ?? 0) > 0 ? (
+                      <>
+                        {" · "}Service fee{" "}
+                        <span className="font-semibold text-[color:var(--lr-ink)]">
+                          {formatMoney(o.buyer_fee_cents)}
+                        </span>
+                      </>
+                    ) : null}
+                  </div>
                   {o.status === "no_show" && (o.captured_cents ?? 0) > 0 ? (
                     <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
                       No-show fee{" "}
