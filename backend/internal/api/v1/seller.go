@@ -10,6 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
+	"github.com/paretoimproved/local-roots/backend/internal/timeutil"
 )
 
 type SellerAPI struct {
@@ -273,6 +274,11 @@ func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, 
 		resp.BadRequest(w, "address1, city, region, postal_code, timezone are required")
 		return
 	}
+	_, normalizedTZ, err := timeutil.LoadLocationBestEffort(in.Timezone)
+	if err != nil {
+		resp.BadRequest(w, "invalid timezone")
+		return
+	}
 	country := "US"
 	if in.Country != nil && strings.TrimSpace(*in.Country) != "" {
 		country = strings.TrimSpace(*in.Country)
@@ -293,11 +299,11 @@ func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, 
 	}
 
 	var out SellerPickupLocation
-	err := a.DB.QueryRow(r.Context(), `
+	err = a.DB.QueryRow(r.Context(), `
 		insert into pickup_locations (store_id, label, address1, address2, city, region, postal_code, country, timezone)
 		values ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9)
 		returning id::text, label, address1, address2, city, region, postal_code, country, timezone
-	`, storeID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, country, in.Timezone).Scan(
+	`, storeID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, country, normalizedTZ).Scan(
 		&out.ID, &out.Label, &out.Address1, &out.Address2, &out.City, &out.Region, &out.PostalCode, &out.Country, &out.Timezone,
 	)
 	if err != nil {

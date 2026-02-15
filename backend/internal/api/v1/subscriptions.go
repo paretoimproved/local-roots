@@ -13,6 +13,7 @@ import (
 
 	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
+	"github.com/paretoimproved/local-roots/backend/internal/timeutil"
 )
 
 type SubscriptionAPI struct {
@@ -966,10 +967,18 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 		resp.Internal(w, err)
 		return
 	}
-	loc, err := time.LoadLocation(locTimezone)
+	loc, normalizedTZ, err := timeutil.LoadLocationBestEffort(locTimezone)
 	if err != nil {
 		resp.BadRequest(w, "invalid pickup location timezone")
 		return
+	}
+	// Best-effort cleanup: normalize any legacy / friendly tz strings in the DB.
+	if normalizedTZ != "" && strings.TrimSpace(locTimezone) != normalizedTZ {
+		_, _ = a.DB.Exec(r.Context(), `
+			update pickup_locations
+			set timezone = $3, updated_at = now()
+			where id = $1::uuid and store_id = $2::uuid
+		`, in.PickupLocationID, storeID, normalizedTZ)
 	}
 
 	firstLocal, err := time.ParseInLocation("2006-01-02T15:04", in.FirstStartAtLocal, loc)

@@ -234,8 +234,6 @@ function TimezoneCombobox({
         }}
         onBlur={() => {
           onTouched?.();
-          const next = query.trim();
-          if (next) onChange(next);
           window.setTimeout(() => setOpen(false), 120);
         }}
         onKeyDown={(e) => {
@@ -282,6 +280,7 @@ function TimezoneCombobox({
                       onMouseDown={(ev) => {
                         ev.preventDefault();
                         onChange(z);
+                        setQuery(z);
                         setOpen(false);
                       }}
                     >
@@ -600,6 +599,19 @@ export default function SellerStorePage() {
     if (!locRegion.trim()) nextErrors.region = "State/region is required.";
     if (!locPostal.trim()) nextErrors.postal = "Postal code is required.";
     if (!locTz.trim()) nextErrors.timezone = "Timezone is required.";
+    if (locTz.trim()) {
+      const tz = locTz.trim();
+      const ok = (() => {
+        try {
+          // This matches what the backend expects (IANA tz database IDs).
+          Intl.DateTimeFormat("en-US", { timeZone: tz }).format(new Date());
+          return true;
+        } catch {
+          return false;
+        }
+      })();
+      if (!ok) nextErrors.timezone = "Select a valid timezone from the list.";
+    }
     setLocErrors(nextErrors);
     setLocTouched({
       address1: true,
