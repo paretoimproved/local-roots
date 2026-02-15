@@ -34,3 +34,22 @@ jobs:
           echo "Backend smoke failed"
           exit 1
 
+      # This intentionally posts without a Stripe signature header.
+      # Expected: 400 "invalid signature" when STRIPE_WEBHOOK_SECRET is configured.
+      # Misconfigured: 503 "webhook not configured".
+      - name: Smoke Stripe webhook configured (expect 400)
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://backend-production-f31a.up.railway.app/v1/stripe/webhook"
+          for i in 1 2 3 4 5; do
+            code="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$url" || true)"
+            echo "Attempt $i: $url -> $code"
+            if [ "$code" = "400" ]; then
+              echo "OK"
+              exit 0
+            fi
+            sleep 8
+          done
+          echo "Stripe webhook smoke failed (expected 400)"
+          exit 1
