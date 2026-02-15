@@ -17,14 +17,6 @@ type SellerAPI struct {
 	DB *pgxpool.Pool
 }
 
-func (a SellerAPI) requireSeller(u AuthUser, w http.ResponseWriter) bool {
-	if u.Role != "seller" && u.Role != "admin" {
-		resp.Forbidden(w, "seller access required")
-		return false
-	}
-	return true
-}
-
 type SellerStore struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -36,7 +28,8 @@ type SellerStore struct {
 }
 
 func (a SellerAPI) ListMyStores(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
+	if u.Role != "seller" && u.Role != "admin" {
+		resp.Forbidden(w, "seller access required")
 		return
 	}
 
@@ -77,7 +70,8 @@ type createStoreRequest struct {
 }
 
 func (a SellerAPI) CreateStore(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
+	if u.Role != "seller" && u.Role != "admin" {
+		resp.Forbidden(w, "seller access required")
 		return
 	}
 
@@ -120,33 +114,10 @@ type updateStoreRequest struct {
 	IsActive    *bool   `json:"is_active"`
 }
 
-func (a SellerAPI) UpdateStore(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
+func (a SellerAPI) UpdateStore(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	var in updateStoreRequest
 	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
 		return
 	}
 
@@ -161,7 +132,7 @@ func (a SellerAPI) UpdateStore(w http.ResponseWriter, r *http.Request, u AuthUse
 			updated_at = now()
 		where id = $1::uuid
 		returning id::text, name, description, phone, is_active, created_at, updated_at
-	`, storeID, in.Name, in.Description, in.Phone, in.IsActive).Scan(
+	`, sc.StoreID, in.Name, in.Description, in.Phone, in.IsActive).Scan(
 		&out.ID, &out.Name, &out.Description, &out.Phone, &out.IsActive, &out.CreatedAt, &out.UpdatedAt,
 	)
 	if err != nil {
@@ -184,37 +155,14 @@ type SellerPickupLocation struct {
 	Timezone   string  `json:"timezone"`
 }
 
-func (a SellerAPI) ListPickupLocations(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
+func (a SellerAPI) ListPickupLocations(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	rows, err := a.DB.Query(r.Context(), `
 		select id::text, label, address1, address2, city, region, postal_code, country, timezone
 		from pickup_locations
 		where store_id = $1::uuid
 		order by created_at desc
 		limit 50
-	`, storeID)
+	`, sc.StoreID)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -251,16 +199,7 @@ type createPickupLocationRequest struct {
 	Lng        *float64 `json:"lng"`
 }
 
-func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
+func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	var in createPickupLocationRequest
 	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
@@ -286,26 +225,12 @@ func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, 
 		country = strings.TrimSpace(*in.Country)
 	}
 
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
 	var out SellerPickupLocation
 	err = a.DB.QueryRow(r.Context(), `
 		insert into pickup_locations (store_id, label, address1, address2, city, region, postal_code, country, timezone, lat, lng)
 		values ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		returning id::text, label, address1, address2, city, region, postal_code, country, timezone
-	`, storeID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, country, normalizedTZ, in.Lat, in.Lng).Scan(
+	`, sc.StoreID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, country, normalizedTZ, in.Lat, in.Lng).Scan(
 		&out.ID, &out.Label, &out.Address1, &out.Address2, &out.City, &out.Region, &out.PostalCode, &out.Country, &out.Timezone,
 	)
 	if err != nil {
@@ -315,32 +240,10 @@ func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, 
 	resp.OK(w, out)
 }
 
-func (a SellerAPI) DeletePickupLocation(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
+func (a SellerAPI) DeletePickupLocation(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	locationID := r.PathValue("pickupLocationId")
 	if locationID == "" {
 		resp.BadRequest(w, "missing pickupLocationId")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
 		return
 	}
 
@@ -351,7 +254,7 @@ func (a SellerAPI) DeletePickupLocation(w http.ResponseWriter, r *http.Request, 
 		from pickup_locations
 		where id = $1::uuid and store_id = $2::uuid
 		limit 1
-	`, locationID, storeID).Scan(&exists); err != nil {
+	`, locationID, sc.StoreID).Scan(&exists); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "pickup location not found")
 			return
@@ -366,7 +269,7 @@ func (a SellerAPI) DeletePickupLocation(w http.ResponseWriter, r *http.Request, 
 		select count(1)
 		from subscription_plans
 		where store_id = $1::uuid and pickup_location_id = $2::uuid
-	`, storeID, locationID).Scan(&planCount); err != nil {
+	`, sc.StoreID, locationID).Scan(&planCount); err != nil {
 		resp.Internal(w, err)
 		return
 	}
@@ -380,7 +283,7 @@ func (a SellerAPI) DeletePickupLocation(w http.ResponseWriter, r *http.Request, 
 		select count(1)
 		from pickup_windows
 		where store_id = $1::uuid and pickup_location_id = $2::uuid
-	`, storeID, locationID).Scan(&windowCount); err != nil {
+	`, sc.StoreID, locationID).Scan(&windowCount); err != nil {
 		resp.Internal(w, err)
 		return
 	}
@@ -392,7 +295,7 @@ func (a SellerAPI) DeletePickupLocation(w http.ResponseWriter, r *http.Request, 
 	tag, err := a.DB.Exec(r.Context(), `
 		delete from pickup_locations
 		where id = $1::uuid and store_id = $2::uuid
-	`, locationID, storeID)
+	`, locationID, sc.StoreID)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -426,30 +329,7 @@ type createPickupWindowRequest struct {
 	Notes            *string   `json:"notes"`
 }
 
-func (a SellerAPI) ListPickupWindows(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
+func (a SellerAPI) ListPickupWindows(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	rows, err := a.DB.Query(r.Context(), `
 		select
 			pw.id::text,
@@ -474,7 +354,7 @@ func (a SellerAPI) ListPickupWindows(w http.ResponseWriter, r *http.Request, u A
 		where pw.store_id = $1::uuid
 		order by pw.start_at desc
 		limit 100
-	`, storeID)
+	`, sc.StoreID)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -516,16 +396,7 @@ func (a SellerAPI) ListPickupWindows(w http.ResponseWriter, r *http.Request, u A
 	resp.OK(w, out)
 }
 
-func (a SellerAPI) CreatePickupWindow(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
+func (a SellerAPI) CreatePickupWindow(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	var in createPickupWindowRequest
 	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
@@ -544,26 +415,12 @@ func (a SellerAPI) CreatePickupWindow(w http.ResponseWriter, r *http.Request, u 
 		status = strings.TrimSpace(*in.Status)
 	}
 
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
 	var out SellerPickupWindow
 	err := a.DB.QueryRow(r.Context(), `
 		insert into pickup_windows (store_id, pickup_location_id, start_at, end_at, cutoff_at, status, notes)
 		values ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)
 		returning id::text, start_at, end_at, cutoff_at, status, notes, created_at, updated_at
-	`, storeID, in.PickupLocationID, in.StartAt, in.EndAt, in.CutoffAt, status, in.Notes).Scan(
+	`, sc.StoreID, in.PickupLocationID, in.StartAt, in.EndAt, in.CutoffAt, status, in.Notes).Scan(
 		&out.ID, &out.StartAt, &out.EndAt, &out.CutoffAt, &out.Status, &out.Notes, &out.CreatedAt, &out.UpdatedAt,
 	)
 	if err != nil {
@@ -576,7 +433,7 @@ func (a SellerAPI) CreatePickupWindow(w http.ResponseWriter, r *http.Request, u 
 		select id::text, label, address1, address2, city, region, postal_code, country, timezone
 		from pickup_locations
 		where id = $1::uuid and store_id = $2::uuid
-	`, in.PickupLocationID, storeID).Scan(
+	`, in.PickupLocationID, sc.StoreID).Scan(
 		&out.PickupLocation.ID,
 		&out.PickupLocation.Label,
 		&out.PickupLocation.Address1,
@@ -611,37 +468,14 @@ type createProductRequest struct {
 	IsActive     *bool   `json:"is_active"`
 }
 
-func (a SellerAPI) ListProducts(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
+func (a SellerAPI) ListProducts(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	rows, err := a.DB.Query(r.Context(), `
 		select id::text, title, description, unit, is_perishable, is_active
 		from products
 		where store_id = $1::uuid
 		order by created_at desc
 		limit 200
-	`, storeID)
+	`, sc.StoreID)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -664,16 +498,7 @@ func (a SellerAPI) ListProducts(w http.ResponseWriter, r *http.Request, u AuthUs
 	resp.OK(w, out)
 }
 
-func (a SellerAPI) CreateProduct(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
+func (a SellerAPI) CreateProduct(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	var in createProductRequest
 	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
@@ -694,26 +519,12 @@ func (a SellerAPI) CreateProduct(w http.ResponseWriter, r *http.Request, u AuthU
 		isActive = *in.IsActive
 	}
 
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
 	var out SellerProduct
 	err := a.DB.QueryRow(r.Context(), `
 		insert into products (store_id, title, description, unit, is_perishable, is_active)
 		values ($1::uuid, $2, $3, $4, $5, $6)
 		returning id::text, title, description, unit, is_perishable, is_active
-	`, storeID, in.Title, in.Description, in.Unit, isPerishable, isActive).Scan(
+	`, sc.StoreID, in.Title, in.Description, in.Unit, isPerishable, isActive).Scan(
 		&out.ID, &out.Title, &out.Description, &out.Unit, &out.IsPerishable, &out.IsActive,
 	)
 	if err != nil {
@@ -741,28 +552,10 @@ type createOfferingRequest struct {
 	Status            *string `json:"status"`
 }
 
-func (a SellerAPI) ListOfferings(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
+func (a SellerAPI) ListOfferings(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	windowID := r.PathValue("pickupWindowId")
-	if storeID == "" || windowID == "" {
-		resp.BadRequest(w, "missing storeId or pickupWindowId")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
+	if windowID == "" {
+		resp.BadRequest(w, "missing pickupWindowId")
 		return
 	}
 
@@ -786,8 +579,8 @@ func (a SellerAPI) ListOfferings(w http.ResponseWriter, r *http.Request, u AuthU
 		where o.store_id = $1::uuid
 			and o.pickup_window_id = $2::uuid
 		order by p.title asc
-		limit 500
-	`, storeID, windowID)
+		limit 100
+	`, sc.StoreID, windowID)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -825,14 +618,10 @@ func (a SellerAPI) ListOfferings(w http.ResponseWriter, r *http.Request, u AuthU
 	resp.OK(w, out)
 }
 
-func (a SellerAPI) CreateOffering(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if !a.requireSeller(u, w) {
-		return
-	}
-	storeID := r.PathValue("storeId")
+func (a SellerAPI) CreateOffering(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	windowID := r.PathValue("pickupWindowId")
-	if storeID == "" || windowID == "" {
-		resp.BadRequest(w, "missing storeId or pickupWindowId")
+	if windowID == "" {
+		resp.BadRequest(w, "missing pickupWindowId")
 		return
 	}
 
@@ -854,26 +643,12 @@ func (a SellerAPI) CreateOffering(w http.ResponseWriter, r *http.Request, u Auth
 		status = strings.TrimSpace(*in.Status)
 	}
 
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
 	var out SellerOffering
 	err := a.DB.QueryRow(r.Context(), `
 		insert into offerings (store_id, pickup_window_id, product_id, price_cents, quantity_available, quantity_reserved, status)
 		values ($1::uuid, $2::uuid, $3::uuid, $4, $5, 0, $6)
 		returning id::text, pickup_window_id::text, product_id::text, price_cents, quantity_available, quantity_reserved, status
-	`, storeID, windowID, in.ProductID, in.PriceCents, in.QuantityAvailable, status).Scan(
+	`, sc.StoreID, windowID, in.ProductID, in.PriceCents, in.QuantityAvailable, status).Scan(
 		&out.ID,
 		&out.PickupWindowID,
 		&out.ProductID,
@@ -891,7 +666,7 @@ func (a SellerAPI) CreateOffering(w http.ResponseWriter, r *http.Request, u Auth
 		select id::text, title, description, unit, is_perishable, is_active
 		from products
 		where id = $1::uuid and store_id = $2::uuid
-	`, out.ProductID, storeID).Scan(
+	`, out.ProductID, sc.StoreID).Scan(
 		&out.Product.ID,
 		&out.Product.Title,
 		&out.Product.Description,

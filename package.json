@@ -16,6 +16,7 @@
     "migrate:up": "cd backend && go run ./cmd/migrate up",
     "migrate:status": "cd backend && go run ./cmd/migrate status",
     "seed": "cd backend && go run ./cmd/seed",
-    "dev:all": "echo \"Terminal 1: pnpm dev:backend   |   Terminal 2: pnpm dev\""
+    "dev:all": "echo \"Terminal 1: pnpm dev:backend   |   Terminal 2: pnpm dev\"",
+    "test:integration": "pnpm db:up && sleep 3 && pnpm migrate:up && cd backend && DATABASE_URL='postgres://localroots:localroots@localhost:5432/localroots?sslmode=disable' go test ./... && cd .. && pnpm db:down"
   }
 }

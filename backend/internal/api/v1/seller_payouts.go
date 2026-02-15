@@ -3,7 +3,6 @@ package v1
 import (
 	"net/http"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
@@ -30,39 +29,15 @@ type PickupWindowPayoutSummary struct {
 	PayoutNoShowCents   int `json:"payout_no_show_cents"`
 }
 
-func (a SellerPayoutsAPI) GetPickupWindowPayoutSummary(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if a.DB == nil {
-		resp.ServiceUnavailable(w, "database not configured")
-		return
-	}
-	if u.Role != "seller" && u.Role != "admin" {
-		resp.Forbidden(w, "seller access required")
-		return
-	}
-
-	storeID := r.PathValue("storeId")
+func (a SellerPayoutsAPI) GetPickupWindowPayoutSummary(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	windowID := r.PathValue("pickupWindowId")
-	if storeID == "" || windowID == "" {
-		resp.BadRequest(w, "missing storeId or pickupWindowId")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
+	if windowID == "" {
+		resp.BadRequest(w, "missing pickupWindowId")
 		return
 	}
 
 	var out PickupWindowPayoutSummary
-	out.StoreID = storeID
+	out.StoreID = sc.StoreID
 	out.PickupWindowID = windowID
 
 	// NOTE: For MVP, seller payout is the pre-fee subtotal on successful pickups, plus any captured no-show penalty.
@@ -81,7 +56,7 @@ func (a SellerPayoutsAPI) GetPickupWindowPayoutSummary(w http.ResponseWriter, r 
 		from orders
 		where store_id = $1::uuid
 			and pickup_window_id = $2::uuid
-	`, storeID, windowID).Scan(
+	`, sc.StoreID, windowID).Scan(
 		&out.PickedUpCount,
 		&out.NoShowCount,
 		&out.CanceledCount,
@@ -100,4 +75,3 @@ func (a SellerPayoutsAPI) GetPickupWindowPayoutSummary(w http.ResponseWriter, r 
 
 	resp.OK(w, out)
 }
-

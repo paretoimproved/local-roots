@@ -27,6 +27,26 @@ func New(secretKey string) (*Client, error) {
 
 func (c *Client) Enabled() bool { return c != nil && c.api != nil }
 
+func (c *Client) FindOrCreateCustomer(ctx context.Context, email string, name *string, phone *string) (string, error) {
+	if !c.Enabled() {
+		return "", ErrNotConfigured
+	}
+	// Search for existing customer by email.
+	searchParams := &stripe.CustomerSearchParams{}
+	searchParams.Context = ctx
+	searchParams.Query = fmt.Sprintf("email:'%s'", email)
+	searchParams.Single = true
+	iter := c.api.Customers.Search(searchParams)
+	if iter.Next() {
+		return iter.Customer().ID, nil
+	}
+	if err := iter.Err(); err != nil {
+		return "", err
+	}
+	// No existing customer found; create one.
+	return c.CreateCustomer(ctx, email, name, phone)
+}
+
 func (c *Client) CreateCustomer(ctx context.Context, email string, name *string, phone *string) (customerID string, err error) {
 	if !c.Enabled() {
 		return "", ErrNotConfigured

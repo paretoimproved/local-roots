@@ -28,21 +28,12 @@ func (a BuyerOrdersAPI) GetOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderID := r.PathValue("orderId")
-	if orderID == "" {
-		resp.BadRequest(w, "missing orderId")
+	if orderID == "" || !validUUID(orderID) {
+		resp.BadRequest(w, "missing or invalid orderId")
 		return
 	}
 
-	token := strings.TrimSpace(r.URL.Query().Get("token"))
-	if token == "" {
-		// Accept buyer token via Authorization header for consistency with other auth patterns.
-		// Note: this is not a JWT; it is the opaque buyer_token issued when placing an order.
-		authz := strings.TrimSpace(r.Header.Get("Authorization"))
-		parts := strings.SplitN(authz, " ", 2)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
-			token = strings.TrimSpace(parts[1])
-		}
-	}
+	token := extractBuyerToken(r)
 	if token == "" {
 		resp.Unauthorized(w, "missing token")
 		return
@@ -158,8 +149,8 @@ func (a BuyerOrdersAPI) CreateReview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	orderID := r.PathValue("orderId")
-	if orderID == "" {
-		resp.BadRequest(w, "missing orderId")
+	if orderID == "" || !validUUID(orderID) {
+		resp.BadRequest(w, "missing or invalid orderId")
 		return
 	}
 

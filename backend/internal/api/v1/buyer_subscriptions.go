@@ -50,19 +50,12 @@ func (a BuyerSubscriptionsAPI) GetSubscription(w http.ResponseWriter, r *http.Re
 		return
 	}
 	subID := r.PathValue("subscriptionId")
-	if subID == "" {
-		resp.BadRequest(w, "missing subscriptionId")
+	if subID == "" || !validUUID(subID) {
+		resp.BadRequest(w, "missing or invalid subscriptionId")
 		return
 	}
 
-	token := strings.TrimSpace(r.URL.Query().Get("token"))
-	if token == "" {
-		authz := strings.TrimSpace(r.Header.Get("Authorization"))
-		parts := strings.SplitN(authz, " ", 2)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
-			token = strings.TrimSpace(parts[1])
-		}
-	}
+	token := extractBuyerToken(r)
 	if token == "" {
 		resp.Unauthorized(w, "missing token")
 		return
@@ -149,18 +142,11 @@ func (a BuyerSubscriptionsAPI) SetupPaymentMethod(w http.ResponseWriter, r *http
 		return
 	}
 	subID := r.PathValue("subscriptionId")
-	if subID == "" {
-		resp.BadRequest(w, "missing subscriptionId")
+	if subID == "" || !validUUID(subID) {
+		resp.BadRequest(w, "missing or invalid subscriptionId")
 		return
 	}
-	token := strings.TrimSpace(r.URL.Query().Get("token"))
-	if token == "" {
-		authz := strings.TrimSpace(r.Header.Get("Authorization"))
-		parts := strings.SplitN(authz, " ", 2)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
-			token = strings.TrimSpace(parts[1])
-		}
-	}
+	token := extractBuyerToken(r)
 	if token == "" {
 		resp.Unauthorized(w, "missing token")
 		return
@@ -209,18 +195,11 @@ func (a BuyerSubscriptionsAPI) ConfirmPaymentMethod(w http.ResponseWriter, r *ht
 		return
 	}
 	subID := r.PathValue("subscriptionId")
-	if subID == "" {
-		resp.BadRequest(w, "missing subscriptionId")
+	if subID == "" || !validUUID(subID) {
+		resp.BadRequest(w, "missing or invalid subscriptionId")
 		return
 	}
-	token := strings.TrimSpace(r.URL.Query().Get("token"))
-	if token == "" {
-		authz := strings.TrimSpace(r.Header.Get("Authorization"))
-		parts := strings.SplitN(authz, " ", 2)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
-			token = strings.TrimSpace(parts[1])
-		}
-	}
+	token := extractBuyerToken(r)
 	if token == "" {
 		resp.Unauthorized(w, "missing token")
 		return
@@ -292,18 +271,11 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	subID := r.PathValue("subscriptionId")
-	if subID == "" {
-		resp.BadRequest(w, "missing subscriptionId")
+	if subID == "" || !validUUID(subID) {
+		resp.BadRequest(w, "missing or invalid subscriptionId")
 		return
 	}
-	token := strings.TrimSpace(r.URL.Query().Get("token"))
-	if token == "" {
-		authz := strings.TrimSpace(r.Header.Get("Authorization"))
-		parts := strings.SplitN(authz, " ", 2)
-		if len(parts) == 2 && strings.EqualFold(parts[0], "bearer") {
-			token = strings.TrimSpace(parts[1])
-		}
-	}
+	token := extractBuyerToken(r)
 	if token == "" {
 		resp.Unauthorized(w, "missing token")
 		return
@@ -415,12 +387,10 @@ func (a BuyerSubscriptionsAPI) updateStatusAndMaybeCancelUpcomingOrder(ctx conte
 		return "Subscription canceled. The next pickup is already locked in (cutoff passed).", nil
 	}
 
-	if paymentMethod == "card" && paymentStatus == "authorized" && stripePI != nil && strings.TrimSpace(*stripePI) != "" {
+	needsVoid := paymentMethod == "card" && paymentStatus == "authorized" && stripePI != nil && strings.TrimSpace(*stripePI) != ""
+	if needsVoid {
 		if a.Stripe == nil || !a.Stripe.Enabled() {
 			return "", stripepay.ErrNotConfigured
-		}
-		if err := a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID); err != nil {
-			return "", err
 		}
 	}
 
@@ -444,6 +414,11 @@ func (a BuyerSubscriptionsAPI) updateStatusAndMaybeCancelUpcomingOrder(ctx conte
 
 	if err := tx.Commit(ctx); err != nil {
 		return "", err
+	}
+
+	// Void Stripe authorization after commit. If this fails, the webhook will reconcile.
+	if needsVoid {
+		_ = a.Stripe.CancelPaymentIntent(ctx, strings.TrimSpace(*stripePI), "void-"+orderID)
 	}
 
 	return "Subscription canceled and the next upcoming pickup order was canceled.", nil

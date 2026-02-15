@@ -63,8 +63,8 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
+	if storeID == "" || !validUUID(storeID) {
+		resp.BadRequest(w, "missing or invalid storeId")
 		return
 	}
 
@@ -153,8 +153,8 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	planID := r.PathValue("planId")
-	if planID == "" {
-		resp.BadRequest(w, "missing planId")
+	if planID == "" || !validUUID(planID) {
+		resp.BadRequest(w, "missing or invalid planId")
 		return
 	}
 
@@ -241,20 +241,18 @@ type CheckoutResponse struct {
 	TotalCents        int    `json:"total_cents"`
 }
 
-func (a SubscriptionAPI) computeBuyerFee(subtotalCents int) (buyerFeeCents int, totalCents int) {
+func computeBuyerFee(subtotalCents, bps, flatCts int) (feeCents, totalCents int) {
 	if subtotalCents < 0 {
 		subtotalCents = 0
 	}
-	bps := a.BuyerFeeBps
 	if bps < 0 {
 		bps = 0
 	}
-	flat := a.BuyerFeeFlatCts
-	if flat < 0 {
-		flat = 0
+	if flatCts < 0 {
+		flatCts = 0
 	}
 	fee := (subtotalCents * bps) / 10000
-	fee += flat
+	fee += flatCts
 	if fee < 0 {
 		fee = 0
 	}
@@ -290,8 +288,8 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	planID := r.PathValue("planId")
-	if planID == "" {
-		resp.BadRequest(w, "missing planId")
+	if planID == "" || !validUUID(planID) {
+		resp.BadRequest(w, "missing or invalid planId")
 		return
 	}
 
@@ -375,14 +373,14 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 	withinAuthWindow := endAt.Sub(now) <= 7*24*time.Hour
 
 	ctx := r.Context()
-	cusID, err := a.Stripe.CreateCustomer(ctx, buyerEmail, in.Buyer.Name, in.Buyer.Phone)
+	cusID, err := a.Stripe.FindOrCreateCustomer(ctx, buyerEmail, in.Buyer.Name, in.Buyer.Phone)
 	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
 
 	if withinAuthWindow {
-		feeCents, totalCents := a.computeBuyerFee(priceCents)
+		feeCents, totalCents := computeBuyerFee(priceCents, a.BuyerFeeBps, a.BuyerFeeFlatCts)
 		piID, secret, err := a.Stripe.CreateCheckoutPaymentIntent(ctx, stripepay.CreateCheckoutPaymentIntentInput{
 			AmountCents: totalCents,
 			Currency:    "usd",
@@ -417,7 +415,7 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 		resp.Internal(w, err)
 		return
 	}
-	feeCents, totalCents := a.computeBuyerFee(priceCents)
+	feeCents, totalCents := computeBuyerFee(priceCents, a.BuyerFeeBps, a.BuyerFeeFlatCts)
 	resp.OK(w, CheckoutResponse{
 		Mode:              "setup_intent",
 		ID:                siID,
@@ -440,8 +438,8 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	planID := r.PathValue("planId")
-	if planID == "" {
-		resp.BadRequest(w, "missing planId")
+	if planID == "" || !validUUID(planID) {
+		resp.BadRequest(w, "missing or invalid planId")
 		return
 	}
 
@@ -757,36 +755,7 @@ type SubscriptionPlanSeller struct {
 	} `json:"pickup_location"`
 }
 
-func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if a.DB == nil {
-		resp.ServiceUnavailable(w, "database not configured")
-		return
-	}
-	if u.Role != "seller" && u.Role != "admin" {
-		resp.Forbidden(w, "seller access required")
-		return
-	}
-
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
+func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	rows, err := a.DB.Query(r.Context(), `
 		select
 			sp.id::text,
@@ -817,7 +786,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 		where sp.store_id = $1::uuid
 		order by sp.created_at desc
 		limit 50
-	`, storeID)
+	`, sc.StoreID)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -883,22 +852,7 @@ type CreatePlanRequest struct {
 	CutoffHours       int     `json:"cutoff_hours"`
 }
 
-func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if a.DB == nil {
-		resp.ServiceUnavailable(w, "database not configured")
-		return
-	}
-	if u.Role != "seller" && u.Role != "admin" {
-		resp.Forbidden(w, "seller access required")
-		return
-	}
-
-	storeID := r.PathValue("storeId")
-	if storeID == "" {
-		resp.BadRequest(w, "missing storeId")
-		return
-	}
-
+func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	var in CreatePlanRequest
 	if err := resp.DecodeJSON(w, r, &in); err != nil {
 		resp.BadRequest(w, "invalid json")
@@ -940,20 +894,6 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 		in.CutoffHours = 24
 	}
 
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
-		return
-	}
-
 	// Ensure location belongs to store and get timezone.
 	var locTimezone string
 	if err := a.DB.QueryRow(r.Context(), `
@@ -961,7 +901,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 		from pickup_locations
 		where id = $1::uuid and store_id = $2::uuid
 		limit 1
-	`, in.PickupLocationID, storeID).Scan(&locTimezone); err != nil {
+	`, in.PickupLocationID, sc.StoreID).Scan(&locTimezone); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.BadRequest(w, "pickup location not found")
 			return
@@ -971,7 +911,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 	}
 	loc, normalizedTZ, err := timeutil.LoadLocationBestEffort(locTimezone)
 	if err != nil {
-		log.Printf("invalid pickup location timezone store_id=%s pickup_location_id=%s raw=%q", storeID, in.PickupLocationID, locTimezone)
+		log.Printf("invalid pickup location timezone store_id=%s pickup_location_id=%s raw=%q", sc.StoreID, in.PickupLocationID, locTimezone)
 		resp.BadRequest(w, fmt.Sprintf("invalid pickup location timezone: %q", strings.TrimSpace(locTimezone)))
 		return
 	}
@@ -981,7 +921,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 			update pickup_locations
 			set timezone = $3, updated_at = now()
 			where id = $1::uuid and store_id = $2::uuid
-		`, in.PickupLocationID, storeID, normalizedTZ)
+		`, in.PickupLocationID, sc.StoreID, normalizedTZ)
 	}
 
 	firstLocal, err := time.ParseInLocation("2006-01-02T15:04", in.FirstStartAtLocal, loc)
@@ -1006,7 +946,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 		insert into products (store_id, title, description, unit, is_perishable, is_active)
 		values ($1::uuid, $2, $3, $4, true, true)
 		returning id::text
-	`, storeID, in.Title, in.Description, unit).Scan(&productID); err != nil {
+	`, sc.StoreID, in.Title, in.Description, unit).Scan(&productID); err != nil {
 		resp.Internal(w, err)
 		return
 	}
@@ -1014,7 +954,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 	var out SubscriptionPlanSeller
 	out.PickupLocationID = in.PickupLocationID
 	out.ProductID = productID
-	out.StoreID = storeID
+	out.StoreID = sc.StoreID
 	out.Title = in.Title
 	out.Description = in.Description
 	out.Cadence = in.Cadence
@@ -1033,7 +973,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 		)
 		values ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11, true)
 		returning id::text, created_at, updated_at
-	`, storeID, in.PickupLocationID, productID, in.Title, in.Description, in.Cadence, in.PriceCents, in.SubscriberLimit, firstUTC, in.DurationMinutes, in.CutoffHours).Scan(
+	`, sc.StoreID, in.PickupLocationID, productID, in.Title, in.Description, in.Cadence, in.PriceCents, in.SubscriberLimit, firstUTC, in.DurationMinutes, in.CutoffHours).Scan(
 		&out.ID,
 		&out.CreatedAt,
 		&out.UpdatedAt,
@@ -1078,38 +1018,15 @@ type GenerateCycleResponse struct {
 	StartAt        string `json:"start_at"`
 }
 
-func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if a.DB == nil {
-		resp.ServiceUnavailable(w, "database not configured")
-		return
-	}
+func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	if a.Stripe == nil || !a.Stripe.Enabled() {
 		resp.ServiceUnavailable(w, "payments not configured")
 		return
 	}
-	if u.Role != "seller" && u.Role != "admin" {
-		resp.Forbidden(w, "seller access required")
-		return
-	}
 
-	storeID := r.PathValue("storeId")
 	planID := r.PathValue("planId")
-	if storeID == "" || planID == "" {
-		resp.BadRequest(w, "missing storeId or planId")
-		return
-	}
-
-	var ownerID string
-	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
-		if err == pgx.ErrNoRows {
-			resp.NotFound(w, "store not found")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-	if ownerID != u.ID {
-		resp.Forbidden(w, "not your store")
+	if planID == "" || !validUUID(planID) {
+		resp.BadRequest(w, "missing or invalid planId")
 		return
 	}
 
@@ -1149,7 +1066,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		join pickup_locations pl on pl.id = sp.pickup_location_id
 		where sp.id = $1::uuid and sp.store_id = $2::uuid
 		limit 1
-	`, planID, storeID).Scan(
+	`, planID, sc.StoreID).Scan(
 		&locationID,
 		&locationTimezone,
 		&productID,
@@ -1211,7 +1128,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 
 	windowID, offeringID, err := ensureCycleAndOffering(ctx, tx, ensureCycleInput{
 		planID:          planID,
-		storeID:         storeID,
+		storeID:         sc.StoreID,
 		locationID:      locationID,
 		productID:       productID,
 		priceCents:      priceCents,
@@ -1225,8 +1142,15 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		return
 	}
 
-	// Create orders for all active subscriptions that don't already have an order for this pickup window.
-	// We authorize the card off-session at order creation (manual capture).
+	// Phase 1: Create orders for all active subscriptions with payment_status='pending'
+	// inside the transaction. Stripe calls happen in Phase 2 after commit.
+	type pendingAuth struct {
+		orderID          string
+		stripeCustomerID string
+		stripePMID       string
+		subID            string
+	}
+
 	rows, err := tx.Query(ctx, `
 		select
 			s.id::text,
@@ -1243,7 +1167,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			and s.status = 'active'
 			and o.id is null
 		order by s.created_at asc
-		limit 5000
+		limit 500
 	`, planID, windowID)
 	if err != nil {
 		resp.Internal(w, err)
@@ -1251,6 +1175,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 	}
 	defer rows.Close()
 
+	var authQueue []pendingAuth
 	created := 0
 	for rows.Next() {
 		var (
@@ -1267,86 +1192,25 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		}
 
 		if stripeCustomerID == nil || stripePMID == nil || *stripeCustomerID == "" || *stripePMID == "" {
-			// Subscription exists but doesn't have a saved payment method. Skip creating an order for now.
 			continue
 		}
 
-		if !withinAuthWindow {
-			if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
-				storeID:         storeID,
-				pickupWindowID:  windowID,
-				offeringID:      offeringID,
-				subscriptionID:  &subID,
-				buyerEmail:      email,
-				buyerName:       name,
-				buyerPhone:      phone,
-				quantity:        1,
-				paymentMethod:   "card",
-				paymentStatus:   "pending",
-				buyerFeeBps:     a.BuyerFeeBps,
-				buyerFeeFlatCts: a.BuyerFeeFlatCts,
-			}); err != nil {
-				if errors.Is(err, errInsufficientInventory) {
-					resp.BadRequest(w, "subscriber limit exceeded for this cycle")
-					return
-				}
-				resp.Internal(w, err)
-				return
-			}
-			created++
-			continue
-		}
-
-		fee := (priceCents * a.BuyerFeeBps) / 10000
-		fee += a.BuyerFeeFlatCts
-		if fee < 0 {
-			fee = 0
-		}
-		totalCents := priceCents + fee
-		if totalCents < 0 {
-			totalCents = 0
-		}
-
-		piID, piStatus, err := a.Stripe.CreateOffSessionAuthorization(ctx, stripepay.CreateOffSessionPaymentIntentInput{
-			AmountCents:     totalCents,
-			Currency:        "usd",
-			CustomerID:      *stripeCustomerID,
-			PaymentMethodID: *stripePMID,
-			Metadata: map[string]string{
-				"plan_id":          planID,
-				"store_id":         storeID,
-				"subscription_id":  subID,
-				"pickup_window_id": windowID,
-			},
-			IdempotencyKey: "auth-" + windowID + "-" + subID,
+		order, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
+			storeID:         sc.StoreID,
+			pickupWindowID:  windowID,
+			offeringID:      offeringID,
+			subscriptionID:  &subID,
+			buyerEmail:      email,
+			buyerName:       name,
+			buyerPhone:      phone,
+			quantity:        1,
+			paymentMethod:   "card",
+			paymentStatus:   "pending",
+			buyerFeeBps:     a.BuyerFeeBps,
+			buyerFeeFlatCts: a.BuyerFeeFlatCts,
 		})
 		if err != nil {
-			// If authorization fails (SCA required, card declined, etc), skip the order for now.
-			continue
-		}
-
-		if piStatus != string(stripe.PaymentIntentStatusRequiresCapture) {
-			_ = a.Stripe.CancelPaymentIntent(ctx, piID, "cancel-"+piID)
-			continue
-		}
-
-		if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
-			storeID:               storeID,
-			pickupWindowID:        windowID,
-			offeringID:            offeringID,
-			subscriptionID:        &subID,
-			buyerEmail:            email,
-			buyerName:             name,
-			buyerPhone:            phone,
-			quantity:              1,
-			paymentMethod:         "card",
-			paymentStatus:         "authorized",
-			stripePaymentIntentID: &piID,
-			buyerFeeBps:           a.BuyerFeeBps,
-			buyerFeeFlatCts:       a.BuyerFeeFlatCts,
-		}); err != nil {
 			if errors.Is(err, errInsufficientInventory) {
-				_ = a.Stripe.CancelPaymentIntent(ctx, piID, "cancel-inventory-"+piID)
 				resp.BadRequest(w, "subscriber limit exceeded for this cycle")
 				return
 			}
@@ -1354,6 +1218,15 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			return
 		}
 		created++
+
+		if withinAuthWindow {
+			authQueue = append(authQueue, pendingAuth{
+				orderID:          order.ID,
+				stripeCustomerID: *stripeCustomerID,
+				stripePMID:       *stripePMID,
+				subID:            subID,
+			})
+		}
 	}
 	if rows.Err() != nil {
 		resp.Internal(w, rows.Err())
@@ -1365,7 +1238,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		update subscription_plans
 		set is_live = true
 		where id = $1::uuid and store_id = $2::uuid
-	`, planID, storeID); err != nil {
+	`, planID, sc.StoreID); err != nil {
 		resp.Internal(w, err)
 		return
 	}
@@ -1373,6 +1246,40 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 	if err := tx.Commit(ctx); err != nil {
 		resp.Internal(w, err)
 		return
+	}
+
+	// Phase 2: Attempt Stripe authorizations outside the transaction.
+	// Failed Stripe calls leave orders as 'pending' for the AuthorizePending cron to retry.
+	_, totalCents := computeBuyerFee(priceCents, a.BuyerFeeBps, a.BuyerFeeFlatCts)
+	for _, pa := range authQueue {
+		piID, piStatus, err := a.Stripe.CreateOffSessionAuthorization(ctx, stripepay.CreateOffSessionPaymentIntentInput{
+			AmountCents:     totalCents,
+			Currency:        "usd",
+			CustomerID:      pa.stripeCustomerID,
+			PaymentMethodID: pa.stripePMID,
+			Metadata: map[string]string{
+				"plan_id":          planID,
+				"store_id":         sc.StoreID,
+				"subscription_id":  pa.subID,
+				"pickup_window_id": windowID,
+			},
+			IdempotencyKey: "auth-" + windowID + "-" + pa.subID,
+		})
+		if err != nil {
+			continue
+		}
+		if piStatus != string(stripe.PaymentIntentStatusRequiresCapture) {
+			_ = a.Stripe.CancelPaymentIntent(ctx, piID, "cancel-"+piID)
+			continue
+		}
+		// Update the order with the authorized PaymentIntent.
+		_, _ = a.DB.Exec(ctx, `
+			update orders
+			set payment_status = 'authorized',
+				stripe_payment_intent_id = $2,
+				updated_at = now()
+			where id = $1::uuid
+		`, pa.orderID, piID)
 	}
 
 	resp.OK(w, GenerateCycleResponse{
@@ -1567,23 +1474,7 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 	}
 
 	subtotal := priceCents * in.quantity
-	bps := in.buyerFeeBps
-	if bps < 0 {
-		bps = 0
-	}
-	flat := in.buyerFeeFlatCts
-	if flat < 0 {
-		flat = 0
-	}
-	buyerFee := (subtotal * bps) / 10000
-	buyerFee += flat
-	if buyerFee < 0 {
-		buyerFee = 0
-	}
-	total := subtotal + buyerFee
-	if total < 0 {
-		total = 0
-	}
+	buyerFee, total := computeBuyerFee(subtotal, in.buyerFeeBps, in.buyerFeeFlatCts)
 
 	var out Order
 	out.StoreID = in.storeID

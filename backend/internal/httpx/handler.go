@@ -44,8 +44,8 @@ func NewHandler(deps Deps) http.Handler {
 	}
 	mux.HandleFunc("GET /v1/stores/{storeId}/subscription-plans", sub.ListStorePlans)
 	mux.HandleFunc("GET /v1/subscription-plans/{planId}", sub.GetPlan)
-	mux.HandleFunc("POST /v1/subscription-plans/{planId}/checkout", sub.Checkout)
-	mux.HandleFunc("POST /v1/subscription-plans/{planId}/subscribe", sub.Subscribe)
+	mux.HandleFunc("POST /v1/subscription-plans/{planId}/checkout", WithRateLimit("checkout", sub.Checkout))
+	mux.HandleFunc("POST /v1/subscription-plans/{planId}/subscribe", WithRateLimit("checkout", sub.Subscribe))
 
 	orders := v1.OrdersAPI{DB: deps.DB}
 	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/orders", orders.CreateOrder)
@@ -61,37 +61,37 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/payment-method/confirm", buyerSubs.ConfirmPaymentMethod)
 
 	stripeWebhook := v1.StripeWebhookAPI{DB: deps.DB, WebhookSecret: deps.Config.StripeWebhookSecret}
-	mux.HandleFunc("POST /v1/stripe/webhook", stripeWebhook.StripeWebhook)
+	mux.HandleFunc("POST /v1/stripe/webhook", WithRateLimit("webhook", stripeWebhook.StripeWebhook))
 
 	authAPI := v1.AuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
-	mux.HandleFunc("POST /v1/auth/register", authAPI.Register)
-	mux.HandleFunc("POST /v1/auth/login", authAPI.Login)
+	mux.HandleFunc("POST /v1/auth/register", WithRateLimit("auth", authAPI.Register))
+	mux.HandleFunc("POST /v1/auth/login", WithRateLimit("auth", authAPI.Login))
 
 	seller := v1.SellerAPI{DB: deps.DB}
 	mux.HandleFunc("GET /v1/seller/stores", authAPI.RequireUser(seller.ListMyStores))
 	mux.HandleFunc("POST /v1/seller/stores", authAPI.RequireUser(seller.CreateStore))
-	mux.HandleFunc("PATCH /v1/seller/stores/{storeId}", authAPI.RequireUser(seller.UpdateStore))
+	mux.HandleFunc("PATCH /v1/seller/stores/{storeId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.UpdateStore)))
 
-	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-locations", authAPI.RequireUser(seller.ListPickupLocations))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-locations", authAPI.RequireUser(seller.CreatePickupLocation))
-	mux.HandleFunc("DELETE /v1/seller/stores/{storeId}/pickup-locations/{pickupLocationId}", authAPI.RequireUser(seller.DeletePickupLocation))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-locations", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListPickupLocations)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-locations", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreatePickupLocation)))
+	mux.HandleFunc("DELETE /v1/seller/stores/{storeId}/pickup-locations/{pickupLocationId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.DeletePickupLocation)))
 
-	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows", authAPI.RequireUser(seller.ListPickupWindows))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows", authAPI.RequireUser(seller.CreatePickupWindow))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListPickupWindows)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreatePickupWindow)))
 
-	mux.HandleFunc("GET /v1/seller/stores/{storeId}/products", authAPI.RequireUser(seller.ListProducts))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/products", authAPI.RequireUser(seller.CreateProduct))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/products", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListProducts)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/products", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreateProduct)))
 
-	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(seller.ListOfferings))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(seller.CreateOffering))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListOfferings)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreateOffering)))
 
 	sellerOrders := v1.SellerOrdersAPI{DB: deps.DB, Stripe: stripeClient, NoShowFeeCents: deps.Config.NoShowFeeCents}
-	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(sellerOrders.ListOrdersForPickupWindow))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(sellerOrders.UpdateOrderStatus))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(sellerOrders.ConfirmPickup))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ListOrdersForPickupWindow)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.UpdateOrderStatus)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ConfirmPickup)))
 
 	sellerPayouts := v1.SellerPayoutsAPI{DB: deps.DB}
-	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/payout-summary", authAPI.RequireUser(sellerPayouts.GetPickupWindowPayoutSummary))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/payout-summary", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerPayouts.GetPickupWindowPayoutSummary)))
 
 	sellerSub := v1.SellerSubscriptionAPI{
 		DB:              deps.DB,
@@ -99,9 +99,9 @@ func NewHandler(deps Deps) http.Handler {
 		BuyerFeeBps:     deps.Config.BuyerFeeBps,
 		BuyerFeeFlatCts: deps.Config.BuyerFeeFlatCents,
 	}
-	mux.HandleFunc("GET /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(sellerSub.ListPlans))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(sellerSub.CreatePlan))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(sellerSub.GenerateNextCycle))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.ListPlans)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.CreatePlan)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.GenerateNextCycle)))
 
 	geo := v1.GeoAPI{GooglePlacesAPIKey: deps.Config.GooglePlacesAPIKey}
 	mux.HandleFunc("POST /v1/seller/geo/places/autocomplete", authAPI.RequireUser(geo.PlacesAutocomplete))

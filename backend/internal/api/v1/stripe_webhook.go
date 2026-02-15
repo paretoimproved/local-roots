@@ -62,25 +62,37 @@ func (a StripeWebhookAPI) StripeWebhook(w http.ResponseWriter, r *http.Request) 
 		var pi stripe.PaymentIntent
 		if err := json.Unmarshal(ev.Data.Raw, &pi); err == nil && pi.ID != "" {
 			zero := 0
-			_ = a.updatePaymentByPI(ctx, pi.ID, "authorized", &zero, false)
+			if err := a.updatePaymentByPI(ctx, pi.ID, "authorized", &zero, false); err != nil {
+				resp.Internal(w, err)
+				return
+			}
 		}
 	case "payment_intent.succeeded":
 		var pi stripe.PaymentIntent
 		if err := json.Unmarshal(ev.Data.Raw, &pi); err == nil && pi.ID != "" {
 			amt := int(pi.AmountReceived)
-			_ = a.updatePaymentByPI(ctx, pi.ID, "paid", &amt, false)
+			if err := a.updatePaymentByPI(ctx, pi.ID, "paid", &amt, false); err != nil {
+				resp.Internal(w, err)
+				return
+			}
 		}
 	case "payment_intent.canceled":
 		var pi stripe.PaymentIntent
 		if err := json.Unmarshal(ev.Data.Raw, &pi); err == nil && pi.ID != "" {
 			zero := 0
-			_ = a.updatePaymentByPI(ctx, pi.ID, "voided", &zero, true)
+			if err := a.updatePaymentByPI(ctx, pi.ID, "voided", &zero, true); err != nil {
+				resp.Internal(w, err)
+				return
+			}
 		}
 	case "payment_intent.payment_failed":
 		var pi stripe.PaymentIntent
 		if err := json.Unmarshal(ev.Data.Raw, &pi); err == nil && pi.ID != "" {
 			zero := 0
-			_ = a.updatePaymentByPI(ctx, pi.ID, "failed", &zero, true)
+			if err := a.updatePaymentByPI(ctx, pi.ID, "failed", &zero, true); err != nil {
+				resp.Internal(w, err)
+				return
+			}
 		}
 	default:
 		// ignore other events for MVP

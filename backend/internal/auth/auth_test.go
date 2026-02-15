@@ -65,3 +65,36 @@ func TestParseJWT_RejectsBadSignature(t *testing.T) {
 	}
 }
 
+func TestHashAndCheckPassword(t *testing.T) {
+	hash, err := HashPassword("my-secret-password")
+	if err != nil {
+		t.Fatalf("HashPassword: %v", err)
+	}
+	if err := CheckPassword(hash, "my-secret-password"); err != nil {
+		t.Fatalf("CheckPassword should succeed for correct password: %v", err)
+	}
+}
+
+func TestCheckPasswordWrongPassword(t *testing.T) {
+	hash, err := HashPassword("correct")
+	if err != nil {
+		t.Fatalf("HashPassword: %v", err)
+	}
+	if err := CheckPassword(hash, "wrong"); err == nil {
+		t.Fatal("CheckPassword should fail for wrong password")
+	}
+}
+
+func TestParseJWT_RejectsExpiredToken(t *testing.T) {
+	secret := []byte("test-secret")
+
+	token, err := SignJWT(secret, "user-123", "seller", -1*time.Hour)
+	if err != nil {
+		t.Fatalf("SignJWT: %v", err)
+	}
+
+	if _, err := ParseJWT(secret, token); err == nil {
+		t.Fatal("expected error for expired token")
+	}
+}
+
