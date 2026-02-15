@@ -232,6 +232,31 @@ export default function SellerStorePage() {
     }
   }
 
+  async function togglePlanActive(planId: string, currentlyActive: boolean) {
+    if (!token) return;
+    const action = currentlyActive ? "pause" : "resume";
+    const ok = window.confirm(
+      currentlyActive
+        ? "Pause this box? It will stop appearing for new buyers."
+        : "Resume this box? It will be visible to buyers again.",
+    );
+    if (!ok) return;
+    setError(null);
+    try {
+      await sellerApi.updateSubscriptionPlan(token, storeId, planId, {
+        is_active: !currentlyActive,
+      });
+      await refreshAll(token);
+      showToast({
+        kind: "success",
+        message: action === "pause" ? "Box paused." : "Box resumed.",
+      });
+    } catch (e: unknown) {
+      setError(friendlyErrorMessage(e));
+      showToast({ kind: "error", message: `Could not ${action} box.` });
+    }
+  }
+
   async function setOrderStatus(
     orderId: string,
     status: "ready" | "canceled" | "no_show",
@@ -388,57 +413,63 @@ export default function SellerStorePage() {
 
       <section className="lr-card lr-card-strong lr-animate sticky top-3 z-10 grid gap-3 p-4 md:p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-leaf)]">
-              live
-            </span>
-            <div className="text-sm text-[color:var(--lr-muted)]">
-              Manage one pickup window at a time.
-            </div>
-          </div>
+          <select
+            className="lr-field px-3 py-2 text-sm"
+            value={selectedWindowId}
+            onChange={(e) => setSelectedWindowId(e.target.value)}
+          >
+            <option value="">Select a window…</option>
+            {(windows ?? []).map((w) => (
+              <option key={w.id} value={w.id}>
+                {formatWindowLabel(w)}
+              </option>
+            ))}
+          </select>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <select
-              className="lr-field px-3 py-2 text-sm"
-              value={selectedWindowId}
-              onChange={(e) => setSelectedWindowId(e.target.value)}
+          {selectedWindowId ? (
+            <Link
+              className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+              href={`/pickup-windows/${selectedWindowId}`}
+              target="_blank"
+              rel="noreferrer"
             >
-              <option value="">Select a window…</option>
-              {(windows ?? []).map((w) => (
-                <option key={w.id} value={w.id}>
-                  {formatWindowLabel(w)}
-                </option>
-              ))}
-            </select>
-
-            {selectedWindowId ? (
-              <Link
-                className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-                href={`/pickup-windows/${selectedWindowId}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Buyer view
-              </Link>
-            ) : null}
-          </div>
+              Buyer view
+            </Link>
+          ) : null}
         </div>
 
         {selectedWindow ? (
-          <div className="flex flex-wrap items-center gap-2 text-sm">
-            <span className="lr-chip rounded-full px-3 py-1 text-[color:var(--lr-muted)]">
-              {selectedWindow.pickup_location.label ?? "Pickup"} ·{" "}
-              {selectedWindow.pickup_location.city},{" "}
-              {selectedWindow.pickup_location.region}
-            </span>
-            <span className="lr-chip rounded-full px-3 py-1 text-[color:var(--lr-muted)]">
-              Cutoff{" "}
-              <span className="font-medium text-[color:var(--lr-ink)]">
-                {new Date(selectedWindow.cutoff_at).toLocaleString()}
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="text-base font-semibold text-[color:var(--lr-ink)]">
+                {(() => {
+                  const start = new Date(selectedWindow.start_at);
+                  const end = new Date(selectedWindow.end_at);
+                  const now = new Date();
+                  const label = start > now ? "Next pickup" : "Current pickup";
+                  const day = start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+                  const startTime = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+                  const endTime = end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+                  return `${label} · ${day} · ${startTime} – ${endTime}`;
+                })()}
+              </div>
+              <StatusPill status={selectedWindow.status} />
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--lr-muted)]">
+              <span>
+                {selectedWindow.pickup_location.label ?? "Pickup"} ·{" "}
+                {selectedWindow.pickup_location.city},{" "}
+                {selectedWindow.pickup_location.region}
               </span>
-            </span>
-            <StatusPill status={selectedWindow.status} />
-          </div>
+              <span>·</span>
+              <span>
+                Orders close{" "}
+                <span className="font-medium text-[color:var(--lr-ink)]">
+                  {new Date(selectedWindow.cutoff_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                </span>
+              </span>
+            </div>
+          </>
         ) : (
           <div className="text-sm text-[color:var(--lr-muted)]">
             Generate a box cycle to create a pickup window.
@@ -509,6 +540,17 @@ export default function SellerStorePage() {
                             : p.is_live
                             ? "Generate next cycle"
                             : "Go live (generate first cycle)"}
+                        </button>
+                        <button
+                          type="button"
+                          className={`lr-btn lr-chip px-3 py-2 text-sm font-semibold ${
+                            p.is_active
+                              ? "text-[color:var(--lr-clay)]"
+                              : "text-[color:var(--lr-leaf)]"
+                          }`}
+                          onClick={() => togglePlanActive(p.id, p.is_active)}
+                        >
+                          {p.is_active ? "Pause box" : "Resume box"}
                         </button>
                       </div>
                     </div>
@@ -586,7 +628,6 @@ export default function SellerStorePage() {
             </div>
           )}
         </section>
-      </div>
 
       <section className="lr-card lr-animate grid gap-4 p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
@@ -822,6 +863,7 @@ export default function SellerStorePage() {
           </div>
         )}
       </section>
+      </div>
 
       <QrScannerModal
         open={scanOrderId !== null}
