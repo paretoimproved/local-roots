@@ -170,6 +170,38 @@ export default function OrderPage() {
               ))}
             </div>
 
+            <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm ring-1 ring-[color:var(--lr-border)]">
+              <div className="grid gap-2">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-medium text-[color:var(--lr-muted)]">
+                    Subtotal
+                  </span>
+                  <span className="font-semibold text-[color:var(--lr-ink)]">
+                    {formatMoney(data.order.subtotal_cents)}
+                  </span>
+                </div>
+                {data.order.buyer_fee_cents ? (
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="font-medium text-[color:var(--lr-muted)]">
+                      Service fee
+                    </span>
+                    <span className="font-semibold text-[color:var(--lr-ink)]">
+                      {formatMoney(data.order.buyer_fee_cents)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="h-px bg-[color:var(--lr-border)]/70" />
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-semibold text-[color:var(--lr-ink)]">
+                    Total
+                  </span>
+                  <span className="font-semibold text-[color:var(--lr-ink)]">
+                    {formatMoney(data.order.total_cents)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
             <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
               Payment:{" "}
               {data.order.payment_method === "card" ? (

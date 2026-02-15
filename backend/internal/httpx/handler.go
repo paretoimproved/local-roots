@@ -36,7 +36,12 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/stores/{storeId}/pickup-windows", public.ListStorePickupWindows)
 	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}/offerings", public.ListPickupWindowOfferings)
 
-	sub := v1.SubscriptionAPI{DB: deps.DB, Stripe: stripeClient}
+	sub := v1.SubscriptionAPI{
+		DB:              deps.DB,
+		Stripe:          stripeClient,
+		BuyerFeeBps:     deps.Config.BuyerFeeBps,
+		BuyerFeeFlatCts: deps.Config.BuyerFeeFlatCents,
+	}
 	mux.HandleFunc("GET /v1/stores/{storeId}/subscription-plans", sub.ListStorePlans)
 	mux.HandleFunc("GET /v1/subscription-plans/{planId}", sub.GetPlan)
 	mux.HandleFunc("POST /v1/subscription-plans/{planId}/checkout", sub.Checkout)
@@ -84,7 +89,12 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(sellerOrders.UpdateOrderStatus))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(sellerOrders.ConfirmPickup))
 
-	sellerSub := v1.SellerSubscriptionAPI{DB: deps.DB, Stripe: stripeClient}
+	sellerSub := v1.SellerSubscriptionAPI{
+		DB:              deps.DB,
+		Stripe:          stripeClient,
+		BuyerFeeBps:     deps.Config.BuyerFeeBps,
+		BuyerFeeFlatCts: deps.Config.BuyerFeeFlatCents,
+	}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(sellerSub.ListPlans))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(sellerSub.CreatePlan))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(sellerSub.GenerateNextCycle))

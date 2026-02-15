@@ -36,6 +36,7 @@ export type Order = {
   payment_method: string;
   payment_status: string;
   subtotal_cents: number;
+  buyer_fee_cents: number;
   total_cents: number;
   captured_cents: number;
   created_at: string;
@@ -60,6 +61,9 @@ export type PlanCheckoutResponse = {
   mode: "payment_intent" | "setup_intent";
   id: string;
   client_secret: string;
+  subtotal_cents: number;
+  buyer_fee_cents: number;
+  total_cents: number;
 };
 
 export type BuyerSubscription = {

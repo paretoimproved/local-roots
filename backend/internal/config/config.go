@@ -16,6 +16,8 @@ type Config struct {
 	StripeWebhookSecret string
 	InternalCronSecret  string
 	NoShowFeeCents      int
+	BuyerFeeBps         int
+	BuyerFeeFlatCents   int
 }
 
 func FromEnv() Config {
@@ -45,6 +47,18 @@ func FromEnv() Config {
 			noShowFeeCents = n
 		}
 	}
+	buyerFeeBps := 0
+	if v := os.Getenv("BUYER_FEE_BPS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			buyerFeeBps = n
+		}
+	}
+	buyerFeeFlatCents := 0
+	if v := os.Getenv("BUYER_FEE_FLAT_CENTS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			buyerFeeFlatCents = n
+		}
+	}
 
 	return Config{
 		Addr:                addr,
@@ -57,5 +71,7 @@ func FromEnv() Config {
 		StripeWebhookSecret: stripeWebhookSecret,
 		InternalCronSecret:  internalCronSecret,
 		NoShowFeeCents:      noShowFeeCents,
+		BuyerFeeBps:         buyerFeeBps,
+		BuyerFeeFlatCents:   buyerFeeFlatCents,
 	}
 }

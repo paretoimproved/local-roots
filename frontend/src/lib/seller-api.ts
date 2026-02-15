@@ -108,6 +108,7 @@ export type SellerOrder = {
   payment_method: string;
   payment_status: string;
   subtotal_cents: number;
+  buyer_fee_cents: number;
   total_cents: number;
   captured_cents: number;
   created_at: string;

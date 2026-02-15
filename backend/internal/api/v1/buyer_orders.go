@@ -63,6 +63,7 @@ func (a BuyerOrdersAPI) GetOrder(w http.ResponseWriter, r *http.Request) {
 			payment_method,
 			payment_status,
 			subtotal_cents,
+			buyer_fee_cents,
 			total_cents,
 			captured_cents,
 			created_at
@@ -83,6 +84,7 @@ func (a BuyerOrdersAPI) GetOrder(w http.ResponseWriter, r *http.Request) {
 		&o.PaymentMethod,
 		&o.PaymentStatus,
 		&o.SubtotalCents,
+		&o.BuyerFeeCents,
 		&o.TotalCents,
 		&o.CapturedCents,
 		&o.CreatedAt,

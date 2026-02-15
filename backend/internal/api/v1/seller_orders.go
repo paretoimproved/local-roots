@@ -31,6 +31,7 @@ type SellerOrder struct {
 	PaymentMethod  string      `json:"payment_method"`
 	PaymentStatus  string      `json:"payment_status"`
 	SubtotalCents  int         `json:"subtotal_cents"`
+	BuyerFeeCents  int         `json:"buyer_fee_cents"`
 	TotalCents     int         `json:"total_cents"`
 	CapturedCents  int         `json:"captured_cents"`
 	CreatedAt      time.Time   `json:"created_at"`
@@ -80,6 +81,7 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 			o.payment_method,
 			o.payment_status,
 			o.subtotal_cents,
+			o.buyer_fee_cents,
 			o.total_cents,
 			o.captured_cents,
 			o.created_at,
@@ -128,6 +130,7 @@ func (a SellerOrdersAPI) ListOrdersForPickupWindow(w http.ResponseWriter, r *htt
 			&o.PaymentMethod,
 			&o.PaymentStatus,
 			&o.SubtotalCents,
+			&o.BuyerFeeCents,
 			&o.TotalCents,
 			&o.CapturedCents,
 			&o.CreatedAt,

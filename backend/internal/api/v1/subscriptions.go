@@ -16,13 +16,17 @@ import (
 )
 
 type SubscriptionAPI struct {
-	DB     *pgxpool.Pool
-	Stripe *stripepay.Client
+	DB              *pgxpool.Pool
+	Stripe           *stripepay.Client
+	BuyerFeeBps      int
+	BuyerFeeFlatCts  int
 }
 
 type SellerSubscriptionAPI struct {
-	DB     *pgxpool.Pool
-	Stripe *stripepay.Client
+	DB              *pgxpool.Pool
+	Stripe           *stripepay.Client
+	BuyerFeeBps      int
+	BuyerFeeFlatCts  int
 }
 
 type SubscriptionPlanPublic struct {
@@ -227,6 +231,33 @@ type CheckoutResponse struct {
 	Mode         string `json:"mode"` // "payment_intent" | "setup_intent"
 	ID           string `json:"id"`
 	ClientSecret string `json:"client_secret"`
+	SubtotalCents int   `json:"subtotal_cents"`
+	BuyerFeeCents int   `json:"buyer_fee_cents"`
+	TotalCents    int   `json:"total_cents"`
+}
+
+func (a SubscriptionAPI) computeBuyerFee(subtotalCents int) (buyerFeeCents int, totalCents int) {
+	if subtotalCents < 0 {
+		subtotalCents = 0
+	}
+	bps := a.BuyerFeeBps
+	if bps < 0 {
+		bps = 0
+	}
+	flat := a.BuyerFeeFlatCts
+	if flat < 0 {
+		flat = 0
+	}
+	fee := (subtotalCents * bps) / 10000
+	fee += flat
+	if fee < 0 {
+		fee = 0
+	}
+	total := subtotalCents + fee
+	if total < 0 {
+		total = 0
+	}
+	return fee, total
 }
 
 type Subscription struct {
@@ -346,8 +377,9 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if withinAuthWindow {
+		feeCents, totalCents := a.computeBuyerFee(priceCents)
 		piID, secret, err := a.Stripe.CreateCheckoutPaymentIntent(ctx, stripepay.CreateCheckoutPaymentIntentInput{
-			AmountCents: priceCents,
+			AmountCents: totalCents,
 			Currency:    "usd",
 			CustomerID:  cusID,
 			Metadata: map[string]string{
@@ -359,7 +391,14 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 			resp.Internal(w, err)
 			return
 		}
-		resp.OK(w, CheckoutResponse{Mode: "payment_intent", ID: piID, ClientSecret: secret})
+		resp.OK(w, CheckoutResponse{
+			Mode:          "payment_intent",
+			ID:            piID,
+			ClientSecret:  secret,
+			SubtotalCents: priceCents,
+			BuyerFeeCents: feeCents,
+			TotalCents:    totalCents,
+		})
 		return
 	}
 
@@ -371,7 +410,15 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 		resp.Internal(w, err)
 		return
 	}
-	resp.OK(w, CheckoutResponse{Mode: "setup_intent", ID: siID, ClientSecret: secret})
+	feeCents, totalCents := a.computeBuyerFee(priceCents)
+	resp.OK(w, CheckoutResponse{
+		Mode:          "setup_intent",
+		ID:            siID,
+		ClientSecret:  secret,
+		SubtotalCents: priceCents,
+		BuyerFeeCents: feeCents,
+		TotalCents:    totalCents,
+	})
 }
 
 func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
@@ -634,19 +681,21 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create an order for this subscription for the upcoming pickup window.
-	order, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
-		storeID:               storeID,
-		pickupWindowID:        windowID,
-		offeringID:            offeringID,
-		subscriptionID:        &sub.ID,
-		buyerEmail:            buyerEmail,
-		buyerName:             in.Buyer.Name,
-		buyerPhone:            in.Buyer.Phone,
-		quantity:              1,
-		paymentMethod:         "card",
-		paymentStatus:         orderPaymentStatus,
-		stripePaymentIntentID: orderStripePI,
-	})
+		order, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
+			storeID:               storeID,
+			pickupWindowID:        windowID,
+			offeringID:            offeringID,
+			subscriptionID:        &sub.ID,
+			buyerEmail:            buyerEmail,
+			buyerName:             in.Buyer.Name,
+			buyerPhone:            in.Buyer.Phone,
+			quantity:              1,
+			paymentMethod:         "card",
+			paymentStatus:         orderPaymentStatus,
+			stripePaymentIntentID: orderStripePI,
+			buyerFeeBps:           a.BuyerFeeBps,
+			buyerFeeFlatCts:       a.BuyerFeeFlatCts,
+		})
 	if err != nil {
 		if errors.Is(err, errInsufficientInventory) {
 			// Best-effort: void authorization.
@@ -1204,23 +1253,25 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			continue
 		}
 
-		if !withinAuthWindow {
-			if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
-				storeID:        storeID,
-				pickupWindowID: windowID,
-				offeringID:     offeringID,
-				subscriptionID: &subID,
-				buyerEmail:     email,
-				buyerName:      name,
-				buyerPhone:     phone,
-				quantity:       1,
-				paymentMethod:  "card",
-				paymentStatus:  "pending",
-			}); err != nil {
-				if errors.Is(err, errInsufficientInventory) {
-					resp.BadRequest(w, "subscriber limit exceeded for this cycle")
-					return
-				}
+			if !withinAuthWindow {
+				if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
+					storeID:        storeID,
+					pickupWindowID: windowID,
+					offeringID:     offeringID,
+					subscriptionID: &subID,
+					buyerEmail:     email,
+					buyerName:      name,
+					buyerPhone:     phone,
+					quantity:       1,
+					paymentMethod:  "card",
+					paymentStatus:  "pending",
+					buyerFeeBps:    a.BuyerFeeBps,
+					buyerFeeFlatCts: a.BuyerFeeFlatCts,
+				}); err != nil {
+					if errors.Is(err, errInsufficientInventory) {
+						resp.BadRequest(w, "subscriber limit exceeded for this cycle")
+						return
+					}
 				resp.Internal(w, err)
 				return
 			}
@@ -1228,12 +1279,22 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			continue
 		}
 
-		piID, piStatus, err := a.Stripe.CreateOffSessionAuthorization(ctx, stripepay.CreateOffSessionPaymentIntentInput{
-			AmountCents:     priceCents,
-			Currency:        "usd",
-			CustomerID:      *stripeCustomerID,
-			PaymentMethodID: *stripePMID,
-			Metadata: map[string]string{
+			fee := (priceCents * a.BuyerFeeBps) / 10000
+			fee += a.BuyerFeeFlatCts
+			if fee < 0 {
+				fee = 0
+			}
+			totalCents := priceCents + fee
+			if totalCents < 0 {
+				totalCents = 0
+			}
+
+			piID, piStatus, err := a.Stripe.CreateOffSessionAuthorization(ctx, stripepay.CreateOffSessionPaymentIntentInput{
+				AmountCents:     totalCents,
+				Currency:        "usd",
+				CustomerID:      *stripeCustomerID,
+				PaymentMethodID: *stripePMID,
+				Metadata: map[string]string{
 				"plan_id":          planID,
 				"store_id":         storeID,
 				"subscription_id":  subID,
@@ -1251,23 +1312,25 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			continue
 		}
 
-		if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
-			storeID:               storeID,
-			pickupWindowID:        windowID,
-			offeringID:            offeringID,
-			subscriptionID:        &subID,
-			buyerEmail:            email,
-			buyerName:             name,
-			buyerPhone:            phone,
-			quantity:              1,
-			paymentMethod:         "card",
-			paymentStatus:         "authorized",
-			stripePaymentIntentID: &piID,
-		}); err != nil {
-			if errors.Is(err, errInsufficientInventory) {
-				_ = a.Stripe.CancelPaymentIntent(ctx, piID, "cancel-inventory-"+piID)
-				resp.BadRequest(w, "subscriber limit exceeded for this cycle")
-				return
+			if _, err := createOrderForOffering(ctx, tx, createOrderForOfferingInput{
+				storeID:               storeID,
+				pickupWindowID:        windowID,
+				offeringID:            offeringID,
+				subscriptionID:        &subID,
+				buyerEmail:            email,
+				buyerName:             name,
+				buyerPhone:            phone,
+				quantity:              1,
+				paymentMethod:         "card",
+				paymentStatus:         "authorized",
+				stripePaymentIntentID: &piID,
+				buyerFeeBps:           a.BuyerFeeBps,
+				buyerFeeFlatCts:       a.BuyerFeeFlatCts,
+			}); err != nil {
+				if errors.Is(err, errInsufficientInventory) {
+					_ = a.Stripe.CancelPaymentIntent(ctx, piID, "cancel-inventory-"+piID)
+					resp.BadRequest(w, "subscriber limit exceeded for this cycle")
+					return
 			}
 			resp.Internal(w, err)
 			return
@@ -1432,6 +1495,8 @@ type createOrderForOfferingInput struct {
 	paymentStatus  string
 	// Optional: set when payment_method == "card".
 	stripePaymentIntentID *string
+	buyerFeeBps           int
+	buyerFeeFlatCts       int
 }
 
 func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOfferingInput) (Order, error) {
@@ -1484,7 +1549,23 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 	}
 
 	subtotal := priceCents * in.quantity
-	total := subtotal
+	bps := in.buyerFeeBps
+	if bps < 0 {
+		bps = 0
+	}
+	flat := in.buyerFeeFlatCts
+	if flat < 0 {
+		flat = 0
+	}
+	buyerFee := (subtotal * bps) / 10000
+	buyerFee += flat
+	if buyerFee < 0 {
+		buyerFee = 0
+	}
+	total := subtotal + buyerFee
+	if total < 0 {
+		total = 0
+	}
 
 	var out Order
 	out.StoreID = in.storeID
@@ -1493,6 +1574,7 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 	out.BuyerName = in.buyerName
 	out.BuyerPhone = in.buyerPhone
 	out.SubtotalCents = subtotal
+	out.BuyerFeeCents = buyerFee
 	out.TotalCents = total
 
 	paymentMethod := strings.TrimSpace(in.paymentMethod)
@@ -1517,13 +1599,13 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 		insert into orders (
 			store_id, pickup_window_id, buyer_email, buyer_name, buyer_phone,
 			status, payment_method, payment_status,
-			subtotal_cents, total_cents,
+			subtotal_cents, buyer_fee_cents, total_cents,
 			subscription_id,
 			stripe_payment_intent_id
 		)
-		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', $6, $7, $8, $9, $10::uuid, $11)
+		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', $6, $7, $8, $9, $10, $11::uuid, $12)
 		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, captured_cents, created_at
-	`, in.storeID, in.pickupWindowID, in.buyerEmail, in.buyerName, in.buyerPhone, paymentMethod, paymentStatus, subtotal, total, subID, stripePI).Scan(
+	`, in.storeID, in.pickupWindowID, in.buyerEmail, in.buyerName, in.buyerPhone, paymentMethod, paymentStatus, subtotal, buyerFee, total, subID, stripePI).Scan(
 		&out.ID,
 		&out.BuyerToken,
 		&out.PickupCode,

@@ -148,6 +148,9 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   const [checkout, setCheckout] = useState<PlanCheckoutResponse | null>(null);
 
   const paymentsReady = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+  const priceSubtotal = checkout?.subtotal_cents ?? plan.price_cents;
+  const priceFee = checkout?.buyer_fee_cents ?? 0;
+  const priceTotal = checkout?.total_cents ?? plan.price_cents;
 
   const nextLabel = useMemo(() => {
     const tz = plan.pickup_location.timezone || "UTC";
@@ -279,6 +282,34 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         </div>
         <div className="text-xs text-[color:var(--lr-muted)]">
           Capacity: {plan.subscriber_limit}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm ring-1 ring-[color:var(--lr-border)]">
+        <div className="grid gap-2">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="font-medium text-[color:var(--lr-muted)]">Box</span>
+            <span className="font-semibold text-[color:var(--lr-ink)]">
+              {formatMoney(priceSubtotal)}
+            </span>
+          </div>
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="font-medium text-[color:var(--lr-muted)]">
+              Service fee
+            </span>
+            <span className="font-semibold text-[color:var(--lr-ink)]">
+              {checkout ? formatMoney(priceFee) : "Calculated at checkout"}
+            </span>
+          </div>
+          <div className="h-px bg-[color:var(--lr-border)]/70" />
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="font-semibold text-[color:var(--lr-ink)]">
+              Total
+            </span>
+            <span className="font-semibold text-[color:var(--lr-ink)]">
+              {checkout ? formatMoney(priceTotal) : `${formatMoney(priceTotal)} + fee`}
+            </span>
+          </div>
         </div>
       </div>
 
