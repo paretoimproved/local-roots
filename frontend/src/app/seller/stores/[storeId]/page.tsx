@@ -1953,6 +1953,42 @@ export default function SellerStorePage() {
                             size={140}
                             label="Farmstand QR"
                           />
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <Link
+                              className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+                              href={`/boxes/${p.id}/qr`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Print poster
+                            </Link>
+                            <button
+                              type="button"
+                              className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+                              onClick={() => {
+                                const url = siteOrigin
+                                  ? `${siteOrigin}/boxes/${p.id}`
+                                  : `/boxes/${p.id}`;
+                                navigator.clipboard
+                                  .writeText(url)
+                                  .then(() =>
+                                    showToast({
+                                      kind: "success",
+                                      message: "Buyer link copied.",
+                                    }),
+                                  )
+                                  .catch(() =>
+                                    showToast({
+                                      kind: "error",
+                                      message:
+                                        "Could not copy. Your browser may block clipboard access.",
+                                    }),
+                                  );
+                              }}
+                            >
+                              Copy link
+                            </button>
+                          </div>
                           <div className="max-w-[14rem] text-right text-xs text-[color:var(--lr-muted)]">
                             Tip: print this QR at the farmstand.
                           </div>
