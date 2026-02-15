@@ -617,6 +617,7 @@ export default function SellerStorePage() {
     if (!token) return;
     setError(null);
     clearToast();
+    const hadLocation = (locations?.length ?? 0) > 0;
 
     const nextErrors: Record<string, string> = {};
     if (!locAddress1.trim()) nextErrors.address1 = "Address is required.";
@@ -682,6 +683,10 @@ export default function SellerStorePage() {
       if ((locations?.length ?? 0) > 0) setLocLabel("");
       showToast({ kind: "success", message: "Pickup location saved." });
       await refreshAll(token);
+      // If this is their first location during onboarding, advance to step 2 automatically.
+      if (!hadLocation && isOnboarding) {
+        goToStep(2, "setup-box");
+      }
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
       showToast({ kind: "error", message: "Could not save pickup location." });
@@ -2349,7 +2354,9 @@ export default function SellerStorePage() {
             <div>
               <h2 className="text-base font-semibold">Subscription boxes</h2>
               <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                Next step: add a pickup location, then create your first seasonal box.
+                {setupProgress.hasLocation
+                  ? "Next step: create your first seasonal box."
+                  : "Next step: add a pickup location, then create your first seasonal box."}
               </p>
             </div>
             <button
