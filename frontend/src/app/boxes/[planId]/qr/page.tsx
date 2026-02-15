@@ -67,8 +67,9 @@ export default async function BoxQrPosterPage({
   });
 
   const origin = await requestOrigin();
+  const shortUrl = origin ? `${origin}/b/${planId}` : `/b/${planId}`;
   const boxUrl = origin ? `${origin}/boxes/${planId}` : `/boxes/${planId}`;
-  const qr = await qrDataUrl(boxUrl, 640);
+  const qr = await qrDataUrl(shortUrl, 640);
 
   const tz = plan.pickup_location.timezone || "UTC";
   const nextStart = new Date(plan.next_start_at);
@@ -135,7 +136,7 @@ export default async function BoxQrPosterPage({
               </div>
               <div className="text-center text-xs text-[color:var(--lr-muted)]">
                 Or visit:{" "}
-                <span className="font-mono break-all">{boxUrl}</span>
+                <span className="font-mono break-all">{shortUrl}</span>
               </div>
             </div>
           </div>

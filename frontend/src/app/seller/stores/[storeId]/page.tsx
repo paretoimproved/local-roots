@@ -1947,8 +1947,8 @@ export default function SellerStorePage() {
                           <QrCode
                             value={
                               siteOrigin
-                                ? `${siteOrigin}/boxes/${p.id}`
-                                : `/boxes/${p.id}`
+                                ? `${siteOrigin}/b/${p.id}`
+                                : `/b/${p.id}`
                             }
                             size={140}
                             label="Farmstand QR"
@@ -1967,8 +1967,8 @@ export default function SellerStorePage() {
                               className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
                               onClick={() => {
                                 const url = siteOrigin
-                                  ? `${siteOrigin}/boxes/${p.id}`
-                                  : `/boxes/${p.id}`;
+                                  ? `${siteOrigin}/b/${p.id}`
+                                  : `/b/${p.id}`;
                                 navigator.clipboard
                                   .writeText(url)
                                   .then(() =>
