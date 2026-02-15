@@ -34,6 +34,10 @@ export default function PoliciesPage() {
               confirmed.
             </li>
             <li>
+              A 5% service fee is added to subscription box charges. The seller
+              payout estimate is based on the box price before the fee.
+            </li>
+            <li>
               If your pickup is more than 7 days away, we may save your card
               first and authorize closer to pickup.
             </li>

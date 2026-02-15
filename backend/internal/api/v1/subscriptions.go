@@ -233,6 +233,8 @@ type CheckoutResponse struct {
 	ClientSecret string `json:"client_secret"`
 	SubtotalCents int   `json:"subtotal_cents"`
 	BuyerFeeCents int   `json:"buyer_fee_cents"`
+	BuyerFeeBps   int   `json:"buyer_fee_bps"`
+	BuyerFeeFlatCents int `json:"buyer_fee_flat_cents"`
 	TotalCents    int   `json:"total_cents"`
 }
 
@@ -397,6 +399,8 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 			ClientSecret:  secret,
 			SubtotalCents: priceCents,
 			BuyerFeeCents: feeCents,
+			BuyerFeeBps:   a.BuyerFeeBps,
+			BuyerFeeFlatCents: a.BuyerFeeFlatCts,
 			TotalCents:    totalCents,
 		})
 		return
@@ -417,6 +421,8 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 		ClientSecret:  secret,
 		SubtotalCents: priceCents,
 		BuyerFeeCents: feeCents,
+		BuyerFeeBps:   a.BuyerFeeBps,
+		BuyerFeeFlatCents: a.BuyerFeeFlatCts,
 		TotalCents:    totalCents,
 	})
 }

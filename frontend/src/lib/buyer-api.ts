@@ -63,6 +63,8 @@ export type PlanCheckoutResponse = {
   client_secret: string;
   subtotal_cents: number;
   buyer_fee_cents: number;
+  buyer_fee_bps: number;
+  buyer_fee_flat_cents: number;
   total_cents: number;
 };
 

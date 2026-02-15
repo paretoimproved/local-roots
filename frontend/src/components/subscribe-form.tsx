@@ -151,6 +151,14 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   const priceSubtotal = checkout?.subtotal_cents ?? plan.price_cents;
   const priceFee = checkout?.buyer_fee_cents ?? 0;
   const priceTotal = checkout?.total_cents ?? plan.price_cents;
+  const feeBps = checkout?.buyer_fee_bps ?? null;
+  const feeFlat = checkout?.buyer_fee_flat_cents ?? null;
+  const feeLabel =
+    feeBps !== null
+      ? `${(feeBps / 100).toFixed(2)}%`
+      : feeFlat !== null && feeFlat > 0
+        ? `${formatMoney(feeFlat)}`
+        : null;
 
   const nextLabel = useMemo(() => {
     const tz = plan.pickup_location.timezone || "UTC";
@@ -295,7 +303,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
           </div>
           <div className="flex items-baseline justify-between gap-4">
             <span className="font-medium text-[color:var(--lr-muted)]">
-              Service fee
+              Service fee{feeLabel ? ` (${feeLabel})` : ""}
             </span>
             <span className="font-semibold text-[color:var(--lr-ink)]">
               {checkout ? formatMoney(priceFee) : "Calculated at checkout"}
