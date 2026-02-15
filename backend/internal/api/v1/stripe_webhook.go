@@ -26,8 +26,8 @@ type StripeWebhookAPI struct {
 // - synchronize orders.payment_status from Stripe PaymentIntent events
 // - if a payment fails/cancels while the order is still "placed", cancel it and release inventory
 func (a StripeWebhookAPI) StripeWebhook(w http.ResponseWriter, r *http.Request) {
-	secret := strings.TrimSpace(a.WebhookSecret)
-	if secret == "" {
+	secrets := splitWebhookSecrets(a.WebhookSecret)
+	if len(secrets) == 0 {
 		resp.ServiceUnavailable(w, "webhook not configured")
 		return
 	}
@@ -49,7 +49,7 @@ func (a StripeWebhookAPI) StripeWebhook(w http.ResponseWriter, r *http.Request) 
 	r.Body = io.NopCloser(bytes.NewReader(body))
 
 	sig := r.Header.Get("Stripe-Signature")
-	ev, err := webhook.ConstructEvent(body, sig, secret)
+	ev, err := constructStripeEvent(body, sig, secrets)
 	if err != nil {
 		resp.BadRequest(w, "invalid signature")
 		return
@@ -87,6 +87,33 @@ func (a StripeWebhookAPI) StripeWebhook(w http.ResponseWriter, r *http.Request) 
 	}
 
 	resp.OK(w, map[string]any{"ok": true})
+}
+
+func splitWebhookSecrets(v string) []string {
+	// Allow comma/newline-separated secrets to support rotation without downtime.
+	v = strings.ReplaceAll(v, "\n", ",")
+	var out []string
+	for _, part := range strings.Split(v, ",") {
+		s := strings.TrimSpace(part)
+		if s == "" {
+			continue
+		}
+		out = append(out, s)
+	}
+	return out
+}
+
+func constructStripeEvent(body []byte, sig string, secrets []string) (stripe.Event, error) {
+	// Try each secret; useful during secret rotation.
+	var lastErr error
+	for _, s := range secrets {
+		ev, err := webhook.ConstructEvent(body, sig, s)
+		if err == nil {
+			return ev, nil
+		}
+		lastErr = err
+	}
+	return stripe.Event{}, lastErr
 }
 
 func (a StripeWebhookAPI) updatePaymentByPI(ctx context.Context, paymentIntentID string, paymentStatus string, capturedCents *int, cancelIfPlaced bool) error {
