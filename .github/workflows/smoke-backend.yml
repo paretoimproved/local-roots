@@ -1,0 +1,36 @@
+name: Backend Smoke
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "Dockerfile"
+      - "backend/Dockerfile"
+      - ".github/workflows/smoke-backend.yml"
+  workflow_dispatch:
+  schedule:
+    # Hourly smoke to catch Railway regressions.
+    - cron: "23 * * * *"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Smoke /health (retry)
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="https://backend-production-f31a.up.railway.app/health"
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i: $url"
+            if curl -fsS "$url" >/dev/null; then
+              echo "OK"
+              exit 0
+            fi
+            sleep 8
+          done
+          echo "Backend smoke failed"
+          exit 1
+
