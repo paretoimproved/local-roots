@@ -13,6 +13,9 @@ func TestLoadLocationBestEffort_Normalizes(t *testing.T) {
 		{" Pacific Time — America/Los_Angeles ", "America/Los_Angeles"},
 		{"Pacific Time (America/Los_Angeles)", "America/Los_Angeles"},
 		{"Pacific Time", "America/Los_Angeles"},
+		{"Pacific Time (US & Canada)", "America/Los_Angeles"},
+		{"Eastern Time (US & Canada)", "America/New_York"},
+		{"UTC-08:00", "Etc/GMT+8"},
 		{"ET", "America/New_York"},
 		{"HST", "Pacific/Honolulu"},
 	}
@@ -27,4 +30,3 @@ func TestLoadLocationBestEffort_Normalizes(t *testing.T) {
 		}
 	}
 }
-
