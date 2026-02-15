@@ -1,6 +1,9 @@
 package config
 
-import "os"
+import (
+	"os"
+	"strconv"
+)
 
 type Config struct {
 	Addr                string
@@ -12,6 +15,7 @@ type Config struct {
 	StripeSecretKey     string
 	StripeWebhookSecret string
 	InternalCronSecret  string
+	NoShowFeeCents      int
 }
 
 func FromEnv() Config {
@@ -35,6 +39,12 @@ func FromEnv() Config {
 	stripeSecretKey := os.Getenv("STRIPE_SECRET_KEY")
 	stripeWebhookSecret := os.Getenv("STRIPE_WEBHOOK_SECRET")
 	internalCronSecret := os.Getenv("INTERNAL_CRON_SECRET")
+	noShowFeeCents := 500
+	if v := os.Getenv("NO_SHOW_FEE_CENTS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			noShowFeeCents = n
+		}
+	}
 
 	return Config{
 		Addr:                addr,
@@ -46,5 +56,6 @@ func FromEnv() Config {
 		StripeSecretKey:     stripeSecretKey,
 		StripeWebhookSecret: stripeWebhookSecret,
 		InternalCronSecret:  internalCronSecret,
+		NoShowFeeCents:      noShowFeeCents,
 	}
 }

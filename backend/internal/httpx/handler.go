@@ -79,7 +79,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(seller.ListOfferings))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(seller.CreateOffering))
 
-	sellerOrders := v1.SellerOrdersAPI{DB: deps.DB, Stripe: stripeClient}
+	sellerOrders := v1.SellerOrdersAPI{DB: deps.DB, Stripe: stripeClient, NoShowFeeCents: deps.Config.NoShowFeeCents}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(sellerOrders.ListOrdersForPickupWindow))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(sellerOrders.UpdateOrderStatus))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(sellerOrders.ConfirmPickup))
@@ -100,5 +100,5 @@ func NewHandler(deps Deps) http.Handler {
 	}
 	mux.HandleFunc("POST /v1/internal/billing/authorize-pending", internalBilling.AuthorizePending)
 
-	return withCORS(deps.Config, mux)
+	return withLogging(withCORS(deps.Config, mux))
 }

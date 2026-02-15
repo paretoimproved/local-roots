@@ -15,8 +15,9 @@ import (
 )
 
 type SellerOrdersAPI struct {
-	DB     *pgxpool.Pool
-	Stripe *stripepay.Client
+	DB             *pgxpool.Pool
+	Stripe          *stripepay.Client
+	NoShowFeeCents int
 }
 
 type SellerOrder struct {
@@ -275,7 +276,10 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 	newPaymentStatus := paymentStatus
 	capturedCentsDelta := -1 // -1 means "leave unchanged"
 
-	const defaultNoShowFeeCents = 500
+	noShowFeeCents := a.NoShowFeeCents
+	if noShowFeeCents <= 0 {
+		noShowFeeCents = 500
+	}
 
 	// Adjust inventory reservations/availability based on transition.
 	if currentStatus == "placed" && (in.Status == "canceled") {
@@ -329,7 +333,7 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 						resp.Internal(w, err)
 						return
 					}
-					fee := defaultNoShowFeeCents
+					fee := noShowFeeCents
 					if totalCents < fee {
 						fee = totalCents
 					}
