@@ -6,9 +6,9 @@ import { formatMoney } from "@/lib/ui";
 export default async function PickupWindowOfferingsPage({
   params,
 }: {
-  params: { pickupWindowId: string };
+  params: Promise<{ pickupWindowId: string }>;
 }) {
-  const { pickupWindowId } = params;
+  const { pickupWindowId } = await params;
 
   let offerings: Awaited<ReturnType<typeof api.listPickupWindowOfferings>> | null =
     null;

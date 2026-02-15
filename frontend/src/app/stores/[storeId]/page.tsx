@@ -25,9 +25,9 @@ function formatWindowLabel(pw: Awaited<ReturnType<typeof api.listStorePickupWind
 export default async function StorePickupWindowsPage({
   params,
 }: {
-  params: { storeId: string };
+  params: Promise<{ storeId: string }>;
 }) {
-  const { storeId } = params;
+  const { storeId } = await params;
 
   let windows: Awaited<ReturnType<typeof api.listStorePickupWindows>> | null =
     null;

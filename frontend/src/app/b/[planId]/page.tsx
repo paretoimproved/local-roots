@@ -1,10 +1,11 @@
 import { redirect } from "next/navigation";
 
-export default function ShortBoxLinkPage({
+export default async function ShortBoxLinkPage({
   params,
 }: {
-  params: { planId: string };
+  params: Promise<{ planId: string }>;
 }) {
-  redirect(`/boxes/${params.planId}`);
+  const { planId } = await params;
+  redirect(`/boxes/${planId}`);
 }
 

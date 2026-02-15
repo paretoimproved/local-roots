@@ -13,9 +13,9 @@ function cadenceLabel(c: string) {
 export default async function BoxPlanPage({
   params,
 }: {
-  params: { planId: string };
+  params: Promise<{ planId: string }>;
 }) {
-  const { planId } = params;
+  const { planId } = await params;
 
   let plan: Awaited<ReturnType<typeof api.getSubscriptionPlan>> | null = null;
   let error: string | null = null;

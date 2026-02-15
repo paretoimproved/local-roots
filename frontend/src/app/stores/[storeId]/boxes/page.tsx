@@ -25,9 +25,9 @@ function cadenceLabel(c: string) {
 export default async function StoreBoxesPage({
   params,
 }: {
-  params: { storeId: string };
+  params: Promise<{ storeId: string }>;
 }) {
-  const { storeId } = params;
+  const { storeId } = await params;
 
   let plans: Awaited<ReturnType<typeof api.listStoreSubscriptionPlans>> | null =
     null;

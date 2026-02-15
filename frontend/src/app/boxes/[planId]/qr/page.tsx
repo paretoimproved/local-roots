@@ -59,9 +59,9 @@ async function qrDataUrl(value: string, size: number) {
 export default async function BoxQrPosterPage({
   params,
 }: {
-  params: { planId: string };
+  params: Promise<{ planId: string }>;
 }) {
-  const planId = params.planId;
+  const { planId } = await params;
   const plan = await requestJSON<Plan>(`/v1/subscription-plans/${planId}`, {
     next: { revalidate: 60 },
   });
