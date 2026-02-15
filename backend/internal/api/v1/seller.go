@@ -313,6 +313,96 @@ func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, 
 	resp.OK(w, out)
 }
 
+func (a SellerAPI) DeletePickupLocation(w http.ResponseWriter, r *http.Request, u AuthUser) {
+	if !a.requireSeller(u, w) {
+		return
+	}
+	storeID := r.PathValue("storeId")
+	if storeID == "" {
+		resp.BadRequest(w, "missing storeId")
+		return
+	}
+	locationID := r.PathValue("pickupLocationId")
+	if locationID == "" {
+		resp.BadRequest(w, "missing pickupLocationId")
+		return
+	}
+
+	var ownerID string
+	if err := a.DB.QueryRow(r.Context(), `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerID); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "store not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+	if ownerID != u.ID {
+		resp.Forbidden(w, "not your store")
+		return
+	}
+
+	// Confirm the pickup location belongs to this store.
+	var exists int
+	if err := a.DB.QueryRow(r.Context(), `
+		select 1
+		from pickup_locations
+		where id = $1::uuid and store_id = $2::uuid
+		limit 1
+	`, locationID, storeID).Scan(&exists); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "pickup location not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	// Safety guard: do not allow deletion once the location is used by plans/windows.
+	var planCount int
+	if err := a.DB.QueryRow(r.Context(), `
+		select count(1)
+		from subscription_plans
+		where store_id = $1::uuid and pickup_location_id = $2::uuid
+	`, storeID, locationID).Scan(&planCount); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	if planCount > 0 {
+		resp.BadRequest(w, "pickup location is in use by a box plan and cannot be deleted")
+		return
+	}
+
+	var windowCount int
+	if err := a.DB.QueryRow(r.Context(), `
+		select count(1)
+		from pickup_windows
+		where store_id = $1::uuid and pickup_location_id = $2::uuid
+	`, storeID, locationID).Scan(&windowCount); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	if windowCount > 0 {
+		resp.BadRequest(w, "pickup location is in use by a pickup window and cannot be deleted")
+		return
+	}
+
+	tag, err := a.DB.Exec(r.Context(), `
+		delete from pickup_locations
+		where id = $1::uuid and store_id = $2::uuid
+	`, locationID, storeID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		resp.NotFound(w, "pickup location not found")
+		return
+	}
+
+	resp.OK(w, map[string]bool{"deleted": true})
+}
+
 type SellerPickupWindow struct {
 	ID             string               `json:"id"`
 	StartAt        time.Time            `json:"start_at"`

@@ -211,6 +211,11 @@ export const sellerApi = {
         }),
       },
     ),
+  deletePickupLocation: (token: string, storeId: string, pickupLocationId: string) =>
+    requestJSON<{ deleted: boolean }>(
+      `/v1/seller/stores/${storeId}/pickup-locations/${pickupLocationId}`,
+      { method: "DELETE", token },
+    ),
 
   listPickupWindows: (token: string, storeId: string) =>
     requestJSON<SellerPickupWindow[]>(

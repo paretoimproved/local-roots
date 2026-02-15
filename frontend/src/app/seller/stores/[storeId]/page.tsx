@@ -555,8 +555,18 @@ export default function SellerStorePage() {
     setWindows(ws);
     setProducts(ps);
     setPlans(sps);
-    if (!windowLocationId && ls.length) setWindowLocationId(ls[0].id);
-    if (!selectedWindowId && ws.length) setSelectedWindowId(ws[0].id);
+    setWindowLocationId((prev) => {
+      if (prev && ls.some((l) => l.id === prev)) return prev;
+      return ls[0]?.id ?? "";
+    });
+    setPlanLocationId((prev) => {
+      if (prev && ls.some((l) => l.id === prev)) return prev;
+      return ls[0]?.id ?? "";
+    });
+    setSelectedWindowId((prev) => {
+      if (prev && ws.some((w) => w.id === prev)) return prev;
+      return ws[0]?.id ?? "";
+    });
   }
 
   useEffect(() => {
@@ -669,6 +679,28 @@ export default function SellerStorePage() {
       showToast({ kind: "error", message: "Could not save pickup location." });
     } finally {
       setSavingLocation(false);
+    }
+  }
+
+  const [deletingLocationId, setDeletingLocationId] = useState<string>("");
+  async function deleteLocation(id: string) {
+    if (!token) return;
+    clearToast();
+    const loc = (locations ?? []).find((l) => l.id === id);
+    const label = loc?.label ?? "Pickup";
+    const ok = window.confirm(`Remove "${label}" pickup location? This cannot be undone.`);
+    if (!ok) return;
+
+    setDeletingLocationId(id);
+    try {
+      await sellerApi.deletePickupLocation(token, storeId, id);
+      showToast({ kind: "success", message: "Pickup location removed." });
+      await refreshAll(token);
+    } catch (e: unknown) {
+      setError(friendlyErrorMessage(e));
+      showToast({ kind: "error", message: "Could not remove pickup location." });
+    } finally {
+      setDeletingLocationId("");
     }
   }
 
@@ -1266,6 +1298,18 @@ export default function SellerStorePage() {
                               {l.address1}, {l.city}, {l.region} {l.postal_code} ·{" "}
                               {l.timezone}
                             </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-rose-900 disabled:opacity-50"
+                              disabled={!!deletingLocationId}
+                              onClick={() => void deleteLocation(l.id)}
+                              aria-label={`Remove ${l.label ?? "pickup location"}`}
+                              title="Remove location"
+                            >
+                              {deletingLocationId === l.id ? "Removing…" : "Remove"}
+                            </button>
                           </div>
                         </div>
                       </li>
