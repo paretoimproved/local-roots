@@ -898,10 +898,10 @@ export default function SellerStorePage() {
         if (!ok) return;
       }
       if (status === "no_show") {
-        const charge = window.confirm(
-          "Mark as no-show?\n\nOK: charge a $5 no-show fee (unless payment isn't authorized)\nCancel: waive the fee\n\nThis will release reserved inventory.",
+        const ok = window.confirm(
+          "Mark as no-show? This will release reserved inventory.",
         );
-        opts = { waive_fee: !charge };
+        if (!ok) return;
       }
       await sellerApi.updateOrderStatus(token, storeId, orderId, status, opts);
       // Refresh both orders and offerings since inventory may have changed.
@@ -2437,13 +2437,30 @@ export default function SellerStorePage() {
                             </button>
                           </div>
                         </div>
-                        <button
-                          type="button"
-                          className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-clay)]"
-                          onClick={() => setOrderStatus(o.id, "no_show")}
-                        >
-                          No show
-                        </button>
+                        <div className="grid content-start gap-2">
+                          <button
+                            type="button"
+                            className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-clay)]"
+                            onClick={() =>
+                              setOrderStatus(o.id, "no_show", {
+                                waive_fee: false,
+                              })
+                            }
+                            title="Capture a small no-show fee (default $5) when authorized."
+                          >
+                            No show (charge fee)
+                          </button>
+                          <button
+                            type="button"
+                            className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-muted)]"
+                            onClick={() =>
+                              setOrderStatus(o.id, "no_show", { waive_fee: true })
+                            }
+                            title="Void the authorization (waive fee)."
+                          >
+                            No show (waive)
+                          </button>
+                        </div>
                       </>
                     ) : null}
                   </div>
