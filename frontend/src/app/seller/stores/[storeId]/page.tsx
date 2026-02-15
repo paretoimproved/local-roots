@@ -8,6 +8,7 @@ import {
   type PlacesAutocompletePrediction,
   type SellerOrder,
   type SellerOffering,
+  type SellerPayoutSummary,
   type SellerPickupLocation,
   type SellerPickupWindow,
   type SellerProduct,
@@ -317,6 +318,9 @@ export default function SellerStorePage() {
   const [products, setProducts] = useState<SellerProduct[] | null>(null);
   const [offerings, setOfferings] = useState<SellerOffering[] | null>(null);
   const [orders, setOrders] = useState<SellerOrder[] | null>(null);
+  const [payoutSummary, setPayoutSummary] = useState<SellerPayoutSummary | null>(
+    null,
+  );
   const [plans, setPlans] = useState<SellerSubscriptionPlan[] | null>(null);
 
   const [selectedWindowId, setSelectedWindowId] = useState<string>("");
@@ -586,6 +590,14 @@ export default function SellerStorePage() {
       .listOrders(token, storeId, selectedWindowId)
       .then(setOrders)
       .catch((e: unknown) => setError(friendlyErrorMessage(e)));
+  }, [token, storeId, selectedWindowId]);
+
+  useEffect(() => {
+    if (!token || !selectedWindowId) return;
+    sellerApi
+      .getPayoutSummary(token, storeId, selectedWindowId)
+      .then(setPayoutSummary)
+      .catch(() => setPayoutSummary(null));
   }, [token, storeId, selectedWindowId]);
 
   async function createLocation() {
@@ -2377,6 +2389,33 @@ export default function SellerStorePage() {
             })}
           </div>
         </div>
+
+        {payoutSummary ? (
+          <div className="rounded-2xl bg-white/60 p-4 text-sm ring-1 ring-[color:var(--lr-border)]">
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <div className="font-semibold text-[color:var(--lr-ink)]">
+                Payout summary (est.)
+              </div>
+              <div className="text-base font-semibold text-[color:var(--lr-ink)]">
+                {formatMoney(payoutSummary.seller_payout_cents)}
+              </div>
+            </div>
+            <div className="mt-2 grid gap-1 text-xs text-[color:var(--lr-muted)]">
+              <div>
+                Picked up: {payoutSummary.picked_up_count} ·{" "}
+                {formatMoney(payoutSummary.payout_picked_up_cents)}
+              </div>
+              <div>
+                No-show fees: {payoutSummary.no_show_count} ·{" "}
+                {formatMoney(payoutSummary.payout_no_show_cents)}
+              </div>
+              <div>
+                Platform fee collected:{" "}
+                {formatMoney(payoutSummary.platform_fee_cents)}
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         {filteredOrders?.length ? (
           <ul className="grid gap-2">

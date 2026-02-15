@@ -89,6 +89,9 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(sellerOrders.UpdateOrderStatus))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(sellerOrders.ConfirmPickup))
 
+	sellerPayouts := v1.SellerPayoutsAPI{DB: deps.DB}
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/payout-summary", authAPI.RequireUser(sellerPayouts.GetPickupWindowPayoutSummary))
+
 	sellerSub := v1.SellerSubscriptionAPI{
 		DB:              deps.DB,
 		Stripe:          stripeClient,

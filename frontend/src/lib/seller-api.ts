@@ -115,6 +115,20 @@ export type SellerOrder = {
   items: SellerOrderItem[];
 };
 
+export type SellerPayoutSummary = {
+  store_id: string;
+  pickup_window_id: string;
+  seller_payout_cents: number;
+  platform_fee_cents: number;
+  gross_captured_cents: number;
+  picked_up_count: number;
+  no_show_count: number;
+  canceled_count: number;
+  open_count: number;
+  payout_picked_up_cents: number;
+  payout_no_show_cents: number;
+};
+
 export type PlacesAutocompletePrediction = {
   place_id: string;
   main_text: string;
@@ -265,6 +279,12 @@ export const sellerApi = {
   listOrders: (token: string, storeId: string, pickupWindowId: string) =>
     requestJSON<SellerOrder[]>(
       `/v1/seller/stores/${storeId}/pickup-windows/${pickupWindowId}/orders`,
+      { token },
+    ),
+
+  getPayoutSummary: (token: string, storeId: string, pickupWindowId: string) =>
+    requestJSON<SellerPayoutSummary>(
+      `/v1/seller/stores/${storeId}/pickup-windows/${pickupWindowId}/payout-summary`,
       { token },
     ),
 
