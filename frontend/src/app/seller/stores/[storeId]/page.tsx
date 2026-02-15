@@ -353,6 +353,7 @@ export default function SellerStorePage() {
   );
   const [locLat, setLocLat] = useState<number | null>(null);
   const [locLng, setLocLng] = useState<number | null>(null);
+  const [derivingTimezone, setDerivingTimezone] = useState(false);
 
   // Google address autocomplete (server-side proxied)
   const [addrQuery, setAddrQuery] = useState("");
@@ -673,6 +674,7 @@ export default function SellerStorePage() {
       setLocCountry("US");
       setLocLat(null);
       setLocLng(null);
+      setDerivingTimezone(false);
       setAddrQuery("");
       setAddrPredictions([]);
       setAddrOpen(false);
@@ -757,6 +759,7 @@ export default function SellerStorePage() {
     setAddrLoading(true);
     setError(null);
     try {
+      const userSetTimezone = !!locTouched.timezone;
       const d = await sellerApi.placesDetails(token, p.place_id, st);
       setLocAddress1(d.address1 ?? "");
       setLocCity(d.city ?? "");
@@ -765,16 +768,36 @@ export default function SellerStorePage() {
       setLocCountry(d.country ?? "US");
       setLocLat(d.lat ?? null);
       setLocLng(d.lng ?? null);
-      if (typeof d.lat === "number" && typeof d.lng === "number") {
-        // Best-effort: derive an IANA timezone from the selected address.
-        sellerApi
-          .timezoneForLatLng(token, d.lat, d.lng)
-          .then((tz) => {
-            if (tz?.time_zone_id) setLocTz(tz.time_zone_id);
-          })
-          .catch(() => {
-            // Fallback: keep current timezone (usually browser-detected).
+      if (
+        !userSetTimezone &&
+        typeof d.lat === "number" &&
+        typeof d.lng === "number"
+      ) {
+        // Derive an IANA timezone from the selected address. We gate saving on this
+        // so we don't accidentally save the seller's browser timezone.
+        setDerivingTimezone(true);
+        setLocTz("");
+        try {
+          const tz = await sellerApi.timezoneForLatLng(token, d.lat, d.lng);
+          if (tz?.time_zone_id) {
+            setLocTz(tz.time_zone_id);
+          } else {
+            showToast({
+              kind: "error",
+              message:
+                "Could not detect timezone from address. Please pick one.",
+            });
+          }
+        } catch (e: unknown) {
+          setError(friendlyErrorMessage(e));
+          showToast({
+            kind: "error",
+            message:
+              "Could not detect timezone from address. Please pick one.",
           });
+        } finally {
+          setDerivingTimezone(false);
+        }
       }
       setAddrQuery(p.full_text || d.formatted_address || "");
       setAddrPredictions([]);
@@ -1545,12 +1568,16 @@ export default function SellerStorePage() {
                   style={{ width: isOnboarding && wizardStep === 1 ? "100%" : undefined }}
                   disabled={
                     savingLocation ||
-                    false
+                    derivingTimezone
                   }
                   onClick={createLocation}
                   type="button"
                 >
-                  {savingLocation ? "Saving…" : "Save location"}
+                  {savingLocation
+                    ? "Saving…"
+                    : derivingTimezone
+                      ? "Detecting timezone…"
+                      : "Save location"}
                 </button>
               </details>
             </>
