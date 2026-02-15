@@ -1011,6 +1011,104 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 	resp.OK(w, out)
 }
 
+type UpdatePlanRequest struct {
+	Title           *string `json:"title"`
+	Description     *string `json:"description"`
+	PriceCents      *int    `json:"price_cents"`
+	SubscriberLimit *int    `json:"subscriber_limit"`
+	IsActive        *bool   `json:"is_active"`
+}
+
+func (a SellerSubscriptionAPI) UpdatePlan(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
+	planID := r.PathValue("planId")
+	if planID == "" {
+		resp.BadRequest(w, "missing planId")
+		return
+	}
+
+	var in UpdatePlanRequest
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+
+	if in.Title != nil && strings.TrimSpace(*in.Title) == "" {
+		resp.BadRequest(w, "title must not be empty")
+		return
+	}
+	if in.PriceCents != nil && *in.PriceCents < 0 {
+		resp.BadRequest(w, "price_cents must be >= 0")
+		return
+	}
+	if in.SubscriberLimit != nil && *in.SubscriberLimit <= 0 {
+		resp.BadRequest(w, "subscriber_limit must be > 0")
+		return
+	}
+
+	// Trim title if provided.
+	if in.Title != nil {
+		trimmed := strings.TrimSpace(*in.Title)
+		in.Title = &trimmed
+	}
+
+	var out SubscriptionPlanSeller
+	err := a.DB.QueryRow(r.Context(), `
+		update subscription_plans
+		set
+			title = coalesce($3, title),
+			description = coalesce($4, description),
+			price_cents = coalesce($5, price_cents),
+			subscriber_limit = coalesce($6, subscriber_limit),
+			is_active = coalesce($7, is_active),
+			updated_at = now()
+		where id = $1::uuid and store_id = $2::uuid
+		returning id::text, store_id::text, pickup_location_id::text, product_id::text,
+			title, description, cadence, price_cents, subscriber_limit,
+			first_start_at, duration_minutes, cutoff_hours, is_active, is_live,
+			created_at, updated_at
+	`, planID, sc.StoreID, in.Title, in.Description, in.PriceCents, in.SubscriberLimit, in.IsActive).Scan(
+		&out.ID, &out.StoreID, &out.PickupLocationID, &out.ProductID,
+		&out.Title, &out.Description, &out.Cadence, &out.PriceCents, &out.SubscriberLimit,
+		&out.FirstStartAt, &out.DurationMin, &out.CutoffHours, &out.IsActive, &out.IsLive,
+		&out.CreatedAt, &out.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "subscription plan not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	// Populate pickup location for response.
+	if err := a.DB.QueryRow(r.Context(), `
+		select id::text, label, address1, city, region, postal_code, timezone
+		from pickup_locations
+		where id = $1::uuid
+		limit 1
+	`, out.PickupLocationID).Scan(
+		&out.PickupLocation.ID,
+		&out.PickupLocation.Label,
+		&out.PickupLocation.Address1,
+		&out.PickupLocation.City,
+		&out.PickupLocation.Region,
+		&out.PickupLocation.Postal,
+		&out.PickupLocation.Timezone,
+	); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	loc, _, err := timeutil.LoadLocationBestEffort(out.PickupLocation.Timezone)
+	if err != nil {
+		loc = time.UTC
+	}
+	out.NextStartAt = nextStartAt(time.Now().UTC(), out.FirstStartAt, out.Cadence, loc, out.CutoffHours)
+
+	resp.OK(w, out)
+}
+
 type GenerateCycleResponse struct {
 	PickupWindowID string `json:"pickup_window_id"`
 	OfferingID     string `json:"offering_id"`

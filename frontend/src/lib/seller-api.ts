@@ -188,6 +188,17 @@ export const sellerApi = {
       }),
     }),
 
+  updateStore: (
+    token: string,
+    storeId: string,
+    input: { name?: string; description?: string | null; phone?: string | null },
+  ) =>
+    requestJSON<SellerStore>(`/v1/seller/stores/${storeId}`, {
+      method: "PATCH",
+      token,
+      body: JSON.stringify(input),
+    }),
+
   listPickupLocations: (token: string, storeId: string) =>
     requestJSON<SellerPickupLocation[]>(
       `/v1/seller/stores/${storeId}/pickup-locations`,
@@ -232,6 +243,27 @@ export const sellerApi = {
     requestJSON<{ deleted: boolean }>(
       `/v1/seller/stores/${storeId}/pickup-locations/${pickupLocationId}`,
       { method: "DELETE", token },
+    ),
+  updatePickupLocation: (
+    token: string,
+    storeId: string,
+    locationId: string,
+    input: {
+      label?: string | null;
+      address1?: string;
+      address2?: string | null;
+      city?: string;
+      region?: string;
+      postal_code?: string;
+      country?: string;
+      timezone?: string;
+      lat?: number | null;
+      lng?: number | null;
+    },
+  ) =>
+    requestJSON<SellerPickupLocation>(
+      `/v1/seller/stores/${storeId}/pickup-locations/${locationId}`,
+      { method: "PATCH", token, body: JSON.stringify(input) },
     ),
 
   timezoneForLatLng: (token: string, lat: number, lng: number) =>
@@ -362,6 +394,22 @@ export const sellerApi = {
     requestJSON<SellerSubscriptionPlan>(
       `/v1/seller/stores/${storeId}/subscription-plans`,
       { method: "POST", token, body: JSON.stringify(input) },
+    ),
+  updateSubscriptionPlan: (
+    token: string,
+    storeId: string,
+    planId: string,
+    input: {
+      title?: string;
+      description?: string | null;
+      price_cents?: number;
+      subscriber_limit?: number;
+      is_active?: boolean;
+    },
+  ) =>
+    requestJSON<SellerSubscriptionPlan>(
+      `/v1/seller/stores/${storeId}/subscription-plans/${planId}`,
+      { method: "PATCH", token, body: JSON.stringify(input) },
     ),
   generateNextCycle: (token: string, storeId: string, planId: string) =>
     requestJSON<{

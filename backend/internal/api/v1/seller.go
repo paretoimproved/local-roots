@@ -308,6 +308,75 @@ func (a SellerAPI) DeletePickupLocation(w http.ResponseWriter, r *http.Request, 
 	resp.OK(w, map[string]bool{"deleted": true})
 }
 
+type updatePickupLocationRequest struct {
+	Label      *string  `json:"label"`
+	Address1   *string  `json:"address1"`
+	Address2   *string  `json:"address2"`
+	City       *string  `json:"city"`
+	Region     *string  `json:"region"`
+	PostalCode *string  `json:"postal_code"`
+	Country    *string  `json:"country"`
+	Timezone   *string  `json:"timezone"`
+	Lat        *float64 `json:"lat"`
+	Lng        *float64 `json:"lng"`
+}
+
+func (a SellerAPI) UpdatePickupLocation(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
+	locationID := r.PathValue("pickupLocationId")
+	if locationID == "" {
+		resp.BadRequest(w, "missing pickupLocationId")
+		return
+	}
+
+	var in updatePickupLocationRequest
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+
+	// If timezone is provided and non-empty, validate and normalize it.
+	var normalizedTZ *string
+	if in.Timezone != nil && strings.TrimSpace(*in.Timezone) != "" {
+		_, tz, err := timeutil.LoadLocationBestEffort(*in.Timezone)
+		if err != nil {
+			resp.BadRequest(w, "invalid timezone")
+			return
+		}
+		normalizedTZ = &tz
+	}
+
+	var out SellerPickupLocation
+	err := a.DB.QueryRow(r.Context(), `
+		update pickup_locations
+		set
+			label = coalesce($3, label),
+			address1 = coalesce($4, address1),
+			address2 = coalesce($5, address2),
+			city = coalesce($6, city),
+			region = coalesce($7, region),
+			postal_code = coalesce($8, postal_code),
+			country = coalesce($9, country),
+			timezone = coalesce($10, timezone),
+			lat = coalesce($11, lat),
+			lng = coalesce($12, lng),
+			updated_at = now()
+		where id = $1::uuid and store_id = $2::uuid
+		returning id::text, label, address1, address2, city, region, postal_code, country, timezone
+	`, locationID, sc.StoreID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, in.Country, normalizedTZ, in.Lat, in.Lng).Scan(
+		&out.ID, &out.Label, &out.Address1, &out.Address2, &out.City, &out.Region, &out.PostalCode, &out.Country, &out.Timezone,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "pickup location not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, out)
+}
+
 type SellerPickupWindow struct {
 	ID             string               `json:"id"`
 	StartAt        time.Time            `json:"start_at"`

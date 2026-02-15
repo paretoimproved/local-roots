@@ -75,6 +75,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-locations", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListPickupLocations)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-locations", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreatePickupLocation)))
 	mux.HandleFunc("DELETE /v1/seller/stores/{storeId}/pickup-locations/{pickupLocationId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.DeletePickupLocation)))
+	mux.HandleFunc("PATCH /v1/seller/stores/{storeId}/pickup-locations/{pickupLocationId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.UpdatePickupLocation)))
 
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListPickupWindows)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreatePickupWindow)))
@@ -101,6 +102,7 @@ func NewHandler(deps Deps) http.Handler {
 	}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.ListPlans)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.CreatePlan)))
+	mux.HandleFunc("PATCH /v1/seller/stores/{storeId}/subscription-plans/{planId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.UpdatePlan)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.GenerateNextCycle)))
 
 	geo := v1.GeoAPI{GooglePlacesAPIKey: deps.Config.GooglePlacesAPIKey}
