@@ -3,8 +3,11 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -345,4 +348,85 @@ func (a GeoAPI) PlacesDetails(w http.ResponseWriter, r *http.Request, u AuthUser
 		Lat:              lat,
 		Lng:              lng,
 	})
+}
+
+type timezoneRequest struct {
+	Lat float64 `json:"lat"`
+	Lng float64 `json:"lng"`
+}
+
+type timezoneResponse struct {
+	TimeZoneID string `json:"time_zone_id"`
+}
+
+func (a GeoAPI) Timezone(w http.ResponseWriter, r *http.Request, u AuthUser) {
+	if !a.requireSeller(u, w) {
+		return
+	}
+	if strings.TrimSpace(a.GooglePlacesAPIKey) == "" {
+		resp.ServiceUnavailable(w, "google places is not configured")
+		return
+	}
+
+	var in timezoneRequest
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+	if in.Lat < -90 || in.Lat > 90 || in.Lng < -180 || in.Lng > 180 {
+		resp.BadRequest(w, "invalid lat/lng")
+		return
+	}
+
+	// Google Time Zone API expects a unix timestamp (seconds). Using "now" is sufficient for our use case.
+	ts := time.Now().Unix()
+	uq := url.Values{}
+	uq.Set("location", fmt.Sprintf("%s,%s",
+		strconv.FormatFloat(in.Lat, 'f', 6, 64),
+		strconv.FormatFloat(in.Lng, 'f', 6, 64),
+	))
+	uq.Set("timestamp", strconv.FormatInt(ts, 10))
+	uq.Set("key", a.GooglePlacesAPIKey)
+
+	reqURL := "https://maps.googleapis.com/maps/api/timezone/json?" + uq.Encode()
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, reqURL, nil)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	client := &http.Client{Timeout: 6 * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		resp.BadRequest(w, "google timezone request failed")
+		return
+	}
+	defer res.Body.Close()
+
+	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if res.StatusCode != http.StatusOK {
+		resp.BadRequest(w, "google timezone request failed")
+		return
+	}
+
+	type googleTimezoneResp struct {
+		Status     string `json:"status"`
+		Message    string `json:"errorMessage"`
+		TimeZoneID string `json:"timeZoneId"`
+	}
+	var gout googleTimezoneResp
+	if err := json.Unmarshal(raw, &gout); err != nil {
+		resp.BadRequest(w, "unexpected google timezone response")
+		return
+	}
+	if strings.TrimSpace(gout.Status) != "OK" || strings.TrimSpace(gout.TimeZoneID) == "" {
+		msg := strings.TrimSpace(gout.Message)
+		if msg == "" {
+			msg = "google timezone request failed"
+		}
+		resp.BadRequest(w, msg)
+		return
+	}
+
+	resp.OK(w, timezoneResponse{TimeZoneID: strings.TrimSpace(gout.TimeZoneID)})
 }

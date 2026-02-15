@@ -151,6 +151,10 @@ export type PlacesDetailsResponse = {
   lng: number | null;
 };
 
+export type TimezoneResponse = {
+  time_zone_id: string;
+};
+
 export const sellerApi = {
   registerSeller: (email: string, password: string, displayName?: string) =>
     requestJSON<AuthResponse>("/v1/auth/register", {
@@ -192,7 +196,18 @@ export const sellerApi = {
   createPickupLocation: (
     token: string,
     storeId: string,
-    input: Omit<SellerPickupLocation, "id" | "country"> & { country?: string },
+    input: {
+      label?: string | null;
+      address1: string;
+      address2?: string | null;
+      city: string;
+      region: string;
+      postal_code: string;
+      country?: string;
+      timezone: string;
+      lat?: number | null;
+      lng?: number | null;
+    },
   ) =>
     requestJSON<SellerPickupLocation>(
       `/v1/seller/stores/${storeId}/pickup-locations`,
@@ -208,6 +223,8 @@ export const sellerApi = {
           postal_code: input.postal_code,
           country: input.country ?? "US",
           timezone: input.timezone,
+          lat: input.lat ?? null,
+          lng: input.lng ?? null,
         }),
       },
     ),
@@ -216,6 +233,13 @@ export const sellerApi = {
       `/v1/seller/stores/${storeId}/pickup-locations/${pickupLocationId}`,
       { method: "DELETE", token },
     ),
+
+  timezoneForLatLng: (token: string, lat: number, lng: number) =>
+    requestJSON<TimezoneResponse>(`/v1/seller/geo/timezone`, {
+      method: "POST",
+      token,
+      body: JSON.stringify({ lat, lng }),
+    }),
 
   listPickupWindows: (token: string, storeId: string) =>
     requestJSON<SellerPickupWindow[]>(

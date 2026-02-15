@@ -106,6 +106,7 @@ func NewHandler(deps Deps) http.Handler {
 	geo := v1.GeoAPI{GooglePlacesAPIKey: deps.Config.GooglePlacesAPIKey}
 	mux.HandleFunc("POST /v1/seller/geo/places/autocomplete", authAPI.RequireUser(geo.PlacesAutocomplete))
 	mux.HandleFunc("POST /v1/seller/geo/places/details", authAPI.RequireUser(geo.PlacesDetails))
+	mux.HandleFunc("POST /v1/seller/geo/timezone", authAPI.RequireUser(geo.Timezone))
 
 	internalBilling := v1.InternalBillingAPI{
 		DB:     deps.DB,

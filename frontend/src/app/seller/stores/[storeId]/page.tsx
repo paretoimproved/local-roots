@@ -351,6 +351,8 @@ export default function SellerStorePage() {
       ? Intl.DateTimeFormat().resolvedOptions().timeZone
       : "America/Los_Angeles",
   );
+  const [locLat, setLocLat] = useState<number | null>(null);
+  const [locLng, setLocLng] = useState<number | null>(null);
 
   // Google address autocomplete (server-side proxied)
   const [addrQuery, setAddrQuery] = useState("");
@@ -659,6 +661,8 @@ export default function SellerStorePage() {
         postal_code: locPostal,
         country: locCountry,
         timezone: locTz,
+        lat: locLat,
+        lng: locLng,
       });
       setLocErrors({});
       setLocTouched({});
@@ -667,6 +671,8 @@ export default function SellerStorePage() {
       setLocRegion("");
       setLocPostal("");
       setLocCountry("US");
+      setLocLat(null);
+      setLocLng(null);
       setAddrQuery("");
       setAddrPredictions([]);
       setAddrOpen(false);
@@ -757,6 +763,19 @@ export default function SellerStorePage() {
       setLocRegion(d.region ?? "");
       setLocPostal(d.postal_code ?? "");
       setLocCountry(d.country ?? "US");
+      setLocLat(d.lat ?? null);
+      setLocLng(d.lng ?? null);
+      if (typeof d.lat === "number" && typeof d.lng === "number") {
+        // Best-effort: derive an IANA timezone from the selected address.
+        sellerApi
+          .timezoneForLatLng(token, d.lat, d.lng)
+          .then((tz) => {
+            if (tz?.time_zone_id) setLocTz(tz.time_zone_id);
+          })
+          .catch(() => {
+            // Fallback: keep current timezone (usually browser-detected).
+          });
+      }
       setAddrQuery(p.full_text || d.formatted_address || "");
       setAddrPredictions([]);
       setAddrOpen(false);

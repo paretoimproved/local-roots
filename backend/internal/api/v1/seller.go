@@ -239,14 +239,16 @@ func (a SellerAPI) ListPickupLocations(w http.ResponseWriter, r *http.Request, u
 }
 
 type createPickupLocationRequest struct {
-	Label      *string `json:"label"`
-	Address1   string  `json:"address1"`
-	Address2   *string `json:"address2"`
-	City       string  `json:"city"`
-	Region     string  `json:"region"`
-	PostalCode string  `json:"postal_code"`
-	Country    *string `json:"country"`
-	Timezone   string  `json:"timezone"`
+	Label      *string  `json:"label"`
+	Address1   string   `json:"address1"`
+	Address2   *string  `json:"address2"`
+	City       string   `json:"city"`
+	Region     string   `json:"region"`
+	PostalCode string   `json:"postal_code"`
+	Country    *string  `json:"country"`
+	Timezone   string   `json:"timezone"`
+	Lat        *float64 `json:"lat"`
+	Lng        *float64 `json:"lng"`
 }
 
 func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, u AuthUser) {
@@ -300,10 +302,10 @@ func (a SellerAPI) CreatePickupLocation(w http.ResponseWriter, r *http.Request, 
 
 	var out SellerPickupLocation
 	err = a.DB.QueryRow(r.Context(), `
-		insert into pickup_locations (store_id, label, address1, address2, city, region, postal_code, country, timezone)
-		values ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9)
+		insert into pickup_locations (store_id, label, address1, address2, city, region, postal_code, country, timezone, lat, lng)
+		values ($1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 		returning id::text, label, address1, address2, city, region, postal_code, country, timezone
-	`, storeID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, country, normalizedTZ).Scan(
+	`, storeID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, country, normalizedTZ, in.Lat, in.Lng).Scan(
 		&out.ID, &out.Label, &out.Address1, &out.Address2, &out.City, &out.Region, &out.PostalCode, &out.Country, &out.Timezone,
 	)
 	if err != nil {
