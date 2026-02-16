@@ -141,7 +141,7 @@ export default function ReviewPage() {
 
   const shareUrl =
     typeof window !== "undefined"
-      ? `${window.location.origin}/stores/${storeId}/plans`
+      ? `${window.location.origin}/stores/${storeId}/boxes`
       : "";
 
   // ── Celebration view ──

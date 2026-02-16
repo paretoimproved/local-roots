@@ -6,11 +6,7 @@ import (
 	"fmt"
 
 	stripe "github.com/stripe/stripe-go/v78"
-	"github.com/stripe/stripe-go/v78/account"
-	"github.com/stripe/stripe-go/v78/accountlink"
 	"github.com/stripe/stripe-go/v78/client"
-	"github.com/stripe/stripe-go/v78/setupintent"
-	"github.com/stripe/stripe-go/v78/transfer"
 )
 
 var ErrNotConfigured = errors.New("stripe not configured")
@@ -85,7 +81,7 @@ func (c *Client) CreateSetupIntent(ctx context.Context, customerID string, metad
 	}
 	p.Context = ctx
 
-	si, err := setupintent.New(p)
+	si, err := c.api.SetupIntents.New(p)
 	if err != nil {
 		return "", "", err
 	}
@@ -101,7 +97,7 @@ func (c *Client) RetrieveSetupIntent(ctx context.Context, setupIntentID string) 
 	}
 	p := &stripe.SetupIntentParams{}
 	p.Context = ctx
-	return setupintent.Get(setupIntentID, p)
+	return c.api.SetupIntents.Get(setupIntentID, p)
 }
 
 type CreateCheckoutPaymentIntentInput struct {
@@ -252,7 +248,7 @@ func (c *Client) CreateConnectAccount(ctx context.Context, email string) (accoun
 		},
 	}
 	p.Context = ctx
-	acct, err := account.New(p)
+	acct, err := c.api.Accounts.New(p)
 	if err != nil {
 		return "", err
 	}
@@ -270,7 +266,7 @@ func (c *Client) CreateAccountLink(ctx context.Context, accountID string, refres
 		Type:       stripe.String("account_onboarding"),
 	}
 	p.Context = ctx
-	link, err := accountlink.New(p)
+	link, err := c.api.AccountLinks.New(p)
 	if err != nil {
 		return "", err
 	}
@@ -289,7 +285,7 @@ func (c *Client) GetAccountStatus(ctx context.Context, accountID string) (*Conne
 	}
 	p := &stripe.AccountParams{}
 	p.Context = ctx
-	acct, err := account.GetByID(accountID, p)
+	acct, err := c.api.Accounts.GetByID(accountID, p)
 	if err != nil {
 		return nil, err
 	}
@@ -329,7 +325,7 @@ func (c *Client) CreateTransfer(ctx context.Context, amountCents int, connectedA
 	if idempotencyKey != "" {
 		p.SetIdempotencyKey(idempotencyKey)
 	}
-	t, err := transfer.New(p)
+	t, err := c.api.Transfers.New(p)
 	if err != nil {
 		return "", err
 	}
