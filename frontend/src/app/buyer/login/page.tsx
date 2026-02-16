@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { buyerAuthApi } from "@/lib/buyer-api";
@@ -18,17 +18,35 @@ export default function BuyerLoginPage() {
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cooldown, setCooldown] = useState(0);
+  const cooldownRef = useRef<ReturnType<typeof setInterval>>(undefined);
+
+  const startCooldown = useCallback(() => {
+    setCooldown(60);
+    clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldown((c) => {
+        if (c <= 1) {
+          clearInterval(cooldownRef.current);
+          return 0;
+        }
+        return c - 1;
+      });
+    }, 1000);
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim() || cooldown > 0) return;
     setSubmitting(true);
     setError(null);
     try {
       await buyerAuthApi.sendMagicLink(email.trim());
       setSent(true);
+      startCooldown();
     } catch (err: unknown) {
-      setError(friendlyErrorMessage(err));
+      const msg = friendlyErrorMessage(err);
+      setError(/429|rate|too many/i.test(msg) ? "Too many requests. Please wait a moment before trying again." : msg);
     } finally {
       setSubmitting(false);
     }
@@ -49,13 +67,14 @@ export default function BuyerLoginPage() {
           Don&apos;t see it? Check your spam folder, or{" "}
           <button
             type="button"
-            className="underline"
+            className="underline disabled:opacity-50"
+            disabled={cooldown > 0}
             onClick={() => {
               setSent(false);
               setError(null);
             }}
           >
-            try again
+            {cooldown > 0 ? `try again in ${cooldown}s` : "try again"}
           </button>
           .
         </p>
@@ -95,9 +114,9 @@ export default function BuyerLoginPage() {
         <button
           type="submit"
           className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold disabled:opacity-50"
-          disabled={submitting || !email.trim()}
+          disabled={submitting || !email.trim() || cooldown > 0}
         >
-          {submitting ? "Sending..." : "Send sign-in link"}
+          {submitting ? "Sending..." : cooldown > 0 ? `Wait ${cooldown}s` : "Send sign-in link"}
         </button>
       </form>
     </section>
