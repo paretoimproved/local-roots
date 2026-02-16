@@ -10,6 +10,7 @@ import { PickupCodeCard } from "@/components/pickup-code-card";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { AuthorizeCard, isStripeAvailable } from "@/components/stripe-card-auth";
+import { ErrorAlert } from "@/components/error-alert";
 
 function cadenceLabel(c: string) {
   if (c === "weekly") return "Weekly";
@@ -235,11 +236,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         </div>
       </div>
 
-      {error ? (
-        <div className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorAlert error={error} className="mt-4" /> : null}
 
       {!plan.is_live ? (
         <div className="mt-4 rounded-xl bg-amber-50/70 p-4 text-sm text-amber-900 ring-1 ring-amber-200">

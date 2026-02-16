@@ -10,6 +10,7 @@ import {
   type BuyerSubscriptionSummary,
 } from "@/lib/buyer-api";
 import { buyerSession } from "@/lib/session";
+import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
 import { formatMoney } from "@/lib/ui";
 
@@ -102,20 +103,14 @@ export default function BuyerDashboardPage() {
   if (error) {
     return (
       <section className="lr-card lr-card-strong p-6">
-        <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          <p>{error}</p>
-          <button
-            type="button"
-            className="mt-2 text-sm font-medium underline"
-            onClick={() => {
-              setError(null);
-              setLoading(true);
-              load();
-            }}
-          >
-            Try again
-          </button>
-        </div>
+        <ErrorAlert
+          error={error}
+          onRetry={() => {
+            setError(null);
+            setLoading(true);
+            load();
+          }}
+        />
       </section>
     );
   }

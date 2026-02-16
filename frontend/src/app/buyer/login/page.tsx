@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { buyerAuthApi } from "@/lib/buyer-api";
+import { ErrorAlert } from "@/components/error-alert";
 import { friendlyErrorMessage } from "@/lib/ui";
 
 export default function BuyerLoginPage() {
@@ -63,11 +64,7 @@ export default function BuyerLoginPage() {
         Enter your email and we&apos;ll send you a sign-in link. No password needed.
       </p>
 
-      {error ? (
-        <div className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorAlert error={error} className="mt-4" /> : null}
 
       <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
         <label className="grid gap-1">

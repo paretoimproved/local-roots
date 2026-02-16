@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { buyerApi, type BuyerSubscription } from "@/lib/buyer-api";
 import { subscriptionToken } from "@/lib/subscription-token";
+import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
@@ -46,11 +47,7 @@ function UpdateCardInner({
 
   return (
     <div className="grid gap-3">
-      {error ? (
-        <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorAlert error={error} /> : null}
       <div className="rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
         <PaymentElement />
       </div>
@@ -224,20 +221,14 @@ export default function SubscriptionPage() {
       </div>
 
       {error ? (
-        <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          <p>
-            {/not found/i.test(error)
+        <ErrorAlert
+          error={
+            /not found/i.test(error)
               ? "We couldn\u2019t find this subscription. Please check your link and try again."
-              : error}
-          </p>
-          <button
-            type="button"
-            className="mt-2 text-sm font-medium underline"
-            onClick={load}
-          >
-            Try again
-          </button>
-        </div>
+              : error
+          }
+          onRetry={load}
+        />
       ) : null}
 
       {loading && !sub ? (

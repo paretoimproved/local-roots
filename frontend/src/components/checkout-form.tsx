@@ -7,6 +7,7 @@ import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
 import { AuthorizeCard, isStripeAvailable } from "@/components/stripe-card-auth";
 import { useToast } from "@/components/toast";
+import { ErrorAlert } from "@/components/error-alert";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 export function CheckoutForm({
@@ -233,11 +234,7 @@ export function CheckoutForm({
         Select quantities, then place an order for local pickup.
       </p>
 
-      {error ? (
-        <div className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorAlert error={error} className="mt-4" /> : null}
 
       <div className="mt-4 grid gap-3">
         {offerings.map((o) => {

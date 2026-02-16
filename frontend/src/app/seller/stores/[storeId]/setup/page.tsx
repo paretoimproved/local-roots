@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { sellerApi } from "@/lib/seller-api";
 import { session } from "@/lib/session";
+import { ErrorAlert } from "@/components/error-alert";
 
 export default function SetupRouter() {
   const router = useRouter();
@@ -58,11 +59,7 @@ export default function SetupRouter() {
   }, [params.storeId, router]);
 
   if (error) {
-    return (
-      <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-        {error}
-      </div>
-    );
+    return <ErrorAlert error={error} />;
   }
 
   return (

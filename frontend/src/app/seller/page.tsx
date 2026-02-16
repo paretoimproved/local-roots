@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { sellerApi, type SellerStore } from "@/lib/seller-api";
 import { session } from "@/lib/session";
+import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
 import { friendlyErrorMessage } from "@/lib/ui";
 
@@ -88,11 +89,7 @@ export default function SellerHome() {
         </button>
       </div>
 
-      {error ? (
-        <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorAlert error={error} /> : null}
 
       <section className="lr-card lr-card-strong p-6">
         <div className="flex items-baseline justify-between gap-6">

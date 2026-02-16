@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { buyerAuthApi } from "@/lib/buyer-api";
 import { buyerSession } from "@/lib/session";
+import { ErrorAlert } from "@/components/error-alert";
 import { friendlyErrorMessage } from "@/lib/ui";
 
 function VerifyInner() {
@@ -49,11 +50,7 @@ function VerifyInner() {
       <h1 className="text-lg font-semibold text-[color:var(--lr-ink)]">
         Sign-in failed
       </h1>
-      {error ? (
-        <div className="mt-4 rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          {error}
-        </div>
-      ) : null}
+      {error ? <ErrorAlert error={error} className="mt-4" /> : null}
       <div className="mt-4">
         <Link
           className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"

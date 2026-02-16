@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { buyerApi, type GetOrderResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
+import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
@@ -100,18 +101,7 @@ export default function OrderPage() {
         </p>
       </div>
 
-      {error ? (
-        <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          <p>{error}</p>
-          <button
-            type="button"
-            className="mt-2 text-sm font-medium underline"
-            onClick={load}
-          >
-            Try again
-          </button>
-        </div>
-      ) : null}
+      {error ? <ErrorAlert error={error} onRetry={load} /> : null}
 
       {loading && !data ? (
         <section className="lr-card lr-card-strong p-6 text-center">
