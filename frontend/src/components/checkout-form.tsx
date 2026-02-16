@@ -246,7 +246,7 @@ export function CheckoutForm({
           return (
             <div
               key={o.id}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/60 px-4 py-3 ring-1 ring-[color:var(--lr-border)]"
+              className={`flex flex-wrap items-center justify-between gap-3 rounded-xl px-4 py-3 ring-1 ring-[color:var(--lr-border)] ${remaining === 0 ? "bg-white/30 opacity-60" : "bg-white/60"}`}
             >
               <div>
                 <div className="font-medium text-[color:var(--lr-ink)]">
@@ -262,11 +262,11 @@ export function CheckoutForm({
                 min={0}
                 max={remaining}
                 value={cur}
-                disabled={formLocked}
+                disabled={formLocked || remaining === 0}
                 onChange={(e) =>
                   setQty((prev) => ({
                     ...prev,
-                    [o.id]: Math.max(0, Math.min(remaining, Number(e.target.value))),
+                    [o.id]: Math.max(0, Math.min(remaining, Number(e.target.value) || 0)),
                   }))
                 }
               />
@@ -316,9 +316,11 @@ export function CheckoutForm({
             </span>
             <input
               className="lr-field px-3 py-2 text-sm"
+              type="tel"
               value={buyerPhone}
               onChange={(e) => setBuyerPhone(e.target.value)}
               disabled={formLocked}
+              placeholder="(555) 555-1234"
             />
           </label>
         </div>

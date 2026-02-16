@@ -151,6 +151,7 @@ export default function BoxPage() {
           cutoff_hours: 24,
         });
       }
+      showToast({ kind: "success", message: "Box saved." });
       router.push(`/seller/stores/${storeId}/setup/review`);
     } catch (e: unknown) {
       showToast({ kind: "error", message: friendlyErrorMessage(e) });

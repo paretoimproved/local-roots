@@ -106,6 +106,7 @@ export default function ReviewPage() {
     setLaunching(true);
     try {
       await sellerApi.generateNextCycle(token, storeId, plan.id);
+      showToast({ kind: "success", message: "You're live!" });
       setLaunched(true);
     } catch (e: unknown) {
       showToast({ kind: "error", message: friendlyErrorMessage(e) });

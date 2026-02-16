@@ -160,6 +160,7 @@ export default function SetupLocationPage() {
         await sellerApi.createPickupLocation(token, params.storeId, input);
       }
 
+      showToast({ kind: "success", message: "Location saved." });
       router.push(`/seller/stores/${params.storeId}/setup/box`);
     } catch (e: unknown) {
       showToast({ kind: "error", message: friendlyErrorMessage(e) });

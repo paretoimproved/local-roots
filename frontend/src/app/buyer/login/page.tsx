@@ -81,6 +81,7 @@ export default function BuyerLoginPage() {
             onChange={(e) => setEmail(e.target.value)}
             required
             autoFocus
+            disabled={submitting}
           />
         </label>
         <button

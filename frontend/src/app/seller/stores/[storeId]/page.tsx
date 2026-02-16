@@ -64,6 +64,8 @@ export default function SellerStorePage() {
   >({});
   const [scanOrderId, setScanOrderId] = useState<string | null>(null);
   const [generatingCycle, setGeneratingCycle] = useState(false);
+  const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [togglingPlan, setTogglingPlan] = useState(false);
 
   const selectedWindow = useMemo(() => {
     if (!selectedWindowId) return null;
@@ -241,6 +243,7 @@ export default function SellerStorePage() {
         : "Resume this box? It will be visible to buyers again.",
     );
     if (!ok) return;
+    setTogglingPlan(true);
     setError(null);
     try {
       await sellerApi.updateSubscriptionPlan(token, storeId, planId, {
@@ -254,6 +257,8 @@ export default function SellerStorePage() {
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
       showToast({ kind: "error", message: `Could not ${action} box.` });
+    } finally {
+      setTogglingPlan(false);
     }
   }
 
@@ -263,20 +268,21 @@ export default function SellerStorePage() {
     opts?: { waive_fee?: boolean },
   ) {
     if (!token || !selectedWindowId) return;
+    if (status === "canceled") {
+      const ok = window.confirm(
+        "Cancel this order? This will release reserved inventory.",
+      );
+      if (!ok) return;
+    }
+    if (status === "no_show") {
+      const ok = window.confirm(
+        "Mark as no-show? This will release reserved inventory.",
+      );
+      if (!ok) return;
+    }
+    setBusyOrderId(orderId);
     setError(null);
     try {
-      if (status === "canceled") {
-        const ok = window.confirm(
-          "Cancel this order? This will release reserved inventory.",
-        );
-        if (!ok) return;
-      }
-      if (status === "no_show") {
-        const ok = window.confirm(
-          "Mark as no-show? This will release reserved inventory.",
-        );
-        if (!ok) return;
-      }
       await sellerApi.updateOrderStatus(token, storeId, orderId, status, opts);
       // Refresh both orders and offerings since inventory may have changed.
       const [os, ofs] = await Promise.all([
@@ -285,8 +291,16 @@ export default function SellerStorePage() {
       ]);
       setOrders(os);
       setOfferings(ofs);
+      const labels: Record<string, string> = {
+        ready: "Order marked ready.",
+        canceled: "Order canceled.",
+        no_show: "Marked as no-show.",
+      };
+      showToast({ kind: "success", message: labels[status] ?? "Order updated." });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
+    } finally {
+      setBusyOrderId(null);
     }
   }
 
@@ -297,6 +311,7 @@ export default function SellerStorePage() {
       setError("Pickup code must be 6 digits.");
       return;
     }
+    setBusyOrderId(orderId);
     setError(null);
     try {
       await sellerApi.confirmPickup(token, storeId, orderId, code);
@@ -312,8 +327,11 @@ export default function SellerStorePage() {
         delete next[orderId];
         return next;
       });
+      showToast({ kind: "success", message: "Pickup confirmed." });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
+    } finally {
+      setBusyOrderId(null);
     }
   }
 
@@ -543,14 +561,19 @@ export default function SellerStorePage() {
                         </button>
                         <button
                           type="button"
-                          className={`lr-btn lr-chip px-3 py-2 text-sm font-semibold ${
+                          className={`lr-btn lr-chip px-3 py-2 text-sm font-semibold disabled:opacity-50 ${
                             p.is_active
                               ? "text-[color:var(--lr-clay)]"
                               : "text-[color:var(--lr-leaf)]"
                           }`}
                           onClick={() => togglePlanActive(p.id, p.is_active)}
+                          disabled={togglingPlan}
                         >
-                          {p.is_active ? "Pause box" : "Resume box"}
+                          {togglingPlan
+                            ? "Updating…"
+                            : p.is_active
+                              ? "Pause box"
+                              : "Resume box"}
                         </button>
                       </div>
                     </div>
@@ -770,15 +793,17 @@ export default function SellerStorePage() {
                       <>
                         <button
                           type="button"
-                          className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
+                          className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
                           onClick={() => setOrderStatus(o.id, "ready")}
+                          disabled={busyOrderId === o.id}
                         >
-                          Mark ready
+                          {busyOrderId === o.id ? "Updating…" : "Mark ready"}
                         </button>
                         <button
                           type="button"
-                          className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-rose-900"
+                          className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-rose-900 disabled:opacity-50"
                           onClick={() => setOrderStatus(o.id, "canceled")}
+                          disabled={busyOrderId === o.id}
                         >
                           Cancel
                         </button>
@@ -795,12 +820,14 @@ export default function SellerStorePage() {
                             <input
                               className="lr-field w-40 px-3 py-2 text-sm font-mono tracking-widest"
                               inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={6}
                               placeholder="123456"
                               value={pickupCodeByOrderId[o.id] ?? ""}
                               onChange={(e) =>
                                 setPickupCodeByOrderId((prev) => ({
                                   ...prev,
-                                  [o.id]: e.target.value,
+                                  [o.id]: e.target.value.replace(/\D/g, "").slice(0, 6),
                                 }))
                               }
                             />
@@ -808,15 +835,17 @@ export default function SellerStorePage() {
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
+                              className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
                               onClick={() => confirmPickup(o.id)}
+                              disabled={busyOrderId === o.id}
                             >
-                              Confirm pickup
+                              {busyOrderId === o.id ? "Confirming…" : "Confirm pickup"}
                             </button>
                             <button
                               type="button"
                               className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
                               onClick={() => setScanOrderId(o.id)}
+                              disabled={busyOrderId === o.id}
                             >
                               Scan QR
                             </button>
@@ -825,22 +854,24 @@ export default function SellerStorePage() {
                         <div className="grid content-start gap-2">
                           <button
                             type="button"
-                            className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-clay)]"
+                            className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-clay)] disabled:opacity-50"
                             onClick={() =>
                               setOrderStatus(o.id, "no_show", {
                                 waive_fee: false,
                               })
                             }
+                            disabled={busyOrderId === o.id}
                             title="Capture a small no-show fee (default $5) when authorized."
                           >
                             No show (charge fee)
                           </button>
                           <button
                             type="button"
-                            className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-muted)]"
+                            className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-muted)] disabled:opacity-50"
                             onClick={() =>
                               setOrderStatus(o.id, "no_show", { waive_fee: true })
                             }
+                            disabled={busyOrderId === o.id}
                             title="Void the authorization (waive fee)."
                           >
                             No show (waive)

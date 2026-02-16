@@ -280,9 +280,11 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             </span>
             <input
               className="lr-field px-3 py-2 text-sm"
+              type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               disabled={formLocked}
+              placeholder="(555) 555-1234"
             />
           </label>
         </div>
