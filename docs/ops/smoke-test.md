@@ -341,6 +341,93 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 
 ---
 
+## 12. P0 Money-Safety Verification
+
+These tests verify the 6 critical payment-safety fixes. Run after any change to checkout-form, subscribe-form, or stripe-card-auth.
+
+**Prerequisite:** A live store with Stripe Connect active, at least one subscription plan with a generated cycle, and offerings in a pickup window.
+
+### 12a. Double-click prevention — one-time checkout
+
+1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
+2. Set quantity for an item, fill **Email**, select **"Pay with card"**.
+3. **Rapidly double-click** the **"Continue to payment"** button.
+4. **Expected:** Only ONE Stripe PaymentElement iframe appears. No duplicate intents. Check the Stripe Dashboard → Payments — only one `requires_capture` PaymentIntent should exist for this amount.
+
+### 12b. Double-click prevention — subscription
+
+1. Go to `FRONTEND/boxes/{planId}` (live plan).
+2. Fill **Email**, then **rapidly double-click** **"Start subscription"**.
+3. **Expected:** Only ONE Stripe element loads. Stripe Dashboard shows only one intent.
+
+### 12c. Form locking after checkout — one-time
+
+1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
+2. Set quantity `2` for an item, fill **Email**, select **"Pay with card"**.
+3. Click **"Continue to payment"**.
+4. **Expected:** After Stripe element loads:
+   - Quantity input is **disabled** (cannot change).
+   - Email, Name, Phone fields are **disabled**.
+   - Payment method radio buttons are **disabled** (cannot switch to "Pay at pickup").
+5. Attempt to click the "Pay at pickup" radio — it should NOT switch.
+
+### 12d. Form locking after checkout — subscription
+
+1. Go to `FRONTEND/boxes/{planId}`, fill **Email**, click **"Start subscription"**.
+2. **Expected:** After Stripe element loads:
+   - Email, Name, Phone fields are **disabled**.
+   - **"Start subscription"** button is **disabled** and reads **"Continue below…"**.
+
+### 12e. Snapshot prevents quantity mismatch (one-time checkout)
+
+1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
+2. Set quantity `3` for an item, fill **Email**, select **"Pay with card"**.
+3. Click **"Continue to payment"** — Stripe element loads.
+4. Open browser DevTools → Console, run: `document.querySelector('input[type="number"]').removeAttribute('disabled')`
+5. Change the quantity field to `5` manually.
+6. Fill card `4242 4242 4242 4242`, `12/30`, `123`, click **"Authorize card"**.
+7. **Expected:** Order is placed with quantity **3** (the snapshotted value), NOT 5. Verify on the order page or Stripe Dashboard that the captured amount matches 3× the item price.
+
+### 12f. Ad-blocker guard — Stripe unavailable
+
+1. Install an ad-blocker extension (e.g. uBlock Origin) and add `js.stripe.com` to the block list, OR set `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` to an empty string.
+2. Reload `FRONTEND/pickup-windows/{pickupWindowId}`.
+3. Set quantity, fill **Email**, select **"Pay with card"**.
+4. Click **"Continue to payment"**.
+5. **Expected:** A rose/pink error banner appears: **"Payment system could not load. Please disable ad blockers and refresh."** No network request to create a PaymentIntent was made.
+6. Repeat on `FRONTEND/boxes/{planId}` → click **"Start subscription"**.
+7. **Expected:** Same error message. No intent created.
+8. **Cleanup:** Remove the ad-blocker rule / restore the env var.
+
+### 12g. Error message preserved on backend failure
+
+1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
+2. Set quantity, fill **Email**, select **"Pay with card"**, click **"Continue to payment"**.
+3. Fill card `4242 4242 4242 4242`, `12/30`, `123`.
+4. **Before clicking "Authorize card"**, stop the backend (kill the Go server or block the API URL).
+5. Click **"Authorize card"**.
+6. **Expected:** A rose/pink error banner appears with the **detailed** message: **"Your card was authorized, but we couldn't place your order. Please tap "Authorize card" again to retry. If the problem persists, contact support — your card will not be charged."**
+7. Verify the message is NOT overwritten by a generic "Something went wrong" message.
+8. **Restart the backend**, then click **"Authorize card"** again.
+9. **Expected:** Order is placed successfully (retry works with same authorization).
+
+### 12h. Retry after backend failure — subscription
+
+1. Go to `FRONTEND/boxes/{planId}`, fill **Email**, click **"Start subscription"**.
+2. Fill card details, stop backend, click **"Authorize card"**.
+3. **Expected:** Detailed error: **"Your card was authorized, but we couldn't create your subscription. Please tap "Authorize card" again to retry…"**
+4. Restart backend, click **"Authorize card"** again.
+5. **Expected:** Subscription created successfully.
+
+### 12i. Cannot switch payment method after intent
+
+1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
+2. Set quantity, fill **Email**, select **"Pay with card"**, click **"Continue to payment"**.
+3. Stripe element loads. Try clicking the **"Pay at pickup"** radio button.
+4. **Expected:** Radio does NOT switch. Payment method stays on "Card". The already-created PaymentIntent is not orphaned.
+
+---
+
 ## Failure Modes
 
 - **Backend returns 502:** Check Railway logs for migration failures and missing env vars.
