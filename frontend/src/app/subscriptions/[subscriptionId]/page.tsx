@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { buyerApi, type BuyerSubscription } from "@/lib/buyer-api";
 import { subscriptionToken } from "@/lib/subscription-token";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
@@ -110,6 +111,7 @@ export default function SubscriptionPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [setupSecret, setSetupSecret] = useState<string | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     const saved = subscriptionToken.get(subscriptionId);
@@ -327,10 +329,7 @@ export default function SubscriptionPage() {
                 className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)] disabled:opacity-50"
                 type="button"
                 disabled={submitting}
-                onClick={() => {
-                  const ok = window.confirm("Cancel this subscription? You can re-subscribe later.");
-                  if (ok) void setStatus("canceled");
-                }}
+                onClick={() => setShowCancelConfirm(true)}
               >
                 Cancel
               </button>
@@ -370,6 +369,18 @@ export default function SubscriptionPage() {
           </div>
         </section>
       ) : null}
+      <ConfirmDialog
+        open={showCancelConfirm}
+        title="Cancel subscription?"
+        message="You can re-subscribe later."
+        confirmLabel="Cancel subscription"
+        destructive
+        onConfirm={() => {
+          setShowCancelConfirm(false);
+          void setStatus("canceled");
+        }}
+        onCancel={() => setShowCancelConfirm(false)}
+      />
     </div>
   );
 }

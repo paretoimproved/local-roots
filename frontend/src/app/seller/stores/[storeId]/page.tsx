@@ -19,6 +19,7 @@ import { QrCode } from "@/components/qr-code";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { StatusPill, PaymentPill } from "@/components/seller/status-pills";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 type OrderFilter =
   | "all"
@@ -69,6 +70,13 @@ export default function SellerStorePage() {
   const [generatingCycle, setGeneratingCycle] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [togglingPlan, setTogglingPlan] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    message: string;
+    confirmLabel: string;
+    destructive: boolean;
+    action: () => void;
+  } | null>(null);
 
   const selectedWindow = useMemo(() => {
     if (!selectedWindowId) return null;
@@ -237,32 +245,36 @@ export default function SellerStorePage() {
     }
   }
 
-  async function togglePlanActive(planId: string, currentlyActive: boolean) {
+  function togglePlanActive(planId: string, currentlyActive: boolean) {
     if (!token) return;
     const action = currentlyActive ? "pause" : "resume";
-    const ok = window.confirm(
-      currentlyActive
-        ? "Pause this box? It will stop appearing for new buyers."
-        : "Resume this box? It will be visible to buyers again.",
-    );
-    if (!ok) return;
-    setTogglingPlan(true);
-    setError(null);
-    try {
-      await sellerApi.updateSubscriptionPlan(token, storeId, planId, {
-        is_active: !currentlyActive,
-      });
-      await refreshAll(token);
-      showToast({
-        kind: "success",
-        message: action === "pause" ? "Box paused." : "Box resumed.",
-      });
-    } catch (e: unknown) {
-      setError(friendlyErrorMessage(e));
-      showToast({ kind: "error", message: `Could not ${action} box.` });
-    } finally {
-      setTogglingPlan(false);
-    }
+    setConfirmAction({
+      title: currentlyActive ? "Pause box?" : "Resume box?",
+      message: currentlyActive
+        ? "It will stop appearing for new buyers."
+        : "It will be visible to buyers again.",
+      confirmLabel: currentlyActive ? "Pause" : "Resume",
+      destructive: currentlyActive,
+      action: async () => {
+        setTogglingPlan(true);
+        setError(null);
+        try {
+          await sellerApi.updateSubscriptionPlan(token, storeId, planId, {
+            is_active: !currentlyActive,
+          });
+          await refreshAll(token);
+          showToast({
+            kind: "success",
+            message: action === "pause" ? "Box paused." : "Box resumed.",
+          });
+        } catch (e: unknown) {
+          setError(friendlyErrorMessage(e));
+          showToast({ kind: "error", message: `Could not ${action} box.` });
+        } finally {
+          setTogglingPlan(false);
+        }
+      },
+    });
   }
 
   async function setOrderStatus(
@@ -272,17 +284,34 @@ export default function SellerStorePage() {
   ) {
     if (!token || !selectedWindowId) return;
     if (status === "canceled") {
-      const ok = window.confirm(
-        "Cancel this order? This will release reserved inventory.",
-      );
-      if (!ok) return;
+      setConfirmAction({
+        title: "Cancel order?",
+        message: "This will release reserved inventory.",
+        confirmLabel: "Cancel order",
+        destructive: true,
+        action: () => executeOrderStatus(orderId, status, opts),
+      });
+      return;
     }
     if (status === "no_show") {
-      const ok = window.confirm(
-        "Mark as no-show? This will release reserved inventory.",
-      );
-      if (!ok) return;
+      setConfirmAction({
+        title: "Mark as no-show?",
+        message: "This will release reserved inventory.",
+        confirmLabel: "Mark no-show",
+        destructive: true,
+        action: () => executeOrderStatus(orderId, status, opts),
+      });
+      return;
     }
+    executeOrderStatus(orderId, status, opts);
+  }
+
+  async function executeOrderStatus(
+    orderId: string,
+    status: "ready" | "canceled" | "no_show",
+    opts?: { waive_fee?: boolean },
+  ) {
+    if (!token || !selectedWindowId) return;
     setBusyOrderId(orderId);
     setError(null);
     try {
@@ -923,6 +952,18 @@ export default function SellerStorePage() {
           if (!target) return;
           setPickupCodeByOrderId((prev) => ({ ...prev, [target]: m[1] ?? "" }));
         }}
+      />
+      <ConfirmDialog
+        open={confirmAction !== null}
+        title={confirmAction?.title ?? ""}
+        message={confirmAction?.message ?? ""}
+        confirmLabel={confirmAction?.confirmLabel ?? "Confirm"}
+        destructive={confirmAction?.destructive ?? false}
+        onConfirm={() => {
+          confirmAction?.action();
+          setConfirmAction(null);
+        }}
+        onCancel={() => setConfirmAction(null)}
       />
     </div>
   );

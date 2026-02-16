@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useToast } from "@/components/toast";
 
 function chunk(code: string) {
@@ -31,6 +31,8 @@ export function PickupCodeCard({
   status: string;
 }) {
   const { showToast } = useToast();
+  const [copied, setCopied] = useState(false);
+  const copyTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const payload = useMemo(
     () =>
       makePayload({
@@ -102,6 +104,9 @@ export function PickupCodeCard({
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(pickupCode);
+                  setCopied(true);
+                  clearTimeout(copyTimer.current);
+                  copyTimer.current = setTimeout(() => setCopied(false), 1400);
                   showToast({ kind: "success", message: "Pickup code copied." });
                 } catch {
                   showToast({
@@ -112,7 +117,7 @@ export function PickupCodeCard({
               }}
               title="Copy pickup code"
             >
-              Copy
+              {copied ? "Copied!" : "Copy"}
             </button>
           </div>
 

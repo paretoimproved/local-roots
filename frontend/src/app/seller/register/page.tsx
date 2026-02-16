@@ -11,6 +11,9 @@ import { friendlyErrorMessage } from "@/lib/ui";
 export default function SellerRegisterPage() {
   const router = useRouter();
   useEffect(() => { document.title = "Create account — LocalRoots"; }, []);
+  useEffect(() => {
+    if (session.getToken()) router.replace("/seller");
+  }, [router]);
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -1,12 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { buyerAuthApi } from "@/lib/buyer-api";
+import { buyerSession } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { friendlyErrorMessage } from "@/lib/ui";
 
 export default function BuyerLoginPage() {
+  const router = useRouter();
   useEffect(() => { document.title = "Sign in — LocalRoots"; }, []);
+  useEffect(() => {
+    if (buyerSession.getToken()) router.replace("/buyer");
+  }, [router]);
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -51,6 +58,9 @@ export default function BuyerLoginPage() {
             try again
           </button>
           .
+        </p>
+        <p className="mt-4 text-sm text-[color:var(--lr-muted)]">
+          <Link className="underline" href="/stores">Browse stores</Link>
         </p>
       </section>
     );

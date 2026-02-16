@@ -11,6 +11,9 @@ import { friendlyErrorMessage } from "@/lib/ui";
 export default function SellerLoginPage() {
   const router = useRouter();
   useEffect(() => { document.title = "Sign in — LocalRoots"; }, []);
+  useEffect(() => {
+    if (session.getToken()) router.replace("/seller");
+  }, [router]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
