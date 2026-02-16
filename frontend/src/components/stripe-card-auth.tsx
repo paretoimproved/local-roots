@@ -64,7 +64,13 @@ function AuthorizeCardInner({
       }
       await onAuthorized();
     } catch (e: unknown) {
-      setError(friendlyErrorMessage(e));
+      // Only set a generic error if onAuthorized didn't already set a
+      // more specific one (e.g. "card authorized but order failed").
+      if (e instanceof Error && e.message === "__handled__") {
+        // Parent already called setError with a detailed message — skip.
+      } else {
+        setError(friendlyErrorMessage(e));
+      }
     } finally {
       setSubmitting(false);
     }

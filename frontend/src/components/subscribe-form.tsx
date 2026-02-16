@@ -107,7 +107,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
       setDone(res);
       setCheckout(null);
       showToast({ kind: "success", message: "Subscription started." });
-    } catch (e: unknown) {
+    } catch {
       // Card is already authorized — keep checkout state so user can retry
       // without re-authorizing their card.
       setError(
@@ -115,7 +115,9 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         "Please tap \u201cAuthorize card\u201d again to retry. " +
         "If the problem persists, contact support \u2014 your card will not be charged.",
       );
-      throw e; // Re-throw so AuthorizeCard's catch also fires setSubmitting(false)
+      // Re-throw with sentinel so AuthorizeCard resets submitting without
+      // overwriting our detailed error message.
+      throw new Error("__handled__");
     }
   }
 
