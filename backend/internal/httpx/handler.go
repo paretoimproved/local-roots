@@ -85,6 +85,9 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/auth/register", WithRateLimit("auth", authAPI.Register))
 	mux.HandleFunc("POST /v1/auth/login", WithRateLimit("auth", authAPI.Login))
 
+	oauthAPI := v1.OAuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret, GoogleOAuthClientID: deps.Config.GoogleOAuthClientID}
+	mux.HandleFunc("POST /v1/auth/google", WithRateLimit("auth", oauthAPI.GoogleLogin))
+
 	buyerAuthAPI := v1.BuyerAuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
 	mux.HandleFunc("POST /v1/buyer/auth/magic-link", WithRateLimit("auth", buyerAuthAPI.SendMagicLink))
 	mux.HandleFunc("POST /v1/buyer/auth/verify", WithRateLimit("auth", buyerAuthAPI.Verify))

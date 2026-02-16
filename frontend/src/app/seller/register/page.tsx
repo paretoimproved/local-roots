@@ -7,6 +7,8 @@ import { sellerApi } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { friendlyErrorMessage } from "@/lib/ui";
+import { GoogleSignInButton } from "@/components/google-sign-in";
+import { oauthApi } from "@/lib/oauth-api";
 
 export default function SellerRegisterPage() {
   const router = useRouter();
@@ -39,6 +41,20 @@ export default function SellerRegisterPage() {
     }
   }
 
+  async function handleGoogleCredential(idToken: string) {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await oauthApi.googleLogin(idToken, "seller");
+      session.setToken(res.token);
+      router.replace("/seller");
+    } catch (err: unknown) {
+      setError(friendlyErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-md">
       <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
@@ -54,60 +70,74 @@ export default function SellerRegisterPage() {
 
       {error ? <ErrorAlert error={error} className="mt-4" /> : null}
 
-      <form
-        onSubmit={onSubmit}
-        className="lr-card lr-card-strong mt-6 p-6"
-      >
-        <label className="grid gap-1">
-          <span className="text-sm font-medium text-[color:var(--lr-muted)]">
-            Display name
-          </span>
-          <input
-            className="lr-field px-3 py-2 text-sm"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            autoComplete="name"
-            placeholder="Optional"
-          />
-        </label>
-        <label className="mt-3 grid gap-1">
-          <span className="text-sm font-medium text-[color:var(--lr-muted)]">
-            Email
-          </span>
-          <input
-            className="lr-field px-3 py-2 text-sm"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            type="email"
-            autoComplete="email"
-            required
-          />
-        </label>
-        <label className="mt-3 grid gap-1">
-          <span className="text-sm font-medium text-[color:var(--lr-muted)]">
-            Password
-          </span>
-          <input
-            className="lr-field px-3 py-2 text-sm"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type="password"
-            autoComplete="new-password"
-            required
-            minLength={8}
-          />
-          <span className="text-xs text-[color:var(--lr-muted)]">
-            Minimum 8 characters.
-          </span>
-        </label>
-        <button
-          className="lr-btn lr-btn-primary mt-5 inline-flex w-full items-center justify-center px-5 py-2 text-sm font-medium disabled:opacity-50"
+      <div className="mt-6 grid gap-4">
+        <GoogleSignInButton
+          onCredential={handleGoogleCredential}
+          text="signup_with"
           disabled={submitting}
-          type="submit"
+        />
+
+        <div className="flex items-center gap-3">
+          <div className="h-px flex-1 bg-[color:var(--lr-border)]" />
+          <span className="text-xs text-[color:var(--lr-muted)]">or</span>
+          <div className="h-px flex-1 bg-[color:var(--lr-border)]" />
+        </div>
+
+        <form
+          onSubmit={onSubmit}
+          className="lr-card lr-card-strong p-6"
         >
-          {submitting ? "Creating…" : "Create account"}
-        </button>
-      </form>
+          <label className="grid gap-1">
+            <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+              Display name
+            </span>
+            <input
+              className="lr-field px-3 py-2 text-sm"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              autoComplete="name"
+              placeholder="Optional"
+            />
+          </label>
+          <label className="mt-3 grid gap-1">
+            <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+              Email
+            </span>
+            <input
+              className="lr-field px-3 py-2 text-sm"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              type="email"
+              autoComplete="email"
+              required
+            />
+          </label>
+          <label className="mt-3 grid gap-1">
+            <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+              Password
+            </span>
+            <input
+              className="lr-field px-3 py-2 text-sm"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+            />
+            <span className="text-xs text-[color:var(--lr-muted)]">
+              Minimum 8 characters.
+            </span>
+          </label>
+          <button
+            className="lr-btn lr-btn-primary mt-5 inline-flex w-full items-center justify-center px-5 py-2 text-sm font-medium disabled:opacity-50"
+            disabled={submitting}
+            type="submit"
+          >
+            {submitting ? "Creating…" : "Create account"}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

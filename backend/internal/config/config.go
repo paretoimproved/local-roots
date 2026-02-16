@@ -22,6 +22,7 @@ type Config struct {
 	ResendAPIKey        string
 	EmailFrom           string
 	NoShowPlatformSplitBps int
+	GoogleOAuthClientID    string
 }
 
 func FromEnv() Config {
@@ -79,6 +80,8 @@ func FromEnv() Config {
 		}
 	}
 
+	googleOAuthClientID := os.Getenv("GOOGLE_OAUTH_CLIENT_ID")
+
 	return Config{
 		Addr:                addr,
 		Env:                 env,
@@ -96,5 +99,6 @@ func FromEnv() Config {
 		ResendAPIKey:          resendAPIKey,
 		EmailFrom:             emailFrom,
 		NoShowPlatformSplitBps: noShowPlatformSplitBps,
+		GoogleOAuthClientID:    googleOAuthClientID,
 	}
 }

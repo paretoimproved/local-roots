@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { buyerAuthApi } from "@/lib/buyer-api";
-import { buyerSession } from "@/lib/session";
+import { buyerSession, session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { friendlyErrorMessage } from "@/lib/ui";
+import { GoogleSignInButton } from "@/components/google-sign-in";
+import { oauthApi } from "@/lib/oauth-api";
 
 export default function BuyerLoginPage() {
   const router = useRouter();
@@ -34,6 +36,26 @@ export default function BuyerLoginPage() {
       });
     }, 1000);
   }, []);
+
+  async function handleGoogleCredential(idToken: string) {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await oauthApi.googleLogin(idToken, "buyer");
+      if (res.user.role === "seller") {
+        // Existing seller signing in via buyer page — redirect to seller dashboard.
+        session.setToken(res.token);
+        router.replace("/seller");
+      } else {
+        buyerSession.setToken(res.token);
+        router.replace("/buyer");
+      }
+    } catch (err: unknown) {
+      setError(friendlyErrorMessage(err));
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -86,39 +108,56 @@ export default function BuyerLoginPage() {
   }
 
   return (
-    <section className="lr-card lr-card-strong mx-auto max-w-md p-6">
-      <h1 className="text-lg font-semibold text-[color:var(--lr-ink)]">
-        Sign in
-      </h1>
-      <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-        Enter your email and we&apos;ll send you a sign-in link. No password needed.
-      </p>
+    <section className="mx-auto max-w-md">
+      <div className="lr-card lr-card-strong p-6">
+        <h1 className="text-lg font-semibold text-[color:var(--lr-ink)]">
+          Sign in
+        </h1>
 
-      {error ? <ErrorAlert error={error} className="mt-4" /> : null}
+        {error ? <ErrorAlert error={error} className="mt-4" /> : null}
 
-      <form onSubmit={handleSubmit} className="mt-4 grid gap-3">
-        <label className="grid gap-1">
-          <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
-            Email
-          </span>
-          <input
-            className="lr-field px-3 py-2 text-sm"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoFocus
+        <div className="mt-4">
+          <GoogleSignInButton
+            onCredential={handleGoogleCredential}
+            text="continue_with"
             disabled={submitting}
           />
-        </label>
-        <button
-          type="submit"
-          className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold disabled:opacity-50"
-          disabled={submitting || !email.trim() || cooldown > 0}
-        >
-          {submitting ? "Sending..." : cooldown > 0 ? `Wait ${cooldown}s` : "Send sign-in link"}
-        </button>
-      </form>
+        </div>
+
+        <div className="my-4 flex items-center gap-3">
+          <div className="h-px flex-1 bg-[color:var(--lr-border)]" />
+          <span className="text-xs text-[color:var(--lr-muted)]">or</span>
+          <div className="h-px flex-1 bg-[color:var(--lr-border)]" />
+        </div>
+
+        <p className="text-sm text-[color:var(--lr-muted)]">
+          Enter your email and we&apos;ll send you a sign-in link. No password needed.
+        </p>
+
+        <form onSubmit={handleSubmit} className="mt-3 grid gap-3">
+          <label className="grid gap-1">
+            <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+              Email
+            </span>
+            <input
+              className="lr-field px-3 py-2 text-sm"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoFocus
+              disabled={submitting}
+            />
+          </label>
+          <button
+            type="submit"
+            className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold disabled:opacity-50"
+            disabled={submitting || !email.trim() || cooldown > 0}
+          >
+            {submitting ? "Sending..." : cooldown > 0 ? `Wait ${cooldown}s` : "Send sign-in link"}
+          </button>
+        </form>
+      </div>
     </section>
   );
 }
