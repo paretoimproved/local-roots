@@ -10,6 +10,7 @@ import {
   type BuyerSubscriptionSummary,
 } from "@/lib/buyer-api";
 import { buyerSession } from "@/lib/session";
+import { useToast } from "@/components/toast";
 import { formatMoney } from "@/lib/ui";
 
 function cadenceLabel(c: string) {
@@ -40,6 +41,7 @@ function statusBadge(status: string) {
 
 export default function BuyerDashboardPage() {
   const router = useRouter();
+  const { showToast } = useToast();
   const [user, setUser] = useState<BuyerAuthUser | null>(null);
   const [orders, setOrders] = useState<BuyerOrderSummary[]>([]);
   const [subscriptions, setSubscriptions] = useState<BuyerSubscriptionSummary[]>([]);
@@ -62,10 +64,15 @@ export default function BuyerDashboardPage() {
       setOrders(ords);
       setSubscriptions(subs);
     } catch (err: unknown) {
-      // Only redirect on 401 (invalid token). Other errors get a retry.
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("401") || msg.includes("403")) {
+      // Redirect on auth errors (API 401/403). Show a toast so the user
+      // understands why they are being sent back to login.
+      if (/API\s+(401|403)\b/.test(msg)) {
         buyerSession.clearToken();
+        showToast({
+          kind: "error",
+          message: "Your session has expired. Please sign in again.",
+        });
         router.replace("/buyer/login");
         return;
       }
@@ -73,7 +80,7 @@ export default function BuyerDashboardPage() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, showToast]);
 
   useEffect(() => {
     load();

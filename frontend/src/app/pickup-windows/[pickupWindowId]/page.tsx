@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { CheckoutForm } from "@/components/checkout-form";
+import { RefreshButton } from "@/components/refresh-button";
 import { formatMoney } from "@/lib/ui";
 
 export default async function PickupWindowOfferingsPage({
@@ -42,6 +43,7 @@ export default async function PickupWindowOfferingsPage({
             Could not load offerings
           </p>
           <p className="mt-2 text-sm text-[color:var(--lr-muted)]">{error}</p>
+          <RefreshButton />
         </div>
       ) : null}
 

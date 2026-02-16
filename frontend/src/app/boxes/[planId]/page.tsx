@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
 import { SubscribeForm } from "@/components/subscribe-form";
+import { RefreshButton } from "@/components/refresh-button";
 import { formatMoney } from "@/lib/ui";
 
 function formatPickupDate(isoDate: string, timezone: string) {
@@ -73,6 +74,7 @@ export default async function BoxPlanPage({
             Could not load this box
           </p>
           <p className="mt-2 text-sm text-[color:var(--lr-muted)]">{error}</p>
+          <RefreshButton />
         </div>
       ) : null}
 

@@ -31,6 +31,9 @@ type OrderFilter =
 function formatWindowLabel(w: SellerPickupWindow): string {
   const start = new Date(w.start_at);
   const end = new Date(w.end_at);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `Window (${w.status})`;
+  }
   return `${start.toLocaleString()}–${end.toLocaleTimeString()} (${w.status})`;
 }
 
