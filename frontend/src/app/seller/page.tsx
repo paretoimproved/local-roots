@@ -11,6 +11,7 @@ import { friendlyErrorMessage } from "@/lib/ui";
 
 export default function SellerHome() {
   const router = useRouter();
+  useEffect(() => { document.title = "Seller dashboard — LocalRoots"; }, []);
   const { showToast } = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [stores, setStores] = useState<SellerStore[] | null>(null);

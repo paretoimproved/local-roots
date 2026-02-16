@@ -16,6 +16,8 @@ export default function OrderPage() {
   const orderId = params.orderId;
   const { showToast } = useToast();
 
+  useEffect(() => { document.title = "Order — LocalRoots"; }, []);
+
   const tokenFromQuery = search.get("t");
   const [token, setToken] = useState<string>("");
   const [tokenInput, setTokenInput] = useState("");
@@ -118,7 +120,9 @@ export default function OrderPage() {
             Paste the token from your confirmation (or add `?t=...` to the URL).
           </p>
           <div className="mt-4 grid gap-2 sm:flex">
+            <label className="sr-only" htmlFor="order-token">Access token</label>
             <input
+              id="order-token"
               className="lr-field w-full px-3 py-2 text-sm"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
@@ -259,11 +263,11 @@ export default function OrderPage() {
                     value={rating}
                     onChange={(e) => setRating(Number(e.target.value))}
                   >
-                    <option value={5}>5</option>
-                    <option value={4}>4</option>
-                    <option value={3}>3</option>
-                    <option value={2}>2</option>
-                    <option value={1}>1</option>
+                    <option value={5}>5 — Excellent</option>
+                    <option value={4}>4 — Great</option>
+                    <option value={3}>3 — Good</option>
+                    <option value={2}>2 — Fair</option>
+                    <option value={1}>1 — Poor</option>
                   </select>
                 </label>
                 <label className="grid gap-1">

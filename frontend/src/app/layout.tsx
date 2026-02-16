@@ -18,7 +18,10 @@ const lrSerif = Fraunces({
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "LocalRoots",
+  title: {
+    default: "LocalRoots",
+    template: "%s — LocalRoots",
+  },
   description: "Local pickup marketplace for produce and food",
 };
 

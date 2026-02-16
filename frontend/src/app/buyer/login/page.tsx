@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { buyerAuthApi } from "@/lib/buyer-api";
 import { ErrorAlert } from "@/components/error-alert";
 import { friendlyErrorMessage } from "@/lib/ui";
 
 export default function BuyerLoginPage() {
+  useEffect(() => { document.title = "Sign in — LocalRoots"; }, []);
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);

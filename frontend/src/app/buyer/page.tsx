@@ -49,6 +49,8 @@ export default function BuyerDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => { document.title = "My pickups — LocalRoots"; }, []);
+
   const load = useCallback(async () => {
     const token = buyerSession.getToken();
     if (!token) {

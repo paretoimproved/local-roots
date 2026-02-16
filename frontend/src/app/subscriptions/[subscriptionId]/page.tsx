@@ -100,6 +100,8 @@ export default function SubscriptionPage() {
   const tokenFromQuery = search.get("t");
   const { showToast } = useToast();
 
+  useEffect(() => { document.title = "Subscription — LocalRoots"; }, []);
+
   const [token, setToken] = useState<string>("");
   const [tokenInput, setTokenInput] = useState("");
   const [sub, setSub] = useState<BuyerSubscription | null>(null);
@@ -246,7 +248,9 @@ export default function SubscriptionPage() {
             Paste the token from your confirmation (or add `?t=...` to the URL).
           </p>
           <div className="mt-4 grid gap-2 sm:flex">
+            <label className="sr-only" htmlFor="sub-token">Access token</label>
             <input
+              id="sub-token"
               className="lr-field w-full px-3 py-2 text-sm"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
