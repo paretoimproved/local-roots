@@ -45,5 +45,10 @@ yarn-error.log*
 .DS_Store
 *.pem
 
+# Playwright E2E
+e2e/test-results/
+e2e/playwright-report/
+e2e/.env
+
 # Local legacy artifacts (kept out of git)
 legacy/ts-stack-untracked/
