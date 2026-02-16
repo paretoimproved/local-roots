@@ -72,6 +72,11 @@ export function TimezoneCombobox({
         }}
         onBlur={() => {
           onTouched?.();
+          // If the typed text exactly matches a timezone, select it.
+          const trimmed = query.trim();
+          if (trimmed && zones.some((z) => z === trimmed)) {
+            onChange(trimmed);
+          }
           window.setTimeout(() => setOpen(false), 120);
         }}
         onKeyDown={(e) => {

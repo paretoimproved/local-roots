@@ -25,14 +25,16 @@ function cadenceLabel(cadence: string): string {
   }
 }
 
-function friendlyDate(iso: string): string {
-  return new Date(iso).toLocaleDateString(undefined, {
+function friendlyDate(iso: string, tz?: string): string {
+  const opts: Intl.DateTimeFormatOptions = {
     weekday: "short",
     month: "short",
     day: "numeric",
     hour: "numeric",
     minute: "2-digit",
-  });
+  };
+  if (tz) opts.timeZone = tz;
+  return new Date(iso).toLocaleDateString(undefined, opts);
 }
 
 export default function ReviewPage() {
@@ -267,7 +269,7 @@ export default function ReviewPage() {
               {plan.subscriber_limit} customers
             </p>
             <p className="mt-0.5 text-sm text-[color:var(--lr-muted)]">
-              First pickup: {friendlyDate(plan.first_start_at)}
+              First pickup: {friendlyDate(plan.first_start_at, location.timezone)}
             </p>
           </div>
           <button

@@ -56,6 +56,7 @@ export default function SettingsPage() {
   // Connect / Payouts
   const [connectStatus, setConnectStatus] = useState<string>("none");
   const [connectLoading, setConnectLoading] = useState(false);
+  const [connectError, setConnectError] = useState("");
 
   // Data
   const [store, setStore] = useState<SellerStore | null>(null);
@@ -334,11 +335,14 @@ export default function SettingsPage() {
   async function handleConnectOnboard() {
     if (!token) return;
     setConnectLoading(true);
+    setConnectError("");
     try {
       const result = await sellerApi.connectOnboard(token, storeId);
       window.location.href = result.url;
     } catch (e: unknown) {
-      showToast({ kind: "error", message: friendlyErrorMessage(e) });
+      const msg = friendlyErrorMessage(e);
+      setConnectError(msg);
+      showToast({ kind: "error", message: msg });
       setConnectLoading(false);
     }
   }
@@ -346,11 +350,14 @@ export default function SettingsPage() {
   async function handleConnectRefresh() {
     if (!token) return;
     setConnectLoading(true);
+    setConnectError("");
     try {
       const result = await sellerApi.connectRefreshLink(token, storeId);
       window.location.href = result.url;
     } catch (e: unknown) {
-      showToast({ kind: "error", message: friendlyErrorMessage(e) });
+      const msg = friendlyErrorMessage(e);
+      setConnectError(msg);
+      showToast({ kind: "error", message: msg });
       setConnectLoading(false);
     }
   }
@@ -782,6 +789,9 @@ export default function SettingsPage() {
                 >
                   {connectLoading ? "Redirecting..." : "Complete setup"}
                 </button>
+                {connectError && (
+                  <p className="mt-2 text-sm text-rose-600">{connectError}</p>
+                )}
               </div>
             ) : connectStatus === "onboarding" ? (
               <div className="lr-chip rounded-2xl px-4 py-3">
@@ -802,6 +812,9 @@ export default function SettingsPage() {
                 >
                   {connectLoading ? "Redirecting..." : "Continue setup"}
                 </button>
+                {connectError && (
+                  <p className="mt-2 text-sm text-rose-600">{connectError}</p>
+                )}
               </div>
             ) : (
               <div className="grid gap-3">
@@ -817,6 +830,9 @@ export default function SettingsPage() {
                 >
                   {connectLoading ? "Redirecting..." : "Set up payouts"}
                 </button>
+                {connectError && (
+                  <p className="text-sm text-rose-600">{connectError}</p>
+                )}
               </div>
             )}
           </section>
