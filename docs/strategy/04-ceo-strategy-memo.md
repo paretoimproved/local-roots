@@ -242,6 +242,44 @@ Compared to the status quo (manual CSAs, Square invoices, Facebook groups, sprea
 - Maintain comprehensive insurance coverage as platform scales.
 - Proactive engagement with state agriculture departments.
 
+### Risk 6: Off-Platform Payment / Disintermediation
+**Severity:** High
+**Description:** Since buyer and farmer meet in person at every pickup, buyers have an obvious opportunity to bypass the platform and pay the farmer directly (cash, Venmo, etc.) to avoid the 5% service fee. This is the classic marketplace disintermediation risk, amplified by the in-person nature of every transaction.
+
+**Why it's partially self-mitigating:**
+- The 5% fee is buyer-side. The farmer gets their full amount regardless of whether payment goes through the platform. The farmer has **zero financial incentive** to encourage off-platform payment.
+- The farmer actively **wants** buyers on-platform because it eliminates admin burden: automatic recurring billing, subscription management, no-show fee protection, pickup verification, and analytics. Going off-platform means going back to spreadsheets and Venmo chasing.
+- $2.25 on a $45 box is below most people's "bother threshold," especially when the platform provides card-on-file convenience, scheduling, reminders, and one-tap pause/cancel.
+
+**Where the risk is highest:**
+- High-value boxes ($80+) where the fee exceeds $4 and feels visible
+- Long-term loyal buyers who already have the farmer's contact info and don't need the platform's discovery or scheduling value
+- Cash-friendly buyer demographics
+
+**Design mitigations:**
+1. **Don't surface farmer contact info to buyers.** Communication goes through the platform. No phone/email on buyer-facing pages.
+2. **Frame the fee as value, not a tax.** Position as "Platform fee includes pickup scheduling, reminders, and payment protection" rather than a bare line item. Consider embedding the fee in the price (farmer sets buyer price, platform takes 5% from the gross) so the buyer never sees a separate fee.
+3. **Lock operational value into the platform.** The 6-digit pickup code verification flow is key -- if the farmer relies on it for fulfillment tracking and no-show management, taking a buyer off-platform creates an operational gap.
+4. **Build retention features that only work on-platform.** Pause/resume, subscription history, pickup reminders, reviews, referral credits. The more the buyer's "local food life" lives on Local-Roots, the less they think about the fee.
+5. **Cap the service fee.** Cap at $3-4 per transaction so high-value boxes don't feel punitive. This costs very little revenue (most boxes are $35-55) but removes worst-case optics.
+
+**Structural mitigation -- Deposit / No-Show Fee Split:**
+
+The most powerful anti-disintermediation mechanism is to embed the platform in the financial structure of the transaction, not just the convenience layer. The proposed model:
+
+- Every subscription requires a **deposit hold** on the buyer's card (e.g., $5-10) that serves as a no-show guarantee.
+- If the buyer completes their pickup, the deposit is released and only the standard box price is charged.
+- If the buyer no-shows, the deposit is **split between the farmer and the platform** (e.g., 70/30 or 60/40).
+- The farmer benefits because they receive partial compensation for wasted produce. The platform benefits because it earns revenue from the enforcement mechanism.
+
+This creates a dynamic where:
+- **The farmer actively wants buyers on-platform** because the platform protects them from no-show losses. Off-platform buyers have no deposit, no accountability, and cost the farmer money when they flake.
+- **The buyer accepts the deposit** because it's refundable on pickup and demonstrates their commitment. It's the same mechanic as hotel reservations or ClassPass credits.
+- **The platform's revenue is partially tied to enforcement**, not just transaction flow. Even if a buyer tried to pay the box price directly to the farmer, the deposit/no-show infrastructure only works through the platform.
+- **It aligns all three parties:** buyers are incentivized to show up, farmers are protected when they don't, and the platform earns its fee by providing the enforcement layer.
+
+This transforms the platform's value proposition from "convenient payment processing" (replaceable) to "financial accountability infrastructure" (structural). A farmer who has experienced no-show protection will never voluntarily take buyers off-platform.
+
 ---
 
 ## 7. Path to Scale: From Local Pickup to Billion-Dollar Platform

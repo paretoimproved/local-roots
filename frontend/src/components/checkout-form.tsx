@@ -2,9 +2,10 @@
 
 import { useMemo, useState } from "react";
 import type { Offering } from "@/lib/api";
-import { buyerApi, defaultItemQty, type Order } from "@/lib/buyer-api";
+import { buyerApi, defaultItemQty, type Order, type OrderCheckoutResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
+import { AuthorizeCard } from "@/components/stripe-card-auth";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
@@ -26,6 +27,13 @@ export function CheckoutForm({
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"pay_at_pickup" | "card">(
+    "pay_at_pickup",
+  );
+  const [checkout, setCheckout] = useState<OrderCheckoutResponse | null>(null);
+  const paymentsReady = Boolean(
+    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
+  );
 
   const items = useMemo(() => {
     return offerings
@@ -59,6 +67,57 @@ export function CheckoutForm({
       setError(friendlyErrorMessage(e));
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function startCardCheckout() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await buyerApi.checkoutOrder(pickupWindowId, {
+        buyer: {
+          email: buyerEmail,
+          name: buyerName || null,
+          phone: buyerPhone || null,
+        },
+        items: items.map((it) => ({
+          offering_id: it.offering_id,
+          quantity: it.quantity,
+        })),
+      });
+      setCheckout(res);
+      showToast({ kind: "success", message: "Card authorization started." });
+    } catch (e: unknown) {
+      setError(friendlyErrorMessage(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function completeCardOrder() {
+    if (!checkout) return;
+    const res = await buyerApi.placeOrder(pickupWindowId, {
+      buyer: {
+        email: buyerEmail,
+        name: buyerName || null,
+        phone: buyerPhone || null,
+      },
+      items: items.map((it) => ({
+        offering_id: it.offering_id,
+        quantity: it.quantity,
+      })),
+      payment_method: "card",
+      stripe_payment_intent_id: checkout.payment_intent_id,
+    });
+    orderToken.set(res.id, res.buyer_token);
+    setOrder(res);
+    showToast({ kind: "success", message: "Order placed." });
+  }
+
+  function handlePaymentMethodChange(method: "pay_at_pickup" | "card") {
+    setPaymentMethod(method);
+    if (method !== "card") {
+      setCheckout(null);
     }
   }
 
@@ -120,7 +179,12 @@ export function CheckoutForm({
           </div>
 
           <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
-            Payment method: <span className="font-medium">Pay at pickup</span>.
+            Payment method:{" "}
+            <span className="font-medium">
+              {order.payment_method === "card"
+                ? "Card (authorized, captured on pickup)"
+                : "Pay at pickup"}
+            </span>
           </div>
         </section>
 
@@ -163,11 +227,11 @@ export function CheckoutForm({
                   {o.product.title}
                 </div>
                 <div className="text-sm text-[color:var(--lr-muted)]">
-                  {formatMoney(o.price_cents)} · {o.product.unit} · {remaining} left
+                  {formatMoney(o.price_cents)} &middot; {o.product.unit} &middot; {remaining} left
                 </div>
               </div>
               <input
-                className="lr-field w-24 px-3 py-2 text-sm"
+                className="lr-field w-20 sm:w-24 px-3 py-2 text-sm"
                 type="number"
                 min={0}
                 max={remaining}
@@ -190,7 +254,7 @@ export function CheckoutForm({
             Total
           </div>
           <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
-            {formatMoney(total)}
+            {formatMoney(checkout?.total_cents ?? total)}
           </div>
         </div>
 
@@ -229,17 +293,66 @@ export function CheckoutForm({
           </label>
         </div>
 
-        <button
-          className="lr-btn lr-btn-primary mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50"
-          disabled={submitting || items.length === 0 || !buyerEmail.trim()}
-          onClick={placeOrder}
-          type="button"
-        >
-          {submitting ? "Placing order…" : "Place order"}
-        </button>
-        <div className="text-xs text-[color:var(--lr-muted)]">
-          Payment method: pay at pickup (for now).
-        </div>
+        {paymentsReady ? (
+          <fieldset className="mt-2 grid gap-1">
+            <legend className="text-xs font-medium text-[color:var(--lr-muted)]">
+              Payment method
+            </legend>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <label className="flex items-center gap-2 text-sm text-[color:var(--lr-ink)]">
+                <input
+                  type="radio"
+                  name="payment_method"
+                  value="pay_at_pickup"
+                  checked={paymentMethod === "pay_at_pickup"}
+                  onChange={() => handlePaymentMethodChange("pay_at_pickup")}
+                  className="accent-[color:var(--lr-primary)]"
+                />
+                Pay at pickup
+              </label>
+              <label className="flex items-center gap-2 text-sm text-[color:var(--lr-ink)]">
+                <input
+                  type="radio"
+                  name="payment_method"
+                  value="card"
+                  checked={paymentMethod === "card"}
+                  onChange={() => handlePaymentMethodChange("card")}
+                  className="accent-[color:var(--lr-primary)]"
+                />
+                Pay with card
+              </label>
+            </div>
+          </fieldset>
+        ) : null}
+
+        {paymentMethod === "pay_at_pickup" ? (
+          <button
+            className="lr-btn lr-btn-primary mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50"
+            disabled={submitting || items.length === 0 || !buyerEmail.trim()}
+            onClick={placeOrder}
+            type="button"
+          >
+            {submitting ? "Placing order\u2026" : "Place order"}
+          </button>
+        ) : checkout ? (
+          <AuthorizeCard
+            clientSecret={checkout.client_secret}
+            submitting={submitting}
+            setSubmitting={setSubmitting}
+            setError={setError}
+            onAuthorized={completeCardOrder}
+            mode="payment_intent"
+          />
+        ) : (
+          <button
+            className="lr-btn lr-btn-primary mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50"
+            disabled={submitting || items.length === 0 || !buyerEmail.trim()}
+            onClick={startCardCheckout}
+            type="button"
+          >
+            {submitting ? "Starting\u2026" : "Continue to payment"}
+          </button>
+        )}
       </div>
     </section>
   );

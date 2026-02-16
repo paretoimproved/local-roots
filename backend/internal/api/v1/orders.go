@@ -8,7 +8,10 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	stripe "github.com/stripe/stripe-go/v78"
 
+	"github.com/paretoimproved/local-roots/backend/internal/auth"
+	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
 
@@ -27,8 +30,38 @@ func extractBuyerToken(r *http.Request) string {
 	return ""
 }
 
+// buyerIdentity holds the result of resolving buyer auth — either JWT-based
+// (userID set) or opaque-token-based (buyerToken set).
+type buyerIdentity struct {
+	userID     *string // non-nil when authenticated via buyer JWT
+	buyerToken *string // non-nil when authenticated via opaque buyer_token
+}
+
+func (bi buyerIdentity) isAuthenticated() bool {
+	return bi.userID != nil || bi.buyerToken != nil
+}
+
+// resolveBuyerAuth tries JWT (buyer role) first, then falls back to the raw
+// opaque buyer_token. Both buyer_orders and buyer_subscriptions use this.
+func resolveBuyerAuth(r *http.Request, jwtSecret string) buyerIdentity {
+	raw := extractBuyerToken(r)
+	if raw == "" {
+		return buyerIdentity{}
+	}
+	if jwtSecret != "" {
+		claims, err := auth.ParseJWT([]byte(jwtSecret), raw)
+		if err == nil && claims.Role == "buyer" && claims.UserID != "" {
+			return buyerIdentity{userID: &claims.UserID}
+		}
+	}
+	return buyerIdentity{buyerToken: &raw}
+}
+
 type OrdersAPI struct {
-	DB *pgxpool.Pool
+	DB              *pgxpool.Pool
+	Stripe          *stripepay.Client
+	BuyerFeeBps     int
+	BuyerFeeFlatCts int
 }
 
 type CreateOrderRequest struct {
@@ -41,6 +74,8 @@ type CreateOrderRequest struct {
 		OfferingID string `json:"offering_id"`
 		Quantity   int    `json:"quantity"`
 	} `json:"items"`
+	PaymentMethod         string `json:"payment_method"`
+	StripePaymentIntentID string `json:"stripe_payment_intent_id"`
 }
 
 type OrderItem struct {
@@ -221,9 +256,44 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
-	// No fees yet.
-	buyerFee := 0
-	total := subtotal
+	// Calculate buyer fee.
+	buyerFee := (subtotal * a.BuyerFeeBps) / 10000
+	if a.BuyerFeeFlatCts > 0 {
+		buyerFee += a.BuyerFeeFlatCts
+	}
+	total := subtotal + buyerFee
+
+	// Determine payment method and validate card payments.
+	paymentMethod := "pay_at_pickup"
+	paymentStatus := "unpaid"
+	var stripePI *string
+	if strings.TrimSpace(in.PaymentMethod) == "card" {
+		piID := strings.TrimSpace(in.StripePaymentIntentID)
+		if piID == "" {
+			resp.BadRequest(w, "stripe_payment_intent_id is required for card payments")
+			return
+		}
+		if a.Stripe == nil || !a.Stripe.Enabled() {
+			resp.ServiceUnavailable(w, "payments not configured")
+			return
+		}
+		pi, err := a.Stripe.RetrievePaymentIntent(ctx, piID)
+		if err != nil {
+			resp.BadRequest(w, "invalid payment intent")
+			return
+		}
+		if pi.Status != stripe.PaymentIntentStatusRequiresCapture {
+			resp.BadRequest(w, "payment not authorized")
+			return
+		}
+		if int(pi.Amount) != total {
+			resp.BadRequest(w, "payment amount mismatch")
+			return
+		}
+		paymentMethod = "card"
+		paymentStatus = "authorized"
+		stripePI = &piID
+	}
 
 	var out Order
 	out.BuyerEmail = buyerEmail
@@ -236,10 +306,10 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	out.TotalCents = total
 
 	err = tx.QueryRow(ctx, `
-		insert into orders (store_id, pickup_window_id, buyer_email, buyer_name, buyer_phone, status, payment_method, payment_status, subtotal_cents, buyer_fee_cents, total_cents)
-		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', 'pay_at_pickup', 'unpaid', $6, $7, $8)
+		insert into orders (store_id, pickup_window_id, buyer_email, buyer_name, buyer_phone, status, payment_method, payment_status, subtotal_cents, buyer_fee_cents, total_cents, stripe_payment_intent_id)
+		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', $6, $7, $8, $9, $10, $11)
 		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, captured_cents, created_at
-	`, storeID, windowID, buyerEmail, in.Buyer.Name, in.Buyer.Phone, subtotal, buyerFee, total).Scan(
+	`, storeID, windowID, buyerEmail, in.Buyer.Name, in.Buyer.Phone, paymentMethod, paymentStatus, subtotal, buyerFee, total, stripePI).Scan(
 		&out.ID,
 		&out.BuyerToken,
 		&out.PickupCode,

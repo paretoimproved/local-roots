@@ -12,7 +12,8 @@ import (
 )
 
 type BuyerOrdersAPI struct {
-	DB *pgxpool.Pool
+	DB        *pgxpool.Pool
+	JWTSecret string
 }
 
 type GetOrderResponse struct {
@@ -33,8 +34,8 @@ func (a BuyerOrdersAPI) GetOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := extractBuyerToken(r)
-	if token == "" {
+	bi := resolveBuyerAuth(r, a.JWTSecret)
+	if !bi.isAuthenticated() {
 		resp.Unauthorized(w, "missing token")
 		return
 	}
@@ -60,9 +61,12 @@ func (a BuyerOrdersAPI) GetOrder(w http.ResponseWriter, r *http.Request) {
 			created_at
 		from orders
 		where id = $1::uuid
-			and buyer_token = $2
+			and (
+				($2::text is not null and buyer_token = $2)
+				or ($3::uuid is not null and buyer_user_id = $3::uuid)
+			)
 		limit 1
-	`, orderID, token).Scan(
+	`, orderID, bi.buyerToken, bi.userID).Scan(
 		&o.ID,
 		&o.StoreID,
 		&o.PickupWindowID,
@@ -160,14 +164,20 @@ func (a BuyerOrdersAPI) CreateReview(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := strings.TrimSpace(in.Token)
-	if token == "" {
-		resp.Unauthorized(w, "missing token")
-		return
-	}
 	if in.Rating < 1 || in.Rating > 5 {
 		resp.BadRequest(w, "rating must be 1-5")
 		return
+	}
+
+	// Support dual auth: JWT from header or opaque token from body.
+	bi := resolveBuyerAuth(r, a.JWTSecret)
+	if !bi.isAuthenticated() {
+		bodyToken := strings.TrimSpace(in.Token)
+		if bodyToken == "" {
+			resp.Unauthorized(w, "missing token")
+			return
+		}
+		bi = buyerIdentity{buyerToken: &bodyToken}
 	}
 
 	var (
@@ -177,9 +187,13 @@ func (a BuyerOrdersAPI) CreateReview(w http.ResponseWriter, r *http.Request) {
 	if err := a.DB.QueryRow(r.Context(), `
 		select store_id::text, status
 		from orders
-		where id = $1::uuid and buyer_token = $2
+		where id = $1::uuid
+			and (
+				($2::text is not null and buyer_token = $2)
+				or ($3::uuid is not null and buyer_user_id = $3::uuid)
+			)
 		limit 1
-	`, orderID, token).Scan(&storeID, &status); err != nil {
+	`, orderID, bi.buyerToken, bi.userID).Scan(&storeID, &status); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.Unauthorized(w, "order not found")
 			return

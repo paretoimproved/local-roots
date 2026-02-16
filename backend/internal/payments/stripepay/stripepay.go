@@ -6,8 +6,11 @@ import (
 	"fmt"
 
 	stripe "github.com/stripe/stripe-go/v78"
+	"github.com/stripe/stripe-go/v78/account"
+	"github.com/stripe/stripe-go/v78/accountlink"
 	"github.com/stripe/stripe-go/v78/client"
 	"github.com/stripe/stripe-go/v78/setupintent"
+	"github.com/stripe/stripe-go/v78/transfer"
 )
 
 var ErrNotConfigured = errors.New("stripe not configured")
@@ -228,6 +231,124 @@ func (c *Client) CaptureAuthorizationAmount(ctx context.Context, paymentIntentID
 	}
 	_, err := c.api.PaymentIntents.Capture(paymentIntentID, p)
 	return err
+}
+
+// --- Stripe Connect ---
+
+func (c *Client) CreateConnectAccount(ctx context.Context, email string) (accountID string, err error) {
+	if !c.Enabled() {
+		return "", ErrNotConfigured
+	}
+	p := &stripe.AccountParams{
+		Type:         stripe.String(string(stripe.AccountTypeExpress)),
+		Email:        stripe.String(email),
+		Capabilities: &stripe.AccountCapabilitiesParams{
+			CardPayments: &stripe.AccountCapabilitiesCardPaymentsParams{
+				Requested: stripe.Bool(true),
+			},
+			Transfers: &stripe.AccountCapabilitiesTransfersParams{
+				Requested: stripe.Bool(true),
+			},
+		},
+	}
+	p.Context = ctx
+	acct, err := account.New(p)
+	if err != nil {
+		return "", err
+	}
+	return acct.ID, nil
+}
+
+func (c *Client) CreateAccountLink(ctx context.Context, accountID string, refreshURL string, returnURL string) (url string, err error) {
+	if !c.Enabled() {
+		return "", ErrNotConfigured
+	}
+	p := &stripe.AccountLinkParams{
+		Account:    stripe.String(accountID),
+		RefreshURL: stripe.String(refreshURL),
+		ReturnURL:  stripe.String(returnURL),
+		Type:       stripe.String("account_onboarding"),
+	}
+	p.Context = ctx
+	link, err := accountlink.New(p)
+	if err != nil {
+		return "", err
+	}
+	return link.URL, nil
+}
+
+type ConnectAccountStatus struct {
+	ChargesEnabled bool
+	PayoutsEnabled bool
+	Status         string // "none", "onboarding", "active", "restricted"
+}
+
+func (c *Client) GetAccountStatus(ctx context.Context, accountID string) (*ConnectAccountStatus, error) {
+	if !c.Enabled() {
+		return nil, ErrNotConfigured
+	}
+	p := &stripe.AccountParams{}
+	p.Context = ctx
+	acct, err := account.GetByID(accountID, p)
+	if err != nil {
+		return nil, err
+	}
+
+	status := "onboarding"
+	if acct.ChargesEnabled && acct.PayoutsEnabled {
+		status = "active"
+	} else if acct.Requirements != nil && len(acct.Requirements.Errors) > 0 {
+		status = "restricted"
+	} else if acct.ChargesEnabled || acct.PayoutsEnabled {
+		status = "restricted"
+	}
+
+	return &ConnectAccountStatus{
+		ChargesEnabled: acct.ChargesEnabled,
+		PayoutsEnabled: acct.PayoutsEnabled,
+		Status:         status,
+	}, nil
+}
+
+func (c *Client) CreateTransfer(ctx context.Context, amountCents int, connectedAccountID string, chargeID string, idempotencyKey string) (transferID string, err error) {
+	if !c.Enabled() {
+		return "", ErrNotConfigured
+	}
+	if amountCents <= 0 {
+		return "", fmt.Errorf("transfer amount must be > 0")
+	}
+	p := &stripe.TransferParams{
+		Amount:      stripe.Int64(int64(amountCents)),
+		Currency:    stripe.String("usd"),
+		Destination: stripe.String(connectedAccountID),
+	}
+	if chargeID != "" {
+		p.SourceTransaction = stripe.String(chargeID)
+	}
+	p.Context = ctx
+	if idempotencyKey != "" {
+		p.SetIdempotencyKey(idempotencyKey)
+	}
+	t, err := transfer.New(p)
+	if err != nil {
+		return "", err
+	}
+	return t.ID, nil
+}
+
+// GetChargeIDFromPaymentIntent retrieves the latest charge ID for a captured PaymentIntent.
+func (c *Client) GetChargeIDFromPaymentIntent(ctx context.Context, paymentIntentID string) (string, error) {
+	if !c.Enabled() {
+		return "", ErrNotConfigured
+	}
+	pi, err := c.RetrievePaymentIntent(ctx, paymentIntentID)
+	if err != nil {
+		return "", err
+	}
+	if pi.LatestCharge != nil && pi.LatestCharge.ID != "" {
+		return pi.LatestCharge.ID, nil
+	}
+	return "", fmt.Errorf("no charge found for payment intent %s", paymentIntentID)
 }
 
 func (c *Client) CancelPaymentIntent(ctx context.Context, paymentIntentID string, idempotencyKey string) error {

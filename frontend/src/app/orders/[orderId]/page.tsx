@@ -20,6 +20,7 @@ export default function OrderPage() {
   const [tokenInput, setTokenInput] = useState("");
   const [data, setData] = useState<GetOrderResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const [rating, setRating] = useState(5);
   const [body, setBody] = useState("");
@@ -38,12 +39,15 @@ export default function OrderPage() {
   async function load() {
     if (!token) return;
     setError(null);
+    setLoading(true);
     try {
       const res = await buyerApi.getOrder(orderId, token);
       setData(res);
       setReviewDone(res.has_review);
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -92,14 +96,27 @@ export default function OrderPage() {
           Order
         </h1>
         <p className="text-sm text-[color:var(--lr-muted)]">
-          <span className="font-mono text-xs">{orderId}</span>
+          <span className="break-all font-mono text-xs">{orderId}</span>
         </p>
       </div>
 
       {error ? (
         <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          {error}
+          <p>{error}</p>
+          <button
+            type="button"
+            className="mt-2 text-sm font-medium underline"
+            onClick={load}
+          >
+            Try again
+          </button>
         </div>
+      ) : null}
+
+      {loading && !data ? (
+        <section className="lr-card lr-card-strong p-6 text-center">
+          <p className="text-sm text-[color:var(--lr-muted)]">Loading order...</p>
+        </section>
       ) : null}
 
       {!token ? (
@@ -110,7 +127,7 @@ export default function OrderPage() {
           <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
             Paste the token from your confirmation (or add `?t=...` to the URL).
           </p>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 grid gap-2 sm:flex">
             <input
               className="lr-field w-full px-3 py-2 text-sm"
               value={tokenInput}

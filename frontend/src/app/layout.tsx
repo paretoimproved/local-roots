@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Spline_Sans } from "next/font/google";
 import Link from "next/link";
+import { BuyerNavLink } from "@/components/buyer-nav-link";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
@@ -52,6 +53,7 @@ export default function RootLayout({
                 <Link className="lr-btn px-4 py-2 text-[color:var(--lr-ink)]" href="/stores">
                   Browse
                 </Link>
+                <BuyerNavLink />
                 <Link className="lr-btn px-4 py-2 text-[color:var(--lr-ink)]" href="/seller">
                   Sell
                 </Link>

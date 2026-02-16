@@ -61,6 +61,7 @@ export type SellerSubscriptionPlan = {
   cutoff_hours: number;
   is_active: boolean;
   is_live: boolean;
+  deposit_cents: number;
   created_at: string;
   updated_at: string;
   next_start_at: string;
@@ -389,6 +390,7 @@ export const sellerApi = {
       first_start_at_local: string; // "YYYY-MM-DDTHH:MM"
       duration_minutes: number;
       cutoff_hours: number;
+      deposit_cents?: number;
     },
   ) =>
     requestJSON<SellerSubscriptionPlan>(
@@ -405,6 +407,7 @@ export const sellerApi = {
       price_cents?: number;
       subscriber_limit?: number;
       is_active?: boolean;
+      deposit_cents?: number;
     },
   ) =>
     requestJSON<SellerSubscriptionPlan>(
@@ -436,4 +439,21 @@ export const sellerApi = {
       token,
       body: JSON.stringify({ place_id: placeId, session_token: sessionToken }),
     }),
+
+  // Stripe Connect
+  connectOnboard: (token: string, storeId: string) =>
+    requestJSON<{ url: string; account_id: string }>(
+      `/v1/seller/stores/${storeId}/connect/onboard`,
+      { method: "POST", token, body: JSON.stringify({}) },
+    ),
+  connectStatus: (token: string, storeId: string) =>
+    requestJSON<{ status: string }>(
+      `/v1/seller/stores/${storeId}/connect/status`,
+      { token },
+    ),
+  connectRefreshLink: (token: string, storeId: string) =>
+    requestJSON<{ url: string }>(
+      `/v1/seller/stores/${storeId}/connect/refresh-link`,
+      { method: "POST", token, body: JSON.stringify({}) },
+    ),
 };

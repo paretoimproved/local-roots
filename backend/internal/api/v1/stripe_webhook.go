@@ -94,6 +94,26 @@ func (a StripeWebhookAPI) StripeWebhook(w http.ResponseWriter, r *http.Request) 
 				return
 			}
 		}
+	case "account.updated":
+		var acct stripe.Account
+		if err := json.Unmarshal(ev.Data.Raw, &acct); err == nil && acct.ID != "" {
+			status := "onboarding"
+			if acct.ChargesEnabled && acct.PayoutsEnabled {
+				status = "active"
+			} else if acct.Requirements != nil && len(acct.Requirements.Errors) > 0 {
+				status = "restricted"
+			} else if acct.ChargesEnabled || acct.PayoutsEnabled {
+				status = "restricted"
+			}
+			if _, err := a.DB.Exec(ctx, `
+				update stores
+				set stripe_account_status = $2, updated_at = now()
+				where stripe_account_id = $1
+			`, acct.ID, status); err != nil {
+				resp.Internal(w, err)
+				return
+			}
+		}
 	default:
 		// ignore other events for MVP
 	}

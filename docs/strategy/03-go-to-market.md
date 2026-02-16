@@ -270,6 +270,12 @@ This is thin but workable at scale. Two options to improve unit economics:
 1. **ACH payments:** Offer buyers the option to pay via bank transfer at lower processing fees (0.8% via Stripe, capped at $5). On a $40 box, ACH processing = $0.32, leaving $1.68 net margin.
 2. **Volume discounts from Stripe:** At scale, negotiate custom rates below 2.9% + $0.30.
 
+### Disintermediation Defense: Deposit / No-Show Fee Split
+
+The biggest pricing risk is buyers paying farmers directly (cash/Venmo) to avoid the 5% fee. Since every transaction involves an in-person pickup, this is structurally possible. The primary defense: embed the platform in the financial accountability layer, not just the convenience layer.
+
+**Proposed model:** Every subscription holds a refundable deposit ($5-10) on the buyer's card. On successful pickup, the deposit is released. On no-show, the deposit is split between the farmer (compensation for wasted produce) and the platform (enforcement revenue). This makes the farmer an active advocate for keeping buyers on-platform -- off-platform buyers have no deposit, no accountability, and cost the farmer money when they flake. See `04-ceo-strategy-memo.md` Risk 6 for full analysis.
+
 ### Future Revenue Opportunities (Do Not Launch With These)
 
 - **Premium farmer tools:** Analytics dashboard, CRM features, marketing tools. Offer free basic tier, charge for premium. Only after establishing a large free user base.

@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   sellerApi,
   type SellerPickupLocation,
@@ -47,10 +47,15 @@ export default function SettingsPage() {
   const params = useParams<{ storeId: string }>();
   const storeId = params.storeId;
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { showToast, clearToast } = useToast();
 
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Connect / Payouts
+  const [connectStatus, setConnectStatus] = useState<string>("none");
+  const [connectLoading, setConnectLoading] = useState(false);
 
   // Data
   const [store, setStore] = useState<SellerStore | null>(null);
@@ -129,14 +134,16 @@ export default function SettingsPage() {
   }, [router]);
 
   // Load data
-  async function refreshAll(t: string) {
-    const [storeList, ls, ws, ps, sps] = await Promise.all([
+  const refreshAll = useCallback(async function refreshAll(t: string) {
+    const [storeList, ls, ws, ps, sps, cs] = await Promise.all([
       sellerApi.listMyStores(t),
       sellerApi.listPickupLocations(t, storeId),
       sellerApi.listPickupWindows(t, storeId),
       sellerApi.listProducts(t, storeId),
       sellerApi.listSubscriptionPlans(t, storeId),
+      sellerApi.connectStatus(t, storeId).catch(() => ({ status: "none" })),
     ]);
+    setConnectStatus(cs.status);
     const s = storeList.find((st) => st.id === storeId) ?? null;
     setStore(s);
     setLocations(ls);
@@ -179,14 +186,35 @@ export default function SettingsPage() {
       if (prev && ws.some((w) => w.id === prev)) return prev;
       return ws[0]?.id ?? "";
     });
-  }
+  }, [storeId]);
 
   useEffect(() => {
     if (!token) return;
     setError(null);
     refreshAll(token).catch((e: unknown) => setError(friendlyErrorMessage(e)));
+  }, [token, storeId, refreshAll]);
+
+  // Handle Connect return/refresh query params.
+  useEffect(() => {
+    if (!token) return;
+    const connectParam = searchParams.get("connect");
+    if (connectParam === "return") {
+      // Returned from Stripe onboarding — refresh status.
+      sellerApi.connectStatus(token, storeId)
+        .then((cs) => {
+          setConnectStatus(cs.status);
+          if (cs.status === "active") {
+            showToast({ kind: "success", message: "Payouts are now active!" });
+          } else {
+            showToast({ kind: "info", message: "Payout setup in progress. You may need to complete a few more steps." });
+          }
+        })
+        .catch(() => {});
+    } else if (connectParam === "refresh") {
+      showToast({ kind: "info", message: "Your onboarding link expired. Click 'Continue setup' to get a new one." });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token, storeId]);
+  }, [token, searchParams]);
 
   // Load offerings when window changes
   useEffect(() => {
@@ -300,6 +328,30 @@ export default function SettingsPage() {
       showToast({ kind: "error", message: friendlyErrorMessage(e) });
     } finally {
       setSavingBox(false);
+    }
+  }
+
+  async function handleConnectOnboard() {
+    if (!token) return;
+    setConnectLoading(true);
+    try {
+      const result = await sellerApi.connectOnboard(token, storeId);
+      window.location.href = result.url;
+    } catch (e: unknown) {
+      showToast({ kind: "error", message: friendlyErrorMessage(e) });
+      setConnectLoading(false);
+    }
+  }
+
+  async function handleConnectRefresh() {
+    if (!token) return;
+    setConnectLoading(true);
+    try {
+      const result = await sellerApi.connectRefreshLink(token, storeId);
+      window.location.href = result.url;
+    } catch (e: unknown) {
+      showToast({ kind: "error", message: friendlyErrorMessage(e) });
+      setConnectLoading(false);
     }
   }
 
@@ -686,7 +738,90 @@ export default function SettingsPage() {
             )}
           </section>
 
-          {/* Section 4: Advanced Tools (collapsible) */}
+          {/* Section 4: Payouts */}
+          <section className="lr-card lr-animate grid gap-4 p-6">
+            <div>
+              <h2 className="text-base font-semibold">Payouts</h2>
+              <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                Connect your bank account so you get paid when customers pick up.
+              </p>
+            </div>
+
+            {connectStatus === "active" ? (
+              <div className="lr-chip rounded-2xl px-4 py-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span
+                    className="inline-block h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: "var(--lr-leaf)" }}
+                  />
+                  <span className="font-semibold text-[color:var(--lr-ink)]">
+                    Payouts active
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[color:var(--lr-muted)]">
+                  Your bank account is connected. You&apos;ll receive payouts
+                  automatically when customers complete pickup.
+                </p>
+              </div>
+            ) : connectStatus === "restricted" ? (
+              <div className="lr-chip rounded-2xl border-amber-200 bg-amber-50/60 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-500" />
+                  <span className="font-semibold text-amber-900">
+                    Action needed
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-amber-800">
+                  Stripe requires additional information to continue processing payouts.
+                </p>
+                <button
+                  type="button"
+                  className="lr-btn lr-btn-primary mt-3 px-5 py-2 text-sm font-medium disabled:opacity-50"
+                  disabled={connectLoading}
+                  onClick={handleConnectRefresh}
+                >
+                  {connectLoading ? "Redirecting..." : "Complete setup"}
+                </button>
+              </div>
+            ) : connectStatus === "onboarding" ? (
+              <div className="lr-chip rounded-2xl px-4 py-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" />
+                  <span className="font-semibold text-[color:var(--lr-ink)]">
+                    Setup in progress
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-[color:var(--lr-muted)]">
+                  You started setting up payouts but haven&apos;t finished yet.
+                </p>
+                <button
+                  type="button"
+                  className="lr-btn lr-btn-primary mt-3 px-5 py-2 text-sm font-medium disabled:opacity-50"
+                  disabled={connectLoading}
+                  onClick={handleConnectRefresh}
+                >
+                  {connectLoading ? "Redirecting..." : "Continue setup"}
+                </button>
+              </div>
+            ) : (
+              <div className="grid gap-3">
+                <p className="text-sm text-[color:var(--lr-muted)]">
+                  You need to connect your bank account before you can go live
+                  and start accepting orders with card payments.
+                </p>
+                <button
+                  type="button"
+                  className="lr-btn lr-btn-primary w-fit px-5 py-2 text-sm font-medium disabled:opacity-50"
+                  disabled={connectLoading}
+                  onClick={handleConnectOnboard}
+                >
+                  {connectLoading ? "Redirecting..." : "Set up payouts"}
+                </button>
+              </div>
+            )}
+          </section>
+
+          {/* Section 5: Advanced Tools (collapsible) */}
           <section className="lr-card lr-animate grid gap-0 overflow-hidden">
             <button
               type="button"

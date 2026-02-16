@@ -11,6 +11,16 @@ export type CreateOrderInput = {
     offering_id: string;
     quantity: number;
   }>;
+  payment_method?: string;
+  stripe_payment_intent_id?: string;
+};
+
+export type OrderCheckoutResponse = {
+  payment_intent_id: string;
+  client_secret: string;
+  subtotal_cents: number;
+  buyer_fee_cents: number;
+  total_cents: number;
 };
 
 export type OrderItem = {
@@ -66,6 +76,7 @@ export type PlanCheckoutResponse = {
   buyer_fee_bps: number;
   buyer_fee_flat_cents: number;
   total_cents: number;
+  deposit_cents: number;
 };
 
 export type BuyerSubscription = {
@@ -100,6 +111,21 @@ export type GetOrderResponse = {
 };
 
 export const buyerApi = {
+  checkoutOrder: (
+    pickupWindowId: string,
+    input: {
+      buyer: { email: string; name?: string | null; phone?: string | null };
+      items: Array<{ offering_id: string; quantity: number }>;
+    },
+  ) =>
+    requestJSON<OrderCheckoutResponse>(
+      `/v1/pickup-windows/${pickupWindowId}/checkout`,
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+    ),
+
   placeOrder: (pickupWindowId: string, input: CreateOrderInput) =>
     requestJSON<Order>(`/v1/pickup-windows/${pickupWindowId}/orders`, {
       method: "POST",
@@ -204,6 +230,71 @@ export const buyerApi = {
         rating: input.rating,
         body: input.body ?? null,
       }),
+    }),
+};
+
+export type BuyerAuthUser = {
+  id: string;
+  email: string;
+  role: string;
+};
+
+export type BuyerAuthResponse = {
+  token: string;
+  user: BuyerAuthUser;
+};
+
+export type BuyerOrderSummary = {
+  id: string;
+  store_id: string;
+  status: string;
+  total_cents: number;
+  pickup_code: string;
+  product_title: string;
+  pickup_start_at: string;
+  created_at: string;
+};
+
+export type BuyerSubscriptionSummary = {
+  id: string;
+  plan_id: string;
+  store_id: string;
+  status: string;
+  plan_title: string;
+  cadence: string;
+  price_cents: number;
+  created_at: string;
+};
+
+export const buyerAuthApi = {
+  sendMagicLink: (email: string) =>
+    requestJSON<{ ok: boolean }>("/v1/buyer/auth/magic-link", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    }),
+
+  verify: (token: string) =>
+    requestJSON<BuyerAuthResponse>("/v1/buyer/auth/verify", {
+      method: "POST",
+      body: JSON.stringify({ token }),
+    }),
+
+  getMe: (token: string) =>
+    requestJSON<BuyerAuthUser>("/v1/buyer/me", {
+      method: "GET",
+      token,
+    }),
+
+  listOrders: (token: string) =>
+    requestJSON<BuyerOrderSummary[]>("/v1/buyer/orders", {
+      method: "GET",
+      token,
+    }),
+
+  listSubscriptions: (token: string) =>
+    requestJSON<BuyerSubscriptionSummary[]>("/v1/buyer/subscriptions", {
+      method: "GET",
+      token,
     }),
 };
 

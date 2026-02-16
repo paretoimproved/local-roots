@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	stripe "github.com/stripe/stripe-go/v78"
 
+	"github.com/paretoimproved/local-roots/backend/internal/email"
 	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 	"github.com/paretoimproved/local-roots/backend/internal/timeutil"
@@ -23,6 +24,8 @@ type SubscriptionAPI struct {
 	Stripe          *stripepay.Client
 	BuyerFeeBps     int
 	BuyerFeeFlatCts int
+	Email           *email.Client
+	FrontendURL     string
 }
 
 type SellerSubscriptionAPI struct {
@@ -45,6 +48,7 @@ type SubscriptionPlanPublic struct {
 	CutoffHours     int       `json:"cutoff_hours"`
 	IsActive        bool      `json:"is_active"`
 	IsLive          bool      `json:"is_live"`
+	DepositCents    int       `json:"deposit_cents"`
 	NextStartAt     time.Time `json:"next_start_at"`
 	PickupLocation  struct {
 		ID       string  `json:"id"`
@@ -82,6 +86,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 			sp.cutoff_hours,
 			sp.is_active,
 			sp.is_live,
+			sp.deposit_cents,
 			pl.id::text,
 			pl.label,
 			pl.address1,
@@ -120,6 +125,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 			&sp.CutoffHours,
 			&sp.IsActive,
 			&sp.IsLive,
+			&sp.DepositCents,
 			&sp.PickupLocation.ID,
 			&sp.PickupLocation.Label,
 			&sp.PickupLocation.Address1,
@@ -173,6 +179,7 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 			sp.cutoff_hours,
 			sp.is_active,
 			sp.is_live,
+			sp.deposit_cents,
 			pl.id::text,
 			pl.label,
 			pl.address1,
@@ -197,6 +204,7 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 		&sp.CutoffHours,
 		&sp.IsActive,
 		&sp.IsLive,
+		&sp.DepositCents,
 		&sp.PickupLocation.ID,
 		&sp.PickupLocation.Label,
 		&sp.PickupLocation.Address1,
@@ -239,6 +247,7 @@ type CheckoutResponse struct {
 	BuyerFeeBps       int    `json:"buyer_fee_bps"`
 	BuyerFeeFlatCents int    `json:"buyer_fee_flat_cents"`
 	TotalCents        int    `json:"total_cents"`
+	DepositCents      int    `json:"deposit_cents"`
 }
 
 func computeBuyerFee(subtotalCents, bps, flatCts int) (feeCents, totalCents int) {
@@ -315,6 +324,7 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 		cutoffHours      int
 		isActive         bool
 		isLive           bool
+		depositCents     int
 	)
 	if err := a.DB.QueryRow(r.Context(), `
 		select
@@ -326,7 +336,8 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 			sp.duration_minutes,
 			sp.cutoff_hours,
 			sp.is_active,
-			sp.is_live
+			sp.is_live,
+			sp.deposit_cents
 		from subscription_plans sp
 		join pickup_locations pl on pl.id = sp.pickup_location_id
 		where sp.id = $1::uuid
@@ -341,6 +352,7 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 		&cutoffHours,
 		&isActive,
 		&isLive,
+		&depositCents,
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "plan not found")
@@ -403,6 +415,7 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 			BuyerFeeBps:       a.BuyerFeeBps,
 			BuyerFeeFlatCents: a.BuyerFeeFlatCts,
 			TotalCents:        totalCents,
+			DepositCents:      depositCents,
 		})
 		return
 	}
@@ -425,6 +438,7 @@ func (a SubscriptionAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 		BuyerFeeBps:       a.BuyerFeeBps,
 		BuyerFeeFlatCents: a.BuyerFeeFlatCts,
 		TotalCents:        totalCents,
+		DepositCents:      depositCents,
 	})
 }
 
@@ -497,6 +511,11 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		cutoffHours      int
 		isActive         bool
 		isLive           bool
+		planTitle        string
+		locLabel         *string
+		locAddr          string
+		locCity          string
+		depositCents     int
 	)
 	if err := tx.QueryRow(ctx, `
 		select
@@ -510,8 +529,13 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 			sp.first_start_at,
 			sp.duration_minutes,
 			sp.cutoff_hours,
-			sp.is_active
-			, sp.is_live
+			sp.is_active,
+			sp.is_live,
+			sp.title,
+			pl.label,
+			pl.address1,
+			pl.city,
+			sp.deposit_cents
 		from subscription_plans sp
 		join pickup_locations pl on pl.id = sp.pickup_location_id
 		where sp.id = $1::uuid
@@ -529,6 +553,11 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		&cutoffHours,
 		&isActive,
 		&isLive,
+		&planTitle,
+		&locLabel,
+		&locAddr,
+		&locCity,
+		&depositCents,
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "plan not found")
@@ -570,7 +599,10 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
-		if pi.Amount != int64(priceCents) {
+		// Checkout creates the PI for totalCents (subtotal + buyer fee), so
+		// validation must compare against the same total, not just priceCents.
+		_, expectedTotal := computeBuyerFee(priceCents, a.BuyerFeeBps, a.BuyerFeeFlatCts)
+		if pi.Amount != int64(expectedTotal) {
 			resp.BadRequest(w, "payment authorization amount does not match")
 			return
 		}
@@ -702,6 +734,7 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		stripePaymentIntentID: orderStripePI,
 		buyerFeeBps:           a.BuyerFeeBps,
 		buyerFeeFlatCts:       a.BuyerFeeFlatCts,
+		depositCents:          depositCents,
 	})
 	if err != nil {
 		if errors.Is(err, errInsufficientInventory) {
@@ -719,6 +752,28 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(ctx); err != nil {
 		resp.Internal(w, err)
 		return
+	}
+
+	// Send subscription confirmation email (fire-and-forget).
+	if a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
+		baseURL := strings.TrimRight(a.FrontendURL, "/")
+		manageURL := baseURL + "/subscriptions/" + sub.ID + "?t=" + sub.BuyerToken
+
+		locationParts := make([]string, 0, 3)
+		if locLabel != nil && *locLabel != "" {
+			locationParts = append(locationParts, *locLabel)
+		}
+		if locAddr != "" {
+			locationParts = append(locationParts, locAddr)
+		}
+		if locCity != "" {
+			locationParts = append(locationParts, locCity)
+		}
+		locationStr := strings.Join(locationParts, ", ")
+
+		nextPickupStr := nextStart.In(loc).Format("Mon Jan 2 at 3:04 PM")
+		subj, body := email.SubscriptionConfirmed(planTitle, nextPickupStr, locationStr, manageURL)
+		a.Email.SendAsync(buyerEmail, subj, body)
 	}
 
 	resp.OK(w, SubscribeResponse{Subscription: sub, FirstOrder: order})
@@ -741,6 +796,7 @@ type SubscriptionPlanSeller struct {
 	CutoffHours      int       `json:"cutoff_hours"`
 	IsActive         bool      `json:"is_active"`
 	IsLive           bool      `json:"is_live"`
+	DepositCents     int       `json:"deposit_cents"`
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 	NextStartAt      time.Time `json:"next_start_at"`
@@ -772,6 +828,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 			sp.cutoff_hours,
 			sp.is_active,
 			sp.is_live,
+			sp.deposit_cents,
 			sp.created_at,
 			sp.updated_at,
 			pl.id::text,
@@ -812,6 +869,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 			&sp.CutoffHours,
 			&sp.IsActive,
 			&sp.IsLive,
+			&sp.DepositCents,
 			&sp.CreatedAt,
 			&sp.UpdatedAt,
 			&sp.PickupLocation.ID,
@@ -850,6 +908,7 @@ type CreatePlanRequest struct {
 	FirstStartAtLocal string  `json:"first_start_at_local"` // e.g. "2026-02-14T10:30"
 	DurationMinutes   int     `json:"duration_minutes"`
 	CutoffHours       int     `json:"cutoff_hours"`
+	DepositCents      int     `json:"deposit_cents"`
 }
 
 func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
@@ -963,17 +1022,18 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 	out.FirstStartAt = firstUTC
 	out.DurationMin = in.DurationMinutes
 	out.CutoffHours = in.CutoffHours
+	out.DepositCents = in.DepositCents
 	out.IsActive = true
 	out.IsLive = false
 
 	if err := tx.QueryRow(ctx, `
 		insert into subscription_plans (
 			store_id, pickup_location_id, product_id, title, description, cadence, price_cents, subscriber_limit,
-			first_start_at, duration_minutes, cutoff_hours, is_active
+			first_start_at, duration_minutes, cutoff_hours, is_active, deposit_cents
 		)
-		values ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11, true)
+		values ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6, $7, $8, $9, $10, $11, true, $12)
 		returning id::text, created_at, updated_at
-	`, sc.StoreID, in.PickupLocationID, productID, in.Title, in.Description, in.Cadence, in.PriceCents, in.SubscriberLimit, firstUTC, in.DurationMinutes, in.CutoffHours).Scan(
+	`, sc.StoreID, in.PickupLocationID, productID, in.Title, in.Description, in.Cadence, in.PriceCents, in.SubscriberLimit, firstUTC, in.DurationMinutes, in.CutoffHours, in.DepositCents).Scan(
 		&out.ID,
 		&out.CreatedAt,
 		&out.UpdatedAt,
@@ -1017,6 +1077,7 @@ type UpdatePlanRequest struct {
 	PriceCents      *int    `json:"price_cents"`
 	SubscriberLimit *int    `json:"subscriber_limit"`
 	IsActive        *bool   `json:"is_active"`
+	DepositCents    *int    `json:"deposit_cents"`
 }
 
 func (a SellerSubscriptionAPI) UpdatePlan(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
@@ -1060,16 +1121,17 @@ func (a SellerSubscriptionAPI) UpdatePlan(w http.ResponseWriter, r *http.Request
 			price_cents = coalesce($5, price_cents),
 			subscriber_limit = coalesce($6, subscriber_limit),
 			is_active = coalesce($7, is_active),
+			deposit_cents = coalesce($8, deposit_cents),
 			updated_at = now()
 		where id = $1::uuid and store_id = $2::uuid
 		returning id::text, store_id::text, pickup_location_id::text, product_id::text,
 			title, description, cadence, price_cents, subscriber_limit,
-			first_start_at, duration_minutes, cutoff_hours, is_active, is_live,
+			first_start_at, duration_minutes, cutoff_hours, is_active, is_live, deposit_cents,
 			created_at, updated_at
-	`, planID, sc.StoreID, in.Title, in.Description, in.PriceCents, in.SubscriberLimit, in.IsActive).Scan(
+	`, planID, sc.StoreID, in.Title, in.Description, in.PriceCents, in.SubscriberLimit, in.IsActive, in.DepositCents).Scan(
 		&out.ID, &out.StoreID, &out.PickupLocationID, &out.ProductID,
 		&out.Title, &out.Description, &out.Cadence, &out.PriceCents, &out.SubscriberLimit,
-		&out.FirstStartAt, &out.DurationMin, &out.CutoffHours, &out.IsActive, &out.IsLive,
+		&out.FirstStartAt, &out.DurationMin, &out.CutoffHours, &out.IsActive, &out.IsLive, &out.DepositCents,
 		&out.CreatedAt, &out.UpdatedAt,
 	)
 	if err != nil {
@@ -1147,6 +1209,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		durationMin      int
 		cutoffHours      int
 		isActive         bool
+		depositCents     int
 	)
 	if err := tx.QueryRow(ctx, `
 		select
@@ -1159,7 +1222,8 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			sp.first_start_at,
 			sp.duration_minutes,
 			sp.cutoff_hours,
-			sp.is_active
+			sp.is_active,
+			sp.deposit_cents
 		from subscription_plans sp
 		join pickup_locations pl on pl.id = sp.pickup_location_id
 		where sp.id = $1::uuid and sp.store_id = $2::uuid
@@ -1175,6 +1239,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 		&durationMin,
 		&cutoffHours,
 		&isActive,
+		&depositCents,
 	); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "plan not found")
@@ -1185,6 +1250,21 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 	}
 	if !isActive {
 		resp.BadRequest(w, "plan is not active")
+		return
+	}
+
+	// Require Stripe Connect before going live.
+	var connectStatus string
+	if err := tx.QueryRow(ctx, `
+		select coalesce(stripe_account_status, 'none')
+		from stores
+		where id = $1::uuid
+	`, sc.StoreID).Scan(&connectStatus); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	if connectStatus != "active" {
+		resp.BadRequest(w, "Set up payouts before going live. Go to Settings → Payouts to connect your bank account.")
 		return
 	}
 
@@ -1306,6 +1386,7 @@ func (a SellerSubscriptionAPI) GenerateNextCycle(w http.ResponseWriter, r *http.
 			paymentStatus:   "pending",
 			buyerFeeBps:     a.BuyerFeeBps,
 			buyerFeeFlatCts: a.BuyerFeeFlatCts,
+			depositCents:    depositCents,
 		})
 		if err != nil {
 			if errors.Is(err, errInsufficientInventory) {
@@ -1520,6 +1601,7 @@ type createOrderForOfferingInput struct {
 	stripePaymentIntentID *string
 	buyerFeeBps           int
 	buyerFeeFlatCts       int
+	depositCents          int
 }
 
 func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOfferingInput) (Order, error) {
@@ -1608,11 +1690,12 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 			status, payment_method, payment_status,
 			subtotal_cents, buyer_fee_cents, total_cents,
 			subscription_id,
-			stripe_payment_intent_id
+			stripe_payment_intent_id,
+			deposit_cents
 		)
-		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', $6, $7, $8, $9, $10, $11::uuid, $12)
+		values ($1::uuid, $2::uuid, $3, $4, $5, 'placed', $6, $7, $8, $9, $10, $11::uuid, $12, $13)
 		returning id::text, buyer_token, pickup_code, status, payment_method, payment_status, captured_cents, created_at
-	`, in.storeID, in.pickupWindowID, in.buyerEmail, in.buyerName, in.buyerPhone, paymentMethod, paymentStatus, subtotal, buyerFee, total, subID, stripePI).Scan(
+	`, in.storeID, in.pickupWindowID, in.buyerEmail, in.buyerName, in.buyerPhone, paymentMethod, paymentStatus, subtotal, buyerFee, total, subID, stripePI, in.depositCents).Scan(
 		&out.ID,
 		&out.BuyerToken,
 		&out.PickupCode,

@@ -14,8 +14,9 @@ import (
 )
 
 type BuyerSubscriptionsAPI struct {
-	DB     *pgxpool.Pool
-	Stripe *stripepay.Client
+	DB        *pgxpool.Pool
+	Stripe    *stripepay.Client
+	JWTSecret string
 }
 
 type BuyerSubscription struct {
@@ -55,8 +56,8 @@ func (a BuyerSubscriptionsAPI) GetSubscription(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	token := extractBuyerToken(r)
-	if token == "" {
+	bi := resolveBuyerAuth(r, a.JWTSecret)
+	if !bi.isAuthenticated() {
 		resp.Unauthorized(w, "missing token")
 		return
 	}
@@ -88,9 +89,13 @@ func (a BuyerSubscriptionsAPI) GetSubscription(w http.ResponseWriter, r *http.Re
 		from subscriptions s
 		join subscription_plans sp on sp.id = s.plan_id
 		join pickup_locations pl on pl.id = sp.pickup_location_id
-		where s.id = $1::uuid and s.buyer_token = $2
+		where s.id = $1::uuid
+			and (
+				($2::text is not null and s.buyer_token = $2)
+				or ($3::uuid is not null and s.buyer_user_id = $3::uuid)
+			)
 		limit 1
-	`, subID, token).Scan(
+	`, subID, bi.buyerToken, bi.userID).Scan(
 		&out.ID,
 		&out.PlanID,
 		&out.StoreID,
@@ -146,8 +151,8 @@ func (a BuyerSubscriptionsAPI) SetupPaymentMethod(w http.ResponseWriter, r *http
 		resp.BadRequest(w, "missing or invalid subscriptionId")
 		return
 	}
-	token := extractBuyerToken(r)
-	if token == "" {
+	bi := resolveBuyerAuth(r, a.JWTSecret)
+	if !bi.isAuthenticated() {
 		resp.Unauthorized(w, "missing token")
 		return
 	}
@@ -156,9 +161,13 @@ func (a BuyerSubscriptionsAPI) SetupPaymentMethod(w http.ResponseWriter, r *http
 	if err := a.DB.QueryRow(r.Context(), `
 		select stripe_customer_id
 		from subscriptions
-		where id = $1::uuid and buyer_token = $2
+		where id = $1::uuid
+			and (
+				($2::text is not null and buyer_token = $2)
+				or ($3::uuid is not null and buyer_user_id = $3::uuid)
+			)
 		limit 1
-	`, subID, token).Scan(&customerID); err != nil {
+	`, subID, bi.buyerToken, bi.userID).Scan(&customerID); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.Unauthorized(w, "subscription not found")
 			return
@@ -199,8 +208,8 @@ func (a BuyerSubscriptionsAPI) ConfirmPaymentMethod(w http.ResponseWriter, r *ht
 		resp.BadRequest(w, "missing or invalid subscriptionId")
 		return
 	}
-	token := extractBuyerToken(r)
-	if token == "" {
+	bi := resolveBuyerAuth(r, a.JWTSecret)
+	if !bi.isAuthenticated() {
 		resp.Unauthorized(w, "missing token")
 		return
 	}
@@ -220,9 +229,13 @@ func (a BuyerSubscriptionsAPI) ConfirmPaymentMethod(w http.ResponseWriter, r *ht
 	if err := a.DB.QueryRow(r.Context(), `
 		select stripe_customer_id
 		from subscriptions
-		where id = $1::uuid and buyer_token = $2
+		where id = $1::uuid
+			and (
+				($2::text is not null and buyer_token = $2)
+				or ($3::uuid is not null and buyer_user_id = $3::uuid)
+			)
 		limit 1
-	`, subID, token).Scan(&currentCustomer); err != nil {
+	`, subID, bi.buyerToken, bi.userID).Scan(&currentCustomer); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.Unauthorized(w, "subscription not found")
 			return
@@ -251,9 +264,13 @@ func (a BuyerSubscriptionsAPI) ConfirmPaymentMethod(w http.ResponseWriter, r *ht
 
 	if _, err := a.DB.Exec(r.Context(), `
 		update subscriptions
-		set stripe_payment_method_id = $3, updated_at = now()
-		where id = $1::uuid and buyer_token = $2
-	`, subID, token, si.PaymentMethod.ID); err != nil {
+		set stripe_payment_method_id = $4, updated_at = now()
+		where id = $1::uuid
+			and (
+				($2::text is not null and buyer_token = $2)
+				or ($3::uuid is not null and buyer_user_id = $3::uuid)
+			)
+	`, subID, bi.buyerToken, bi.userID, si.PaymentMethod.ID); err != nil {
 		resp.Internal(w, err)
 		return
 	}
@@ -275,8 +292,8 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 		resp.BadRequest(w, "missing or invalid subscriptionId")
 		return
 	}
-	token := extractBuyerToken(r)
-	if token == "" {
+	bi := resolveBuyerAuth(r, a.JWTSecret)
+	if !bi.isAuthenticated() {
 		resp.Unauthorized(w, "missing token")
 		return
 	}
@@ -294,7 +311,7 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	// MVP behavior:
 	// - update subscription status
 	// - if canceling, also cancel the next upcoming order (if cutoff hasn't passed yet)
-	note, err := a.updateStatusAndMaybeCancelUpcomingOrder(r.Context(), subID, token, status)
+	note, err := a.updateStatusAndMaybeCancelUpcomingOrder(r.Context(), subID, bi, status)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			resp.Unauthorized(w, "subscription not found")
@@ -311,30 +328,38 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	resp.OK(w, out)
 }
 
-func (a BuyerSubscriptionsAPI) updateStatusAndMaybeCancelUpcomingOrder(ctx context.Context, subID string, token string, status string) (note string, err error) {
+func (a BuyerSubscriptionsAPI) updateStatusAndMaybeCancelUpcomingOrder(ctx context.Context, subID string, bi buyerIdentity, status string) (note string, err error) {
 	tx, err := a.DB.Begin(ctx)
 	if err != nil {
 		return "", err
 	}
 	defer tx.Rollback(ctx)
 
-	// Ensure token matches and lock the subscription row.
+	// Ensure auth matches and lock the subscription row.
 	var storeID string
 	if err := tx.QueryRow(ctx, `
 		select store_id::text
 		from subscriptions
-		where id = $1::uuid and buyer_token = $2
+		where id = $1::uuid
+			and (
+				($2::text is not null and buyer_token = $2)
+				or ($3::uuid is not null and buyer_user_id = $3::uuid)
+			)
 		limit 1
 		for update
-	`, subID, token).Scan(&storeID); err != nil {
+	`, subID, bi.buyerToken, bi.userID).Scan(&storeID); err != nil {
 		return "", err
 	}
 
 	if _, err := tx.Exec(ctx, `
 		update subscriptions
-		set status = $3, updated_at = now()
-		where id = $1::uuid and buyer_token = $2
-	`, subID, token, status); err != nil {
+		set status = $4, updated_at = now()
+		where id = $1::uuid
+			and (
+				($2::text is not null and buyer_token = $2)
+				or ($3::uuid is not null and buyer_user_id = $3::uuid)
+			)
+	`, subID, bi.buyerToken, bi.userID, status); err != nil {
 		return "", err
 	}
 

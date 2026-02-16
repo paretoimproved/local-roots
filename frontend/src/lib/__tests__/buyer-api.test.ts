@@ -13,6 +13,61 @@ beforeEach(() => {
   mockRequestJSON.mockResolvedValue({});
 });
 
+describe("buyerApi.checkoutOrder", () => {
+  it("POSTs to /v1/pickup-windows/:id/checkout with buyer info and items", async () => {
+    const input = {
+      buyer: { email: "a@b.com", name: "Alice", phone: "555-0000" },
+      items: [{ offering_id: "off-1", quantity: 2 }],
+    };
+    await buyerApi.checkoutOrder("pw-1", input);
+
+    const [path, init] = mockRequestJSON.mock.calls[0];
+    expect(path).toBe("/v1/pickup-windows/pw-1/checkout");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body);
+    expect(body.buyer.email).toBe("a@b.com");
+    expect(body.buyer.name).toBe("Alice");
+    expect(body.buyer.phone).toBe("555-0000");
+    expect(body.items).toEqual([{ offering_id: "off-1", quantity: 2 }]);
+  });
+
+  it("returns OrderCheckoutResponse shape", async () => {
+    const mockResponse = {
+      payment_intent_id: "pi_test_123",
+      client_secret: "pi_test_123_secret_abc",
+      subtotal_cents: 2000,
+      buyer_fee_cents: 100,
+      total_cents: 2100,
+    };
+    mockRequestJSON.mockResolvedValueOnce(mockResponse);
+
+    const result = await buyerApi.checkoutOrder("pw-1", {
+      buyer: { email: "a@b.com" },
+      items: [{ offering_id: "off-1", quantity: 1 }],
+    });
+
+    expect(result).toEqual(mockResponse);
+    expect(result.payment_intent_id).toBe("pi_test_123");
+    expect(result.client_secret).toBe("pi_test_123_secret_abc");
+    expect(result.subtotal_cents).toBe(2000);
+    expect(result.buyer_fee_cents).toBe(100);
+    expect(result.total_cents).toBe(2100);
+  });
+
+  it("sends only email when optional buyer fields are omitted", async () => {
+    await buyerApi.checkoutOrder("pw-1", {
+      buyer: { email: "a@b.com" },
+      items: [{ offering_id: "off-1", quantity: 1 }],
+    });
+
+    const body = JSON.parse(mockRequestJSON.mock.calls[0][1].body);
+    expect(body.buyer.email).toBe("a@b.com");
+    // Optional fields are passed as-is (undefined), not explicitly nullified
+    expect(body.buyer.name).toBeUndefined();
+    expect(body.buyer.phone).toBeUndefined();
+  });
+});
+
 describe("buyerApi.placeOrder", () => {
   it("POSTs to /v1/pickup-windows/:id/orders with input body", async () => {
     const input = {
@@ -28,6 +83,37 @@ describe("buyerApi.placeOrder", () => {
         body: JSON.stringify(input),
       },
     );
+  });
+
+  it("includes card payment fields when provided", async () => {
+    const input = {
+      buyer: { email: "a@b.com", name: "Alice" },
+      items: [{ offering_id: "off-1", quantity: 2 }],
+      payment_method: "card",
+      stripe_payment_intent_id: "pi_abc123",
+    };
+    await buyerApi.placeOrder("pw-1", input);
+
+    const [path, init] = mockRequestJSON.mock.calls[0];
+    expect(path).toBe("/v1/pickup-windows/pw-1/orders");
+    expect(init.method).toBe("POST");
+    const body = JSON.parse(init.body);
+    expect(body.payment_method).toBe("card");
+    expect(body.stripe_payment_intent_id).toBe("pi_abc123");
+    expect(body.buyer.email).toBe("a@b.com");
+    expect(body.items).toEqual([{ offering_id: "off-1", quantity: 2 }]);
+  });
+
+  it("omits card fields when not provided (cash payment)", async () => {
+    const input = {
+      buyer: { email: "a@b.com" },
+      items: [{ offering_id: "off-1", quantity: 1 }],
+    };
+    await buyerApi.placeOrder("pw-1", input);
+
+    const body = JSON.parse(mockRequestJSON.mock.calls[0][1].body);
+    expect(body.payment_method).toBeUndefined();
+    expect(body.stripe_payment_intent_id).toBeUndefined();
   });
 });
 

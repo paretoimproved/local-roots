@@ -9,132 +9,13 @@ import { subscriptionToken } from "@/lib/subscription-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
-import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
+import { AuthorizeCard } from "@/components/stripe-card-auth";
 
 function cadenceLabel(c: string) {
   if (c === "weekly") return "Weekly";
   if (c === "biweekly") return "Every two weeks";
   if (c === "monthly") return "Monthly";
   return c;
-}
-
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
-);
-
-function AuthorizeCardInner({
-  onAuthorized,
-  submitting,
-  setSubmitting,
-  setError,
-  mode,
-}: {
-  onAuthorized: () => Promise<void>;
-  submitting: boolean;
-  setSubmitting: (v: boolean) => void;
-  setError: (v: string | null) => void;
-  mode: "payment_intent" | "setup_intent";
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-
-  async function confirm() {
-    if (!stripe || !elements) return;
-    setSubmitting(true);
-    setError(null);
-    try {
-      if (mode === "payment_intent") {
-        const res = await stripe.confirmPayment({
-          elements,
-          redirect: "if_required",
-        });
-        if (res.error) {
-          setError(res.error.message ?? "Payment failed. Please try again.");
-          return;
-        }
-        const status = res.paymentIntent?.status ?? "";
-        if (status !== "requires_capture") {
-          setError("Payment was not authorized. Please try another card.");
-          return;
-        }
-      } else {
-        const res = await stripe.confirmSetup({
-          elements,
-          redirect: "if_required",
-        });
-        if (res.error) {
-          setError(res.error.message ?? "Could not save card. Please try again.");
-          return;
-        }
-        const status = res.setupIntent?.status ?? "";
-        if (status !== "succeeded") {
-          setError("Card was not saved. Please try again.");
-          return;
-        }
-      }
-      await onAuthorized();
-    } catch (e: unknown) {
-      setError(friendlyErrorMessage(e));
-    } finally {
-      setSubmitting(false);
-    }
-  }
-
-  return (
-    <div className="mt-4 grid gap-3">
-      <div className="rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
-        <PaymentElement />
-      </div>
-      <button
-        type="button"
-        className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
-        disabled={submitting || !stripe || !elements}
-        onClick={confirm}
-      >
-        {submitting ? "Authorizing…" : "Authorize card"}
-      </button>
-      <div className="text-xs text-[color:var(--lr-muted)]">
-        {mode === "payment_intent"
-          ? "Your card will be authorized now and captured when pickup is confirmed."
-          : "Your card will be saved now. We will authorize each pickup within 7 days of the pickup and capture when pickup is confirmed."}
-      </div>
-    </div>
-  );
-}
-
-function AuthorizeCard({
-  clientSecret,
-  onAuthorized,
-  submitting,
-  setSubmitting,
-  setError,
-  mode,
-}: {
-  clientSecret: string;
-  onAuthorized: () => Promise<void>;
-  submitting: boolean;
-  setSubmitting: (v: boolean) => void;
-  setError: (v: string | null) => void;
-  mode: "payment_intent" | "setup_intent";
-}) {
-  return (
-    <Elements
-      stripe={stripePromise}
-      options={{
-        clientSecret,
-        appearance: { theme: "stripe" },
-      }}
-    >
-      <AuthorizeCardInner
-        onAuthorized={onAuthorized}
-        submitting={submitting}
-        setSubmitting={setSubmitting}
-        setError={setError}
-        mode={mode}
-      />
-    </Elements>
-  );
 }
 
 export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
@@ -151,6 +32,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   const priceSubtotal = checkout?.subtotal_cents ?? plan.price_cents;
   const priceFee = checkout?.buyer_fee_cents ?? 0;
   const priceTotal = checkout?.total_cents ?? plan.price_cents;
+  const depositCents = checkout?.deposit_cents ?? plan.deposit_cents ?? 0;
   const feeBps = checkout?.buyer_fee_bps ?? null;
   const feeFlat = checkout?.buyer_fee_flat_cents ?? null;
   const feeLabel =
@@ -279,7 +161,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             Subscribe
           </h2>
           <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-            {cadenceLabel(plan.cadence)} · {formatMoney(plan.price_cents)} per box
+            {cadenceLabel(plan.cadence)} &middot; {formatMoney(plan.price_cents)} per box
           </p>
           <div className="mt-3 text-sm text-[color:var(--lr-muted)]">
             Next pickup:{" "}
@@ -309,6 +191,16 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
               {checkout ? formatMoney(priceFee) : "Calculated at checkout"}
             </span>
           </div>
+          {depositCents > 0 ? (
+            <div className="flex items-baseline justify-between gap-4">
+              <span className="font-medium text-[color:var(--lr-muted)]">
+                Refundable deposit
+              </span>
+              <span className="font-semibold text-[color:var(--lr-ink)]">
+                {formatMoney(depositCents)}
+              </span>
+            </div>
+          ) : null}
           <div className="h-px bg-[color:var(--lr-border)]/70" />
           <div className="flex items-baseline justify-between gap-4">
             <span className="font-semibold text-[color:var(--lr-ink)]">
@@ -381,9 +273,9 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             : !paymentsReady
               ? "Payments not configured"
               : checkout
-                ? "Continue below…"
+                ? "Continue below\u2026"
                 : submitting
-                  ? "Starting…"
+                  ? "Starting\u2026"
                   : "Start subscription"}
         </button>
         {checkout ? (

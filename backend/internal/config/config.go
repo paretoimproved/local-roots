@@ -18,6 +18,10 @@ type Config struct {
 	NoShowFeeCents      int
 	BuyerFeeBps         int
 	BuyerFeeFlatCents   int
+	FrontendURL         string
+	ResendAPIKey        string
+	EmailFrom           string
+	NoShowPlatformSplitBps int
 }
 
 func FromEnv() Config {
@@ -60,6 +64,21 @@ func FromEnv() Config {
 		}
 	}
 
+	frontendURL := os.Getenv("FRONTEND_URL")
+
+	resendAPIKey := os.Getenv("RESEND_API_KEY")
+	emailFrom := os.Getenv("EMAIL_FROM")
+	if emailFrom == "" {
+		emailFrom = "Local Roots <noreply@localroots.com>"
+	}
+
+	noShowPlatformSplitBps := 3000
+	if v := os.Getenv("NO_SHOW_PLATFORM_SPLIT_BPS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
+			noShowPlatformSplitBps = n
+		}
+	}
+
 	return Config{
 		Addr:                addr,
 		Env:                 env,
@@ -70,8 +89,12 @@ func FromEnv() Config {
 		StripeSecretKey:     stripeSecretKey,
 		StripeWebhookSecret: stripeWebhookSecret,
 		InternalCronSecret:  internalCronSecret,
-		NoShowFeeCents:      noShowFeeCents,
-		BuyerFeeBps:         buyerFeeBps,
-		BuyerFeeFlatCents:   buyerFeeFlatCents,
+		NoShowFeeCents:         noShowFeeCents,
+		BuyerFeeBps:           buyerFeeBps,
+		BuyerFeeFlatCents:     buyerFeeFlatCents,
+		FrontendURL:           frontendURL,
+		ResendAPIKey:          resendAPIKey,
+		EmailFrom:             emailFrom,
+		NoShowPlatformSplitBps: noShowPlatformSplitBps,
 	}
 }

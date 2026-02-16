@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -10,14 +11,18 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/paretoimproved/local-roots/backend/internal/email"
 	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
 
 type SellerOrdersAPI struct {
-	DB             *pgxpool.Pool
-	Stripe          *stripepay.Client
-	NoShowFeeCents int
+	DB                     *pgxpool.Pool
+	Stripe                 *stripepay.Client
+	NoShowFeeCents         int
+	NoShowPlatformSplitBps int
+	Email                  *email.Client
+	FrontendURL            string
 }
 
 type SellerOrder struct {
@@ -204,17 +209,19 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 	var paymentMethod string
 	var paymentStatus string
 	var stripePI *string
+	var orderDepositCents int
 	if err := tx.QueryRow(ctx, `
 		select
 			status,
 			pickup_window_id::text,
 			payment_method,
 			payment_status,
-			stripe_payment_intent_id
+			stripe_payment_intent_id,
+			deposit_cents
 		from orders
 		where id = $1::uuid and store_id = $2::uuid
 		for update
-	`, orderID, sc.StoreID).Scan(&currentStatus, &pickupWindowID, &paymentMethod, &paymentStatus, &stripePI); err != nil {
+	`, orderID, sc.StoreID).Scan(&currentStatus, &pickupWindowID, &paymentMethod, &paymentStatus, &stripePI, &orderDepositCents); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "order not found")
 			return
@@ -231,9 +238,13 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 	newPaymentStatus := paymentStatus
 	capturedCentsDelta := -1 // -1 means "leave unchanged"
 
+	// No-show fee: use order's deposit_cents if set, else config default.
 	noShowFeeCents := a.NoShowFeeCents
 	if noShowFeeCents <= 0 {
 		noShowFeeCents = 500
+	}
+	if orderDepositCents > 0 {
+		noShowFeeCents = orderDepositCents
 	}
 
 	// Track deferred Stripe action to run after commit.
@@ -339,6 +350,46 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 			_ = a.Stripe.CancelPaymentIntent(ctx, deferred.piID, deferred.idempotency)
 		} else {
 			_ = a.Stripe.CaptureAuthorizationAmount(ctx, deferred.piID, deferred.captureAmt, deferred.idempotency)
+
+			// No-show fee split: transfer seller's share to their Connect account.
+			if in.Status == "no_show" && deferred.captureAmt > 0 {
+				splitBps := a.NoShowPlatformSplitBps
+				if splitBps <= 0 {
+					splitBps = 3000 // 30% platform default
+				}
+				platformShare := (deferred.captureAmt * splitBps) / 10000
+				sellerShare := deferred.captureAmt - platformShare
+				if sellerShare > 0 {
+					var connectAccountID *string
+					var connectStatus string
+					if err := a.DB.QueryRow(ctx, `
+						select stripe_account_id, stripe_account_status
+						from stores
+						where id = $1::uuid
+					`, sc.StoreID).Scan(&connectAccountID, &connectStatus); err == nil &&
+						connectAccountID != nil && strings.TrimSpace(*connectAccountID) != "" &&
+						connectStatus == "active" {
+						chargeID, _ := a.Stripe.GetChargeIDFromPaymentIntent(ctx, deferred.piID)
+						transferID, err := a.Stripe.CreateTransfer(ctx, sellerShare, *connectAccountID, chargeID, "noshow-transfer-"+orderID)
+						if err == nil && transferID != "" {
+							_, _ = a.DB.Exec(ctx, `
+								update orders
+								set stripe_transfer_id = $2, updated_at = now()
+								where id = $1::uuid
+							`, orderID, transferID)
+						}
+					}
+				}
+			}
+		}
+	}
+
+	// Send "order ready" email when transitioning to ready.
+	if in.Status == "ready" && a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
+		if info, ok := fetchOrderEmailInfo(ctx, a.DB, orderID); ok {
+			orderURL := strings.TrimRight(a.FrontendURL, "/") + "/orders/" + orderID + "?t=" + info.buyerToken
+			subj, body := email.OrderReady(info.boxTitle, info.pickupCode, orderURL)
+			a.Email.SendAsync(info.buyerEmail, subj, body)
 		}
 	}
 
@@ -399,6 +450,7 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 	var paymentMethod string
 	var paymentStatus string
 	var stripePI *string
+	var subtotalCents int
 	if err := tx.QueryRow(ctx, `
 		select
 			status,
@@ -406,11 +458,12 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 			pickup_code,
 			payment_method,
 			payment_status,
-			stripe_payment_intent_id
+			stripe_payment_intent_id,
+			subtotal_cents
 		from orders
 		where id = $1::uuid and store_id = $2::uuid
 		for update
-	`, orderID, sc.StoreID).Scan(&currentStatus, &pickupWindowID, &pickupCode, &paymentMethod, &paymentStatus, &stripePI); err != nil {
+	`, orderID, sc.StoreID).Scan(&currentStatus, &pickupWindowID, &pickupCode, &paymentMethod, &paymentStatus, &stripePI, &subtotalCents); err != nil {
 		if err == pgx.ErrNoRows {
 			resp.NotFound(w, "order not found")
 			return
@@ -461,7 +514,43 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 	// Capture the Stripe authorization after commit. If this fails, the
 	// payment_intent.succeeded webhook will reconcile the payment status.
 	if needsCapture {
-		_ = a.Stripe.CaptureAuthorization(ctx, strings.TrimSpace(*stripePI), "capture-"+orderID)
+		trimPI := strings.TrimSpace(*stripePI)
+		_ = a.Stripe.CaptureAuthorization(ctx, trimPI, "capture-"+orderID)
+
+		// Transfer seller's share to their Connect account.
+		// Seller gets subtotal_cents; buyer_fee_cents stays on the platform.
+		if subtotalCents > 0 {
+			var connectAccountID *string
+			var connectStatus string
+			if err := a.DB.QueryRow(ctx, `
+				select stripe_account_id, stripe_account_status
+				from stores
+				where id = $1::uuid
+			`, sc.StoreID).Scan(&connectAccountID, &connectStatus); err == nil &&
+				connectAccountID != nil && strings.TrimSpace(*connectAccountID) != "" &&
+				connectStatus == "active" {
+				// Get charge ID from PI for source_transaction.
+				chargeID, _ := a.Stripe.GetChargeIDFromPaymentIntent(ctx, trimPI)
+				transferID, err := a.Stripe.CreateTransfer(ctx, subtotalCents, *connectAccountID, chargeID, "transfer-"+orderID)
+				if err == nil && transferID != "" {
+					_, _ = a.DB.Exec(ctx, `
+						update orders
+						set stripe_transfer_id = $2, updated_at = now()
+						where id = $1::uuid
+					`, orderID, transferID)
+				}
+			}
+		}
+
+		// Send payment receipt email.
+		if a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
+			if info, ok := fetchOrderEmailInfo(ctx, a.DB, orderID); ok {
+				orderURL := strings.TrimRight(a.FrontendURL, "/") + "/orders/" + orderID + "?t=" + info.buyerToken
+				amountStr := fmt.Sprintf("$%.2f", float64(info.totalCents)/100.0)
+				subj, body := email.PaymentReceipt(amountStr, info.boxTitle, orderURL)
+				a.Email.SendAsync(info.buyerEmail, subj, body)
+			}
+		}
 	}
 
 	resp.OK(w, map[string]any{
@@ -470,6 +559,29 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 		"pickup_window_id": pickupWindowID,
 		"status":           "picked_up",
 	})
+}
+
+type orderEmailInfo struct {
+	buyerEmail string
+	boxTitle   string
+	pickupCode string
+	totalCents int
+	buyerToken string
+}
+
+func fetchOrderEmailInfo(ctx context.Context, pool *pgxpool.Pool, orderID string) (orderEmailInfo, bool) {
+	var info orderEmailInfo
+	err := pool.QueryRow(ctx, `
+		select
+			o.buyer_email,
+			coalesce((select oi.product_title from order_items oi where oi.order_id = o.id limit 1), 'Order'),
+			o.pickup_code,
+			o.total_cents,
+			o.buyer_token
+		from orders o
+		where o.id = $1::uuid
+	`, orderID).Scan(&info.buyerEmail, &info.boxTitle, &info.pickupCode, &info.totalCents, &info.buyerToken)
+	return info, err == nil
 }
 
 // mode:

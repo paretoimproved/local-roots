@@ -6,6 +6,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	v1 "github.com/paretoimproved/local-roots/backend/internal/api/v1"
 	"github.com/paretoimproved/local-roots/backend/internal/config"
+	"github.com/paretoimproved/local-roots/backend/internal/email"
 	"github.com/paretoimproved/local-roots/backend/internal/health"
 	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 )
@@ -31,6 +32,8 @@ func NewHandler(deps Deps) http.Handler {
 		stripeClient = c
 	}
 
+	emailClient := email.New(deps.Config.ResendAPIKey, deps.Config.EmailFrom)
+
 	public := v1.PublicAPI{DB: deps.DB}
 	mux.HandleFunc("GET /v1/stores", public.ListStores)
 	mux.HandleFunc("GET /v1/stores/{storeId}/pickup-windows", public.ListStorePickupWindows)
@@ -41,20 +44,35 @@ func NewHandler(deps Deps) http.Handler {
 		Stripe:          stripeClient,
 		BuyerFeeBps:     deps.Config.BuyerFeeBps,
 		BuyerFeeFlatCts: deps.Config.BuyerFeeFlatCents,
+		Email:           emailClient,
+		FrontendURL:     deps.Config.FrontendURL,
 	}
 	mux.HandleFunc("GET /v1/stores/{storeId}/subscription-plans", sub.ListStorePlans)
 	mux.HandleFunc("GET /v1/subscription-plans/{planId}", sub.GetPlan)
 	mux.HandleFunc("POST /v1/subscription-plans/{planId}/checkout", WithRateLimit("checkout", sub.Checkout))
 	mux.HandleFunc("POST /v1/subscription-plans/{planId}/subscribe", WithRateLimit("checkout", sub.Subscribe))
 
-	orders := v1.OrdersAPI{DB: deps.DB}
+	orders := v1.OrdersAPI{
+		DB:              deps.DB,
+		Stripe:          stripeClient,
+		BuyerFeeBps:     deps.Config.BuyerFeeBps,
+		BuyerFeeFlatCts: deps.Config.BuyerFeeFlatCents,
+	}
 	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/orders", orders.CreateOrder)
 
-	buyerOrders := v1.BuyerOrdersAPI{DB: deps.DB}
+	orderCheckout := v1.OrderCheckoutAPI{
+		DB:              deps.DB,
+		Stripe:          stripeClient,
+		BuyerFeeBps:     deps.Config.BuyerFeeBps,
+		BuyerFeeFlatCts: deps.Config.BuyerFeeFlatCents,
+	}
+	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/checkout", WithRateLimit("checkout", orderCheckout.Checkout))
+
+	buyerOrders := v1.BuyerOrdersAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("GET /v1/orders/{orderId}", buyerOrders.GetOrder)
 	mux.HandleFunc("POST /v1/orders/{orderId}/review", buyerOrders.CreateReview)
 
-	buyerSubs := v1.BuyerSubscriptionsAPI{DB: deps.DB, Stripe: stripeClient}
+	buyerSubs := v1.BuyerSubscriptionsAPI{DB: deps.DB, Stripe: stripeClient, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("GET /v1/subscriptions/{subscriptionId}", buyerSubs.GetSubscription)
 	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/status", buyerSubs.UpdateStatus)
 	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/payment-method/setup", buyerSubs.SetupPaymentMethod)
@@ -66,6 +84,13 @@ func NewHandler(deps Deps) http.Handler {
 	authAPI := v1.AuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("POST /v1/auth/register", WithRateLimit("auth", authAPI.Register))
 	mux.HandleFunc("POST /v1/auth/login", WithRateLimit("auth", authAPI.Login))
+
+	buyerAuthAPI := v1.BuyerAuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
+	mux.HandleFunc("POST /v1/buyer/auth/magic-link", WithRateLimit("auth", buyerAuthAPI.SendMagicLink))
+	mux.HandleFunc("POST /v1/buyer/auth/verify", WithRateLimit("auth", buyerAuthAPI.Verify))
+	mux.HandleFunc("GET /v1/buyer/me", authAPI.RequireUser(buyerAuthAPI.GetMe))
+	mux.HandleFunc("GET /v1/buyer/orders", authAPI.RequireUser(buyerAuthAPI.ListOrders))
+	mux.HandleFunc("GET /v1/buyer/subscriptions", authAPI.RequireUser(buyerAuthAPI.ListSubscriptions))
 
 	seller := v1.SellerAPI{DB: deps.DB}
 	mux.HandleFunc("GET /v1/seller/stores", authAPI.RequireUser(seller.ListMyStores))
@@ -86,13 +111,18 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListOfferings)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreateOffering)))
 
-	sellerOrders := v1.SellerOrdersAPI{DB: deps.DB, Stripe: stripeClient, NoShowFeeCents: deps.Config.NoShowFeeCents}
+	sellerOrders := v1.SellerOrdersAPI{DB: deps.DB, Stripe: stripeClient, NoShowFeeCents: deps.Config.NoShowFeeCents, NoShowPlatformSplitBps: deps.Config.NoShowPlatformSplitBps, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ListOrdersForPickupWindow)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.UpdateOrderStatus)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ConfirmPickup)))
 
-	sellerPayouts := v1.SellerPayoutsAPI{DB: deps.DB}
+	sellerPayouts := v1.SellerPayoutsAPI{DB: deps.DB, NoShowPlatformSplitBps: deps.Config.NoShowPlatformSplitBps}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/payout-summary", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerPayouts.GetPickupWindowPayoutSummary)))
+
+	sellerConnect := v1.SellerConnectAPI{DB: deps.DB, Stripe: stripeClient, FrontendURL: deps.Config.FrontendURL}
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/connect/onboard", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.Onboard)))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/connect/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.GetStatus)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/connect/refresh-link", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.RefreshLink)))
 
 	sellerSub := v1.SellerSubscriptionAPI{
 		DB:              deps.DB,
@@ -116,6 +146,14 @@ func NewHandler(deps Deps) http.Handler {
 		Secret: deps.Config.InternalCronSecret,
 	}
 	mux.HandleFunc("POST /v1/internal/billing/authorize-pending", internalBilling.AuthorizePending)
+
+	internalEmail := v1.InternalEmailAPI{
+		DB:          deps.DB,
+		Email:       emailClient,
+		Secret:      deps.Config.InternalCronSecret,
+		FrontendURL: deps.Config.FrontendURL,
+	}
+	mux.HandleFunc("POST /v1/internal/email/pickup-reminders", internalEmail.SendPickupReminders)
 
 	return withLogging(withCORS(deps.Config, mux))
 }
