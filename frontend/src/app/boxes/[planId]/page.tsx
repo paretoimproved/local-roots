@@ -3,6 +3,18 @@ import { api } from "@/lib/api";
 import { SubscribeForm } from "@/components/subscribe-form";
 import { formatMoney } from "@/lib/ui";
 
+function formatPickupDate(isoDate: string, timezone: string) {
+  const start = new Date(isoDate);
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: timezone || "UTC",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(start);
+}
+
 function cadenceLabel(c: string) {
   if (c === "weekly") return "Weekly";
   if (c === "biweekly") return "Every two weeks";
@@ -81,9 +93,7 @@ export default async function BoxPlanPage({
                   Next pickup
                 </div>
                 <div className="mt-1 font-semibold text-[color:var(--lr-ink)]">
-                  {new Date(plan.next_start_at).toLocaleString("en-US", {
-                    timeZone: plan.pickup_location.timezone || "UTC",
-                  })}
+                  {formatPickupDate(plan.next_start_at, plan.pickup_location.timezone)}
                 </div>
               </div>
               <div className="lr-chip rounded-2xl px-4 py-3">

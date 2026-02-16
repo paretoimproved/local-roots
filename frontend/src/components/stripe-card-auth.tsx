@@ -4,9 +4,8 @@ import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-
 import { loadStripe } from "@stripe/stripe-js";
 import { friendlyErrorMessage } from "@/lib/ui";
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
-);
+const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 function AuthorizeCardInner({
   onAuthorized,
@@ -103,6 +102,14 @@ export function AuthorizeCard({
   setError: (v: string | null) => void;
   mode: "payment_intent" | "setup_intent";
 }) {
+  if (!stripePromise) {
+    return (
+      <div className="mt-4 rounded-xl bg-amber-50/70 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+        Payment system is temporarily unavailable. Please try again later.
+      </div>
+    );
+  }
+
   return (
     <Elements
       stripe={stripePromise}

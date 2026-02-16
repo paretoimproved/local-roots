@@ -27,10 +27,16 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows, err := a.DB.Query(r.Context(), `
-		select id::text, name, description, created_at
-		from stores
-		where is_active = true
-		order by created_at desc
+		select s.id::text, s.name, s.description, s.created_at
+		from stores s
+		where s.is_active = true
+			and exists (
+				select 1 from subscription_plans sp
+				where sp.store_id = s.id
+					and sp.is_active = true
+					and sp.is_live = true
+			)
+		order by s.created_at desc
 		limit 100
 	`)
 	if err != nil {

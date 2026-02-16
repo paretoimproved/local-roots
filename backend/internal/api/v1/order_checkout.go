@@ -62,7 +62,7 @@ func (a OrderCheckoutAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 
 	buyerEmail := strings.ToLower(strings.TrimSpace(in.Buyer.Email))
 	if buyerEmail == "" || !strings.Contains(buyerEmail, "@") {
-		resp.BadRequest(w, "invalid buyer email")
+		resp.BadRequest(w, "please enter a valid email address")
 		return
 	}
 	if len(in.Items) == 0 {

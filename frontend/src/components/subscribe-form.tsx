@@ -271,7 +271,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
           {!plan.is_live
             ? "Not live yet"
             : !paymentsReady
-              ? "Payments not configured"
+              ? "Payments unavailable"
               : checkout
                 ? "Continue below\u2026"
                 : submitting

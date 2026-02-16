@@ -10,9 +10,8 @@ import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
 import { loadStripe } from "@stripe/stripe-js";
 
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "",
-);
+const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 function UpdateCardInner({
   onConfirm,
@@ -79,6 +78,14 @@ function UpdateCard({
   submitting: boolean;
   onConfirm: (setupIntentId: string) => Promise<void>;
 }) {
+  if (!stripePromise) {
+    return (
+      <div className="rounded-xl bg-amber-50/70 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+        Payment system is temporarily unavailable. Please try again later.
+      </div>
+    );
+  }
+
   return (
     <Elements
       stripe={stripePromise}
@@ -214,14 +221,15 @@ export default function SubscriptionPage() {
         <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
           Subscription
         </h1>
-        <p className="text-sm text-[color:var(--lr-muted)]">
-          <span className="break-all font-mono text-xs">{subscriptionId}</span>
-        </p>
       </div>
 
       {error ? (
         <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200">
-          <p>{error}</p>
+          <p>
+            {/not found/i.test(error)
+              ? "We couldn\u2019t find this subscription. Please check your link and try again."
+              : error}
+          </p>
           <button
             type="button"
             className="mt-2 text-sm font-medium underline"
