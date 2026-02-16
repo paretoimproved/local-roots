@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Offering } from "@/lib/api";
 import { buyerApi, defaultItemQty, type Order, type OrderCheckoutResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
-import { AuthorizeCard } from "@/components/stripe-card-auth";
+import { AuthorizeCard, isStripeAvailable } from "@/components/stripe-card-auth";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
@@ -31,9 +31,15 @@ export function CheckoutForm({
     "pay_at_pickup",
   );
   const [checkout, setCheckout] = useState<OrderCheckoutResponse | null>(null);
+  // Snapshot of items at checkout time — ensures the order matches the authorized amount
+  const [checkoutItems, setCheckoutItems] = useState<
+    { offering_id: string; quantity: number }[] | null
+  >(null);
+  const startingCheckoutRef = useRef(false);
   const paymentsReady = Boolean(
     process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
   );
+  const formLocked = !!checkout;
 
   const items = useMemo(() => {
     return offerings
@@ -71,54 +77,72 @@ export function CheckoutForm({
   }
 
   async function startCardCheckout() {
+    if (startingCheckoutRef.current) return;
+    if (!isStripeAvailable()) {
+      setError("Payment system could not load. Please disable ad blockers and refresh.");
+      return;
+    }
+    startingCheckoutRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
+      const snapshotItems = items.map((it) => ({
+        offering_id: it.offering_id,
+        quantity: it.quantity,
+      }));
       const res = await buyerApi.checkoutOrder(pickupWindowId, {
         buyer: {
           email: buyerEmail,
           name: buyerName || null,
           phone: buyerPhone || null,
         },
-        items: items.map((it) => ({
-          offering_id: it.offering_id,
-          quantity: it.quantity,
-        })),
+        items: snapshotItems,
       });
+      setCheckoutItems(snapshotItems);
       setCheckout(res);
       showToast({ kind: "success", message: "Card authorization started." });
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
     } finally {
       setSubmitting(false);
+      startingCheckoutRef.current = false;
     }
   }
 
   async function completeCardOrder() {
-    if (!checkout) return;
-    const res = await buyerApi.placeOrder(pickupWindowId, {
-      buyer: {
-        email: buyerEmail,
-        name: buyerName || null,
-        phone: buyerPhone || null,
-      },
-      items: items.map((it) => ({
-        offering_id: it.offering_id,
-        quantity: it.quantity,
-      })),
-      payment_method: "card",
-      stripe_payment_intent_id: checkout.payment_intent_id,
-    });
-    orderToken.set(res.id, res.buyer_token);
-    setOrder(res);
-    showToast({ kind: "success", message: "Order placed." });
+    if (!checkout || !checkoutItems) return;
+    try {
+      const res = await buyerApi.placeOrder(pickupWindowId, {
+        buyer: {
+          email: buyerEmail,
+          name: buyerName || null,
+          phone: buyerPhone || null,
+        },
+        // Use the snapshot from checkout time — matches the authorized amount
+        items: checkoutItems,
+        payment_method: "card",
+        stripe_payment_intent_id: checkout.payment_intent_id,
+      });
+      orderToken.set(res.id, res.buyer_token);
+      setOrder(res);
+      showToast({ kind: "success", message: "Order placed." });
+    } catch (e: unknown) {
+      // Card is already authorized — keep checkout state so user can retry
+      // without re-authorizing their card.
+      setError(
+        "Your card was authorized, but we couldn\u2019t place your order. " +
+        "Please tap \u201cAuthorize card\u201d again to retry. " +
+        "If the problem persists, contact support \u2014 your card will not be charged.",
+      );
+      throw e; // Re-throw so AuthorizeCard's catch also fires setSubmitting(false)
+    }
   }
 
   function handlePaymentMethodChange(method: "pay_at_pickup" | "card") {
+    // Don't allow switching away from card once a PaymentIntent has been created —
+    // switching would orphan the intent (money authorized but never captured/canceled).
+    if (checkout) return;
     setPaymentMethod(method);
-    if (method !== "card") {
-      setCheckout(null);
-    }
   }
 
   async function copyAccessLink() {
@@ -236,6 +260,7 @@ export function CheckoutForm({
                 min={0}
                 max={remaining}
                 value={cur}
+                disabled={formLocked}
                 onChange={(e) =>
                   setQty((prev) => ({
                     ...prev,
@@ -268,6 +293,7 @@ export function CheckoutForm({
             value={buyerEmail}
             onChange={(e) => setBuyerEmail(e.target.value)}
             required
+            disabled={formLocked}
           />
         </label>
         <div className="grid gap-2 md:grid-cols-2">
@@ -279,6 +305,7 @@ export function CheckoutForm({
               className="lr-field px-3 py-2 text-sm"
               value={buyerName}
               onChange={(e) => setBuyerName(e.target.value)}
+              disabled={formLocked}
             />
           </label>
           <label className="grid gap-1">
@@ -289,6 +316,7 @@ export function CheckoutForm({
               className="lr-field px-3 py-2 text-sm"
               value={buyerPhone}
               onChange={(e) => setBuyerPhone(e.target.value)}
+              disabled={formLocked}
             />
           </label>
         </div>
@@ -307,6 +335,7 @@ export function CheckoutForm({
                   checked={paymentMethod === "pay_at_pickup"}
                   onChange={() => handlePaymentMethodChange("pay_at_pickup")}
                   className="accent-[color:var(--lr-primary)]"
+                  disabled={formLocked}
                 />
                 Pay at pickup
               </label>
@@ -318,6 +347,7 @@ export function CheckoutForm({
                   checked={paymentMethod === "card"}
                   onChange={() => handlePaymentMethodChange("card")}
                   className="accent-[color:var(--lr-primary)]"
+                  disabled={formLocked}
                 />
                 Pay with card
               </label>

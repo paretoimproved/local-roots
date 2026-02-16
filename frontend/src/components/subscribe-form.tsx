@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { SubscriptionPlan } from "@/lib/api";
 import { buyerApi, type PlanCheckoutResponse, type SubscribeResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
@@ -9,7 +9,7 @@ import { subscriptionToken } from "@/lib/subscription-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
-import { AuthorizeCard } from "@/components/stripe-card-auth";
+import { AuthorizeCard, isStripeAvailable } from "@/components/stripe-card-auth";
 
 function cadenceLabel(c: string) {
   if (c === "weekly") return "Weekly";
@@ -27,8 +27,10 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<SubscribeResponse | null>(null);
   const [checkout, setCheckout] = useState<PlanCheckoutResponse | null>(null);
+  const startingCheckoutRef = useRef(false);
 
   const paymentsReady = Boolean(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY);
+  const formLocked = !!checkout;
   const priceSubtotal = checkout?.subtotal_cents ?? plan.price_cents;
   const priceFee = checkout?.buyer_fee_cents ?? 0;
   const priceTotal = checkout?.total_cents ?? plan.price_cents;
@@ -56,6 +58,12 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   }, [plan.next_start_at, plan.pickup_location.timezone]);
 
   async function startCheckout() {
+    if (startingCheckoutRef.current) return;
+    if (!isStripeAvailable()) {
+      setError("Payment system could not load. Please disable ad blockers and refresh.");
+      return;
+    }
+    startingCheckoutRef.current = true;
     setSubmitting(true);
     setError(null);
     try {
@@ -78,25 +86,37 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
       setError(friendlyErrorMessage(e));
     } finally {
       setSubmitting(false);
+      startingCheckoutRef.current = false;
     }
   }
 
   async function completeSubscribe() {
     if (!checkout) return;
-    const res = await buyerApi.subscribeToPlan(plan.id, {
-      payment_intent_id: checkout.mode === "payment_intent" ? checkout.id : undefined,
-      setup_intent_id: checkout.mode === "setup_intent" ? checkout.id : undefined,
-      buyer: {
-        email,
-        name: name || null,
-        phone: phone || null,
-      },
-    });
-    subscriptionToken.set(res.subscription.id, res.subscription.buyer_token);
-    orderToken.set(res.first_order.id, res.first_order.buyer_token);
-    setDone(res);
-    setCheckout(null);
-    showToast({ kind: "success", message: "Subscription started." });
+    try {
+      const res = await buyerApi.subscribeToPlan(plan.id, {
+        payment_intent_id: checkout.mode === "payment_intent" ? checkout.id : undefined,
+        setup_intent_id: checkout.mode === "setup_intent" ? checkout.id : undefined,
+        buyer: {
+          email,
+          name: name || null,
+          phone: phone || null,
+        },
+      });
+      subscriptionToken.set(res.subscription.id, res.subscription.buyer_token);
+      orderToken.set(res.first_order.id, res.first_order.buyer_token);
+      setDone(res);
+      setCheckout(null);
+      showToast({ kind: "success", message: "Subscription started." });
+    } catch (e: unknown) {
+      // Card is already authorized — keep checkout state so user can retry
+      // without re-authorizing their card.
+      setError(
+        "Your card was authorized, but we couldn\u2019t create your subscription. " +
+        "Please tap \u201cAuthorize card\u201d again to retry. " +
+        "If the problem persists, contact support \u2014 your card will not be charged.",
+      );
+      throw e; // Re-throw so AuthorizeCard's catch also fires setSubmitting(false)
+    }
   }
 
   if (done) {
@@ -237,6 +257,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            disabled={formLocked}
           />
         </label>
         <div className="grid gap-2 md:grid-cols-2">
@@ -248,6 +269,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
               className="lr-field px-3 py-2 text-sm"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              disabled={formLocked}
             />
           </label>
           <label className="grid gap-1">
@@ -258,6 +280,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
               className="lr-field px-3 py-2 text-sm"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
+              disabled={formLocked}
             />
           </label>
         </div>

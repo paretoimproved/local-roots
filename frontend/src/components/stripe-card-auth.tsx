@@ -7,6 +7,11 @@ import { friendlyErrorMessage } from "@/lib/ui";
 const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY ?? "";
 const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
+/** Check if Stripe JS is configured before creating intents. */
+export function isStripeAvailable(): boolean {
+  return stripePromise !== null;
+}
+
 function AuthorizeCardInner({
   onAuthorized,
   submitting,
