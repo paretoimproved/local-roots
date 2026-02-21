@@ -249,7 +249,7 @@ export default function StoresPage() {
               <ul
                 id="location-listbox"
                 role="listbox"
-                className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-lg border border-[color:var(--lr-border)] bg-[color:var(--lr-bg)] shadow-[0_8px_30px_rgba(38,28,10,0.12)]"
+                className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[color:var(--lr-border)] bg-[color:var(--lr-bg)] shadow-[0_8px_30px_rgba(38,28,10,0.12)]"
               >
                 {predictions.map((p, i) => (
                   <li
