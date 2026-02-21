@@ -213,12 +213,13 @@ export default function StoresPage() {
       </div>
 
       {/* Search controls */}
+      <div ref={wrapperRef} className="relative">
       <div className="lr-card lr-card-strong p-4">
         <form
           onSubmit={handleSubmit}
           className="flex flex-wrap items-end gap-3"
         >
-          <div ref={wrapperRef} className="relative grid min-w-[180px] flex-1 gap-1">
+          <div className="grid min-w-[180px] flex-1 gap-1">
             <label
               htmlFor="location-search"
               className="text-xs font-medium text-[color:var(--lr-muted)]"
@@ -245,31 +246,6 @@ export default function StoresPage() {
               }
               className="rounded-lg border border-[color:var(--lr-border)] bg-[color:var(--lr-bg)] px-3 py-2 text-sm text-[color:var(--lr-ink)] placeholder:text-[color:var(--lr-muted)] focus:outline-none focus:ring-2 focus:ring-[color:var(--lr-accent)]"
             />
-            {showDropdown && predictions.length > 0 ? (
-              <ul
-                id="location-listbox"
-                role="listbox"
-                className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[color:var(--lr-border)] bg-[color:var(--lr-bg)] shadow-[0_8px_30px_rgba(38,28,10,0.12)]"
-              >
-                {predictions.map((p, i) => (
-                  <li
-                    key={p.place_id}
-                    id={`prediction-${i}`}
-                    role="option"
-                    aria-selected={i === activeIndex}
-                    onMouseDown={() => selectPrediction(p)}
-                    onMouseEnter={() => setActiveIndex(i)}
-                    className={`cursor-pointer px-3 py-2 text-sm ${
-                      i === activeIndex
-                        ? "bg-[color:var(--lr-accent)]/10 text-[color:var(--lr-ink)]"
-                        : "text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]"
-                    }`}
-                  >
-                    {p.label}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
           </div>
           <div className="grid gap-1">
             <label
@@ -316,6 +292,32 @@ export default function StoresPage() {
         {searchError ? (
           <p className="mt-2 text-xs text-rose-600">{searchError}</p>
         ) : null}
+      </div>
+      {showDropdown && predictions.length > 0 ? (
+        <ul
+          id="location-listbox"
+          role="listbox"
+          className="absolute left-0 right-0 top-full z-50 mt-1 overflow-hidden rounded-lg border border-[color:var(--lr-border)] bg-[color:var(--lr-bg)] shadow-[0_8px_30px_rgba(38,28,10,0.12)]"
+        >
+          {predictions.map((p, i) => (
+            <li
+              key={p.place_id}
+              id={`prediction-${i}`}
+              role="option"
+              aria-selected={i === activeIndex}
+              onMouseDown={() => selectPrediction(p)}
+              onMouseEnter={() => setActiveIndex(i)}
+              className={`cursor-pointer px-3 py-2 text-sm ${
+                i === activeIndex
+                  ? "bg-[color:var(--lr-accent)]/10 text-[color:var(--lr-ink)]"
+                  : "text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]"
+              }`}
+            >
+              {p.label}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       </div>
 
       {loading ? (
