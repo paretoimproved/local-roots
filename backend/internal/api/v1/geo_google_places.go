@@ -438,7 +438,7 @@ type geocodeResponse struct {
 }
 
 // PublicGeocode converts a text query (city, zip, address) into lat/lng.
-// Uses Places API (New) Text Search — same API already enabled for seller geo.
+// Uses Places Autocomplete (New) + Place Details — same APIs the seller flow uses.
 // This endpoint is public (no auth) so buyers can search for stores by location.
 func (a GeoAPI) PublicGeocode(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(a.GooglePlacesAPIKey) == "" {
@@ -452,67 +452,123 @@ func (a GeoAPI) PublicGeocode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type textSearchReq struct {
-		TextQuery           string   `json:"textQuery"`
-		MaxResultCount      int      `json:"maxResultCount"`
+	client := &http.Client{Timeout: 6 * time.Second}
+
+	// Step 1: Autocomplete to get a place_id (same API as seller flow)
+	type autocompleteReq struct {
+		Input               string   `json:"input"`
 		IncludedRegionCodes []string `json:"includedRegionCodes,omitempty"`
 		LanguageCode        string   `json:"languageCode,omitempty"`
 	}
 
-	reqBody, _ := json.Marshal(textSearchReq{
-		TextQuery:           q,
-		MaxResultCount:      1,
+	acBody, _ := json.Marshal(autocompleteReq{
+		Input:               q,
 		IncludedRegionCodes: []string{"us"},
 		LanguageCode:        "en",
 	})
 
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, "https://places.googleapis.com/v1/places:searchText", bytes.NewReader(reqBody))
+	acReq, err := http.NewRequestWithContext(r.Context(), http.MethodPost, "https://places.googleapis.com/v1/places:autocomplete", bytes.NewReader(acBody))
 	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Goog-Api-Key", a.GooglePlacesAPIKey)
-	req.Header.Set("X-Goog-FieldMask", "places.formattedAddress,places.location")
+	acReq.Header.Set("Content-Type", "application/json")
+	acReq.Header.Set("X-Goog-Api-Key", a.GooglePlacesAPIKey)
 
-	client := &http.Client{Timeout: 6 * time.Second}
-	res, err := client.Do(req)
+	acRes, err := client.Do(acReq)
 	if err != nil {
 		resp.BadRequest(w, "geocoding request failed")
 		return
 	}
-	defer res.Body.Close()
+	defer acRes.Body.Close()
 
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
-	if res.StatusCode != http.StatusOK {
+	acRaw, _ := io.ReadAll(io.LimitReader(acRes.Body, 1<<20))
+	if acRes.StatusCode != http.StatusOK {
 		resp.BadRequest(w, "geocoding request failed")
 		return
 	}
 
-	type textSearchResp struct {
-		Places []struct {
-			FormattedAddress string `json:"formattedAddress"`
-			Location         *struct {
-				Latitude  float64 `json:"latitude"`
-				Longitude float64 `json:"longitude"`
-			} `json:"location"`
-		} `json:"places"`
+	type autocompleteResp struct {
+		Suggestions []struct {
+			PlacePrediction *struct {
+				PlaceID string `json:"placeId"`
+				Text    *struct {
+					Text string `json:"text"`
+				} `json:"text"`
+			} `json:"placePrediction"`
+		} `json:"suggestions"`
 	}
 
-	var gout textSearchResp
-	if err := json.Unmarshal(raw, &gout); err != nil {
+	var acOut autocompleteResp
+	if err := json.Unmarshal(acRaw, &acOut); err != nil {
 		resp.BadRequest(w, "unexpected geocoding response")
 		return
 	}
-	if len(gout.Places) == 0 || gout.Places[0].Location == nil {
+
+	// Find first suggestion with a place ID
+	var placeID, label string
+	for _, s := range acOut.Suggestions {
+		if s.PlacePrediction != nil && strings.TrimSpace(s.PlacePrediction.PlaceID) != "" {
+			placeID = s.PlacePrediction.PlaceID
+			if s.PlacePrediction.Text != nil {
+				label = s.PlacePrediction.Text.Text
+			}
+			break
+		}
+	}
+	if placeID == "" {
 		resp.BadRequest(w, "location not found")
 		return
 	}
 
-	first := gout.Places[0]
+	// Step 2: Place Details to get lat/lng (same API as seller flow)
+	detURL := "https://places.googleapis.com/v1/places/" + placeID
+	detReq, err := http.NewRequestWithContext(r.Context(), http.MethodGet, detURL, nil)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	detReq.Header.Set("X-Goog-Api-Key", a.GooglePlacesAPIKey)
+	detReq.Header.Set("X-Goog-FieldMask", "formattedAddress,location")
+
+	detRes, err := client.Do(detReq)
+	if err != nil {
+		resp.BadRequest(w, "geocoding details request failed")
+		return
+	}
+	defer detRes.Body.Close()
+
+	detRaw, _ := io.ReadAll(io.LimitReader(detRes.Body, 1<<20))
+	if detRes.StatusCode != http.StatusOK {
+		resp.BadRequest(w, "geocoding details request failed")
+		return
+	}
+
+	type detailsResp struct {
+		FormattedAddress string `json:"formattedAddress"`
+		Location         *struct {
+			Latitude  float64 `json:"latitude"`
+			Longitude float64 `json:"longitude"`
+		} `json:"location"`
+	}
+
+	var detOut detailsResp
+	if err := json.Unmarshal(detRaw, &detOut); err != nil {
+		resp.BadRequest(w, "unexpected geocoding response")
+		return
+	}
+	if detOut.Location == nil {
+		resp.BadRequest(w, "location not found")
+		return
+	}
+
+	if strings.TrimSpace(detOut.FormattedAddress) != "" {
+		label = detOut.FormattedAddress
+	}
+
 	resp.OK(w, geocodeResponse{
-		Lat:   first.Location.Latitude,
-		Lng:   first.Location.Longitude,
-		Label: first.FormattedAddress,
+		Lat:   detOut.Location.Latitude,
+		Lng:   detOut.Location.Longitude,
+		Label: label,
 	})
 }
