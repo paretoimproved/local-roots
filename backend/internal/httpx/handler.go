@@ -140,6 +140,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.GenerateNextCycle)))
 
 	geo := v1.GeoAPI{GooglePlacesAPIKey: deps.Config.GooglePlacesAPIKey}
+	mux.HandleFunc("GET /v1/places/autocomplete", geo.PublicAutocomplete)
 	mux.HandleFunc("GET /v1/geocode", geo.PublicGeocode)
 	mux.HandleFunc("POST /v1/seller/geo/places/autocomplete", authAPI.RequireUser(geo.PlacesAutocomplete))
 	mux.HandleFunc("POST /v1/seller/geo/places/details", authAPI.RequireUser(geo.PlacesDetails))

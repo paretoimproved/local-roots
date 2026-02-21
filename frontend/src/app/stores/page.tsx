@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { api, type Store } from "@/lib/api";
+import { api, type Store, type PlacePrediction } from "@/lib/api";
 
 const RADIUS_OPTIONS = [
   { label: "10 mi", km: 16 },
@@ -32,7 +32,13 @@ export default function StoresPage() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [searching, setSearching] = useState(false);
+
+  // Autocomplete state
+  const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const fetchStores = useCallback(
     async (loc?: { lat: number; lng: number } | null, radius?: number) => {
@@ -83,23 +89,101 @@ export default function StoresPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [radiusKm]);
 
-  async function handleLocationSearch(e: React.FormEvent) {
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (
+        wrapperRef.current &&
+        !wrapperRef.current.contains(e.target as Node)
+      ) {
+        setShowDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  // Debounced autocomplete
+  function handleInputChange(value: string) {
+    setSearchQuery(value);
+    setSearchError(null);
+    setActiveIndex(-1);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (value.trim().length < 2) {
+      setPredictions([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const results = await api.placesAutocomplete(value.trim());
+        setPredictions(results);
+        setShowDropdown(results.length > 0);
+      } catch {
+        setPredictions([]);
+        setShowDropdown(false);
+      }
+    }, 250);
+  }
+
+  async function selectPrediction(prediction: PlacePrediction) {
+    setSearchQuery(prediction.label);
+    setShowDropdown(false);
+    setPredictions([]);
+    setSearchError(null);
+
+    try {
+      const result = await api.geocode({ place_id: prediction.place_id });
+      const loc = { lat: result.lat, lng: result.lng };
+      setCoords(loc);
+      setLocationLabel(result.label);
+      await fetchStores(loc);
+    } catch {
+      setSearchError("Could not find that location. Try a different search.");
+    }
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const q = searchQuery.trim();
     if (q.length < 2) return;
 
-    setSearching(true);
+    setShowDropdown(false);
+    setPredictions([]);
     setSearchError(null);
+
     try {
-      const result = await api.geocode(q);
+      const result = await api.geocode({ q });
       const loc = { lat: result.lat, lng: result.lng };
       setCoords(loc);
       setLocationLabel(result.label);
       await fetchStores(loc);
     } catch {
       setSearchError("Could not find that location. Try a city or zip code.");
-    } finally {
-      setSearching(false);
+    }
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (!showDropdown || predictions.length === 0) return;
+
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((prev) =>
+        prev < predictions.length - 1 ? prev + 1 : 0,
+      );
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((prev) =>
+        prev > 0 ? prev - 1 : predictions.length - 1,
+      );
+    } else if (e.key === "Enter" && activeIndex >= 0) {
+      e.preventDefault();
+      selectPrediction(predictions[activeIndex]);
+    } else if (e.key === "Escape") {
+      setShowDropdown(false);
     }
   }
 
@@ -108,6 +192,8 @@ export default function StoresPage() {
     setLocationLabel(null);
     setSearchQuery("");
     setSearchError(null);
+    setPredictions([]);
+    setShowDropdown(false);
     fetchStores();
   }
 
@@ -129,10 +215,10 @@ export default function StoresPage() {
       {/* Search controls */}
       <div className="lr-card lr-card-strong p-4">
         <form
-          onSubmit={handleLocationSearch}
+          onSubmit={handleSubmit}
           className="flex flex-wrap items-end gap-3"
         >
-          <div className="grid min-w-[180px] flex-1 gap-1">
+          <div ref={wrapperRef} className="relative grid min-w-[180px] flex-1 gap-1">
             <label
               htmlFor="location-search"
               className="text-xs font-medium text-[color:var(--lr-muted)]"
@@ -144,9 +230,46 @@ export default function StoresPage() {
               type="text"
               placeholder="e.g. Austin, TX or 78701"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onFocus={() => {
+                if (predictions.length > 0) setShowDropdown(true);
+              }}
+              onKeyDown={handleKeyDown}
+              autoComplete="off"
+              role="combobox"
+              aria-expanded={showDropdown}
+              aria-autocomplete="list"
+              aria-controls="location-listbox"
+              aria-activedescendant={
+                activeIndex >= 0 ? `prediction-${activeIndex}` : undefined
+              }
               className="rounded-lg border border-[color:var(--lr-border)] bg-[color:var(--lr-bg)] px-3 py-2 text-sm text-[color:var(--lr-ink)] placeholder:text-[color:var(--lr-muted)] focus:outline-none focus:ring-2 focus:ring-[color:var(--lr-accent)]"
             />
+            {showDropdown && predictions.length > 0 ? (
+              <ul
+                id="location-listbox"
+                role="listbox"
+                className="absolute left-0 right-0 top-full z-10 mt-1 overflow-hidden rounded-lg border border-[color:var(--lr-border)] bg-[color:var(--lr-bg)] shadow-[0_8px_30px_rgba(38,28,10,0.12)]"
+              >
+                {predictions.map((p, i) => (
+                  <li
+                    key={p.place_id}
+                    id={`prediction-${i}`}
+                    role="option"
+                    aria-selected={i === activeIndex}
+                    onMouseDown={() => selectPrediction(p)}
+                    onMouseEnter={() => setActiveIndex(i)}
+                    className={`cursor-pointer px-3 py-2 text-sm ${
+                      i === activeIndex
+                        ? "bg-[color:var(--lr-accent)]/10 text-[color:var(--lr-ink)]"
+                        : "text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]"
+                    }`}
+                  >
+                    {p.label}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
           </div>
           <div className="grid gap-1">
             <label
@@ -170,10 +293,10 @@ export default function StoresPage() {
           </div>
           <button
             type="submit"
-            disabled={searching || searchQuery.trim().length < 2}
+            disabled={searchQuery.trim().length < 2}
             className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold disabled:opacity-50"
           >
-            {searching ? "Searching..." : "Search"}
+            Search
           </button>
           {hasLocation ? (
             <button

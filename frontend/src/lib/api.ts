@@ -77,6 +77,11 @@ export type ReviewsResponse = {
   reviews: PublicReview[];
 };
 
+export type PlacePrediction = {
+  place_id: string;
+  label: string;
+};
+
 export type GeocodeResult = {
   lat: number;
   lng: number;
@@ -84,11 +89,20 @@ export type GeocodeResult = {
 };
 
 export const api = {
-  geocode: (q: string) =>
-    requestJSON<GeocodeResult>(`/v1/geocode?q=${encodeURIComponent(q)}`, {
+  placesAutocomplete: (q: string) =>
+    requestJSON<PlacePrediction[]>(
+      `/v1/places/autocomplete?q=${encodeURIComponent(q)}`,
+      { method: "GET", cache: "no-store" },
+    ),
+  geocode: (opts: { q?: string; place_id?: string }) => {
+    const params = new URLSearchParams();
+    if (opts.place_id) params.set("place_id", opts.place_id);
+    else if (opts.q) params.set("q", opts.q);
+    return requestJSON<GeocodeResult>(`/v1/geocode?${params.toString()}`, {
       method: "GET",
       cache: "no-store",
-    }),
+    });
+  },
   listStores: (opts?: { lat?: number; lng?: number; radius_km?: number }) => {
     const params = new URLSearchParams();
     if (opts?.lat != null) params.set("lat", String(opts.lat));
