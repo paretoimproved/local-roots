@@ -430,3 +430,80 @@ func (a GeoAPI) Timezone(w http.ResponseWriter, r *http.Request, u AuthUser) {
 
 	resp.OK(w, timezoneResponse{TimeZoneID: strings.TrimSpace(gout.TimeZoneID)})
 }
+
+type geocodeResponse struct {
+	Lat   float64 `json:"lat"`
+	Lng   float64 `json:"lng"`
+	Label string  `json:"label"`
+}
+
+// PublicGeocode converts a text query (city, zip, address) into lat/lng.
+// This endpoint is public (no auth) so buyers can search for stores by location.
+func (a GeoAPI) PublicGeocode(w http.ResponseWriter, r *http.Request) {
+	if strings.TrimSpace(a.GooglePlacesAPIKey) == "" {
+		resp.ServiceUnavailable(w, "geocoding is not configured")
+		return
+	}
+
+	q := strings.TrimSpace(r.URL.Query().Get("q"))
+	if len(q) < 2 {
+		resp.BadRequest(w, "q must be at least 2 characters")
+		return
+	}
+
+	uq := url.Values{}
+	uq.Set("address", q)
+	uq.Set("key", a.GooglePlacesAPIKey)
+	uq.Set("components", "country:US")
+
+	reqURL := "https://maps.googleapis.com/maps/api/geocode/json?" + uq.Encode()
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, reqURL, nil)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	client := &http.Client{Timeout: 6 * time.Second}
+	res, err := client.Do(req)
+	if err != nil {
+		resp.BadRequest(w, "geocoding request failed")
+		return
+	}
+	defer res.Body.Close()
+
+	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	if res.StatusCode != http.StatusOK {
+		resp.BadRequest(w, "geocoding request failed")
+		return
+	}
+
+	type googleGeocodeResp struct {
+		Status  string `json:"status"`
+		Results []struct {
+			FormattedAddress string `json:"formatted_address"`
+			Geometry         struct {
+				Location struct {
+					Lat float64 `json:"lat"`
+					Lng float64 `json:"lng"`
+				} `json:"location"`
+			} `json:"geometry"`
+		} `json:"results"`
+	}
+
+	var gout googleGeocodeResp
+	if err := json.Unmarshal(raw, &gout); err != nil {
+		resp.BadRequest(w, "unexpected geocoding response")
+		return
+	}
+	if gout.Status != "OK" || len(gout.Results) == 0 {
+		resp.BadRequest(w, "location not found")
+		return
+	}
+
+	first := gout.Results[0]
+	resp.OK(w, geocodeResponse{
+		Lat:   first.Geometry.Location.Lat,
+		Lng:   first.Geometry.Location.Lng,
+		Label: first.FormattedAddress,
+	})
+}

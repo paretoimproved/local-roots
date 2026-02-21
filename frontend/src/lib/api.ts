@@ -77,7 +77,18 @@ export type ReviewsResponse = {
   reviews: PublicReview[];
 };
 
+export type GeocodeResult = {
+  lat: number;
+  lng: number;
+  label: string;
+};
+
 export const api = {
+  geocode: (q: string) =>
+    requestJSON<GeocodeResult>(`/v1/geocode?q=${encodeURIComponent(q)}`, {
+      method: "GET",
+      cache: "no-store",
+    }),
   listStores: (opts?: { lat?: number; lng?: number; radius_km?: number }) => {
     const params = new URLSearchParams();
     if (opts?.lat != null) params.set("lat", String(opts.lat));
