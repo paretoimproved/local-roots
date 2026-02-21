@@ -5,6 +5,9 @@ export type Store = {
   name: string;
   description: string | null;
   created_at: string;
+  city?: string | null;
+  region?: string | null;
+  distance_km?: number | null;
 };
 
 export type PickupLocation = {
@@ -61,9 +64,31 @@ export type SubscriptionPlan = {
   pickup_location: PickupLocation;
 };
 
+export type PublicReview = {
+  id: string;
+  rating: number;
+  body: string | null;
+  created_at: string;
+};
+
+export type ReviewsResponse = {
+  avg_rating: number;
+  review_count: number;
+  reviews: PublicReview[];
+};
+
 export const api = {
-  listStores: () =>
-    requestJSON<Store[]>("/v1/stores", { method: "GET", next: { revalidate: 30 } }),
+  listStores: (opts?: { lat?: number; lng?: number; radius_km?: number }) => {
+    const params = new URLSearchParams();
+    if (opts?.lat != null) params.set("lat", String(opts.lat));
+    if (opts?.lng != null) params.set("lng", String(opts.lng));
+    if (opts?.radius_km != null) params.set("radius_km", String(opts.radius_km));
+    const qs = params.toString();
+    return requestJSON<Store[]>(`/v1/stores${qs ? `?${qs}` : ""}`, {
+      method: "GET",
+      ...(qs ? { cache: "no-store" as const } : { next: { revalidate: 30 } }),
+    });
+  },
   listStorePickupWindows: (storeId: string) =>
     requestJSON<PickupWindow[]>(`/v1/stores/${storeId}/pickup-windows`, {
       method: "GET",
@@ -83,5 +108,10 @@ export const api = {
     requestJSON<SubscriptionPlan>(`/v1/subscription-plans/${planId}`, {
       method: "GET",
       next: { revalidate: 30 },
+    }),
+  listStoreReviews: (storeId: string) =>
+    requestJSON<ReviewsResponse>(`/v1/stores/${storeId}/reviews`, {
+      method: "GET",
+      next: { revalidate: 60 },
     }),
 };

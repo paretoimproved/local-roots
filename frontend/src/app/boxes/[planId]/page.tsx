@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
+import type { ReviewsResponse } from "@/lib/api";
 import { SubscribeForm } from "@/components/subscribe-form";
 import { RefreshButton } from "@/components/refresh-button";
 import { formatMoney } from "@/lib/ui";
+import { ReviewSummary, ReviewCard } from "@/components/review-card";
 
 function formatPickupDate(isoDate: string, timezone: string) {
   const start = new Date(isoDate);
@@ -32,11 +34,20 @@ export default async function BoxPlanPage({
 
   let plan: Awaited<ReturnType<typeof api.getSubscriptionPlan>> | null = null;
   let error: string | null = null;
+  let reviews: ReviewsResponse | null = null;
 
   try {
     plan = await api.getSubscriptionPlan(planId);
   } catch (e) {
     error = e instanceof Error ? e.message : "Unknown error";
+  }
+
+  if (plan) {
+    try {
+      reviews = await api.listStoreReviews(plan.store_id);
+    } catch {
+      // Reviews are non-critical; continue without them
+    }
   }
 
   return (
@@ -89,6 +100,11 @@ export default async function BoxPlanPage({
               {plan.pickup_location.address1}, {plan.pickup_location.city},{" "}
               {plan.pickup_location.region} {plan.pickup_location.postal_code}
             </p>
+            {reviews && reviews.review_count > 0 ? (
+              <div className="mt-3">
+                <ReviewSummary avgRating={reviews.avg_rating} reviewCount={reviews.review_count} />
+              </div>
+            ) : null}
             <div className="mt-4 grid gap-2 text-sm text-[color:var(--lr-muted)]">
               <div className="lr-chip rounded-2xl px-4 py-3">
                 <div className="text-xs font-semibold uppercase tracking-wide opacity-80">
@@ -111,6 +127,19 @@ export default async function BoxPlanPage({
 
           <SubscribeForm plan={plan} />
         </div>
+      ) : null}
+
+      {reviews && reviews.reviews.length > 0 ? (
+        <section className="grid gap-3">
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            Recent reviews
+          </h2>
+          <div className="grid gap-3">
+            {reviews.reviews.slice(0, 3).map((r) => (
+              <ReviewCard key={r.id} review={r} />
+            ))}
+          </div>
+        </section>
       ) : null}
     </div>
   );

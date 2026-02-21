@@ -1,15 +1,60 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, type Store } from "@/lib/api";
 
-export default async function StoresPage() {
-  let stores: Awaited<ReturnType<typeof api.listStores>> | null = null;
-  let error: string | null = null;
+function formatDistance(km: number): string {
+  const miles = km * 0.621371;
+  return miles < 10
+    ? `${miles.toFixed(1)} mi away`
+    : `${Math.round(miles)} mi away`;
+}
 
-  try {
-    stores = await api.listStores();
-  } catch (e) {
-    error = e instanceof Error ? e.message : "Unknown error";
-  }
+export default function StoresPage() {
+  const [stores, setStores] = useState<Store[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hasLocation, setHasLocation] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load(coords?: { lat: number; lng: number }) {
+      try {
+        const data = await api.listStores(coords);
+        if (!cancelled) {
+          setStores(data);
+          setHasLocation(!!coords);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : "Unknown error");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    if (!navigator.geolocation) {
+      load();
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        load({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {
+        load();
+      },
+      { timeout: 5000 },
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <div className="grid gap-6">
@@ -18,9 +63,21 @@ export default async function StoresPage() {
           Stores
         </h1>
         <p className="text-sm text-[color:var(--lr-muted)]">
-          {stores ? `${stores.length} active` : ""}
+          {stores
+            ? hasLocation
+              ? `${stores.length} nearby`
+              : `${stores.length} active`
+            : ""}
         </p>
       </div>
+
+      {loading ? (
+        <div className="lr-card lr-card-strong p-6">
+          <p className="text-sm text-[color:var(--lr-muted)]">
+            Finding stores near you...
+          </p>
+        </div>
+      ) : null}
 
       {error ? (
         <div className="lr-card lr-card-strong p-6">
@@ -39,9 +96,13 @@ pnpm migrate:up`}</code>
         </div>
       ) : null}
 
-      {stores && stores.length === 0 ? (
+      {!loading && stores && stores.length === 0 ? (
         <div className="lr-card lr-card-strong p-6">
-          <p className="text-sm text-[color:var(--lr-muted)]">No stores yet.</p>
+          <p className="text-sm text-[color:var(--lr-muted)]">
+            {hasLocation
+              ? "No stores found nearby. Try expanding your search radius."
+              : "No stores yet."}
+          </p>
         </div>
       ) : null}
 
@@ -59,14 +120,26 @@ pnpm migrate:up`}</code>
                       {s.name}
                     </Link>
                   </h2>
+                  {s.city || s.region ? (
+                    <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                      {[s.city, s.region].filter(Boolean).join(", ")}
+                    </p>
+                  ) : null}
                   {s.description ? (
                     <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
                       {s.description}
                     </p>
                   ) : null}
                 </div>
-                <div className="text-xs text-[color:var(--lr-muted)]">
-                  Added {new Date(s.created_at).toLocaleDateString("en-US")}
+                <div className="flex flex-col items-end gap-2">
+                  {s.distance_km != null ? (
+                    <span className="lr-chip rounded-full px-3 py-1 text-xs font-medium">
+                      {formatDistance(s.distance_km)}
+                    </span>
+                  ) : null}
+                  <span className="text-xs text-[color:var(--lr-muted)]">
+                    Added {new Date(s.created_at).toLocaleDateString("en-US")}
+                  </span>
                 </div>
               </div>
             </li>

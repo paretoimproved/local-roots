@@ -1,7 +1,9 @@
 package v1
 
 import (
+	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -18,6 +20,9 @@ type Store struct {
 	Name        string    `json:"name"`
 	Description *string   `json:"description"`
 	CreatedAt   time.Time `json:"created_at"`
+	City        *string   `json:"city,omitempty"`
+	Region      *string   `json:"region,omitempty"`
+	DistanceKM  *float64  `json:"distance_km,omitempty"`
 }
 
 func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
@@ -26,19 +31,96 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rows, err := a.DB.Query(r.Context(), `
-		select s.id::text, s.name, s.description, s.created_at
-		from stores s
-		where s.is_active = true
-			and exists (
-				select 1 from subscription_plans sp
-				where sp.store_id = s.id
-					and sp.is_active = true
-					and sp.is_live = true
-			)
-		order by s.created_at desc
-		limit 100
-	`)
+	q := r.URL.Query()
+	latStr := q.Get("lat")
+	lngStr := q.Get("lng")
+
+	var hasGeo bool
+	var lat, lng, radiusKM float64
+
+	if latStr != "" && lngStr != "" {
+		var err error
+		lat, err = strconv.ParseFloat(latStr, 64)
+		if err != nil || lat < -90 || lat > 90 {
+			resp.BadRequest(w, "invalid lat")
+			return
+		}
+		lng, err = strconv.ParseFloat(lngStr, 64)
+		if err != nil || lng < -180 || lng > 180 {
+			resp.BadRequest(w, "invalid lng")
+			return
+		}
+		hasGeo = true
+
+		radiusKM = 80
+		if rStr := q.Get("radius_km"); rStr != "" {
+			radiusKM, err = strconv.ParseFloat(rStr, 64)
+			if err != nil || radiusKM <= 0 {
+				resp.BadRequest(w, "invalid radius_km")
+				return
+			}
+			if radiusKM > 200 {
+				radiusKM = 200
+			}
+		}
+	}
+
+	var query string
+	var args []any
+
+	if hasGeo {
+		query = fmt.Sprintf(`
+			select distinct on (s.id)
+				s.id::text, s.name, s.description, s.created_at,
+				pl.city, pl.region,
+				6371 * acos(
+					cos(radians(%f)) * cos(radians(pl.lat)) *
+					cos(radians(pl.lng) - radians(%f)) +
+					sin(radians(%f)) * sin(radians(pl.lat))
+				) as distance_km
+			from stores s
+			join pickup_locations pl on pl.store_id = s.id
+			where s.is_active = true
+				and exists (
+					select 1 from subscription_plans sp
+					where sp.store_id = s.id
+						and sp.is_active = true
+						and sp.is_live = true
+				)
+				and 6371 * acos(
+					cos(radians(%f)) * cos(radians(pl.lat)) *
+					cos(radians(pl.lng) - radians(%f)) +
+					sin(radians(%f)) * sin(radians(pl.lat))
+				) <= %f
+			order by s.id, distance_km asc
+		`, lat, lng, lat, lat, lng, lat, radiusKM)
+
+		// Wrap to re-order by distance
+		query = `select * from (` + query + `) sub order by distance_km asc limit 100`
+	} else {
+		query = `
+			select s.id::text, s.name, s.description, s.created_at,
+				nearest.city, nearest.region
+			from stores s
+			left join lateral (
+				select pl.city, pl.region
+				from pickup_locations pl
+				where pl.store_id = s.id
+				limit 1
+			) nearest on true
+			where s.is_active = true
+				and exists (
+					select 1 from subscription_plans sp
+					where sp.store_id = s.id
+						and sp.is_active = true
+						and sp.is_live = true
+				)
+			order by s.created_at desc
+			limit 100
+		`
+	}
+
+	rows, err := a.DB.Query(r.Context(), query, args...)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -48,9 +130,16 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	out := make([]Store, 0)
 	for rows.Next() {
 		var s Store
-		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.CreatedAt); err != nil {
-			resp.Internal(w, err)
-			return
+		if hasGeo {
+			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.CreatedAt, &s.City, &s.Region, &s.DistanceKM); err != nil {
+				resp.Internal(w, err)
+				return
+			}
+		} else {
+			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.CreatedAt, &s.City, &s.Region); err != nil {
+				resp.Internal(w, err)
+				return
+			}
 		}
 		out = append(out, s)
 	}
@@ -246,4 +335,75 @@ func (a PublicAPI) ListPickupWindowOfferings(w http.ResponseWriter, r *http.Requ
 	}
 
 	resp.OK(w, out)
+}
+
+type PublicReview struct {
+	ID        string    `json:"id"`
+	Rating    int       `json:"rating"`
+	Body      *string   `json:"body"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type ReviewsResponse struct {
+	AvgRating   float64        `json:"avg_rating"`
+	ReviewCount int            `json:"review_count"`
+	Reviews     []PublicReview  `json:"reviews"`
+}
+
+func (a PublicAPI) ListStoreReviews(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+
+	storeID := r.PathValue("storeId")
+	if storeID == "" {
+		resp.BadRequest(w, "missing storeId")
+		return
+	}
+
+	var avgRating float64
+	var reviewCount int
+	err := a.DB.QueryRow(r.Context(), `
+		select coalesce(avg(rating)::numeric(2,1), 0), count(*)
+		from reviews
+		where store_id = $1::uuid
+	`, storeID).Scan(&avgRating, &reviewCount)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	rows, err := a.DB.Query(r.Context(), `
+		select id::text, rating, body, created_at
+		from reviews
+		where store_id = $1::uuid
+		order by created_at desc
+		limit 20
+	`, storeID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
+
+	reviews := make([]PublicReview, 0)
+	for rows.Next() {
+		var rev PublicReview
+		if err := rows.Scan(&rev.ID, &rev.Rating, &rev.Body, &rev.CreatedAt); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		reviews = append(reviews, rev)
+	}
+	if rows.Err() != nil {
+		resp.Internal(w, rows.Err())
+		return
+	}
+
+	resp.OK(w, ReviewsResponse{
+		AvgRating:   avgRating,
+		ReviewCount: reviewCount,
+		Reviews:     reviews,
+	})
 }

@@ -1,0 +1,65 @@
+name: Cron Jobs
+
+on:
+  schedule:
+    # Billing retry - every 10 minutes
+    - cron: '*/10 * * * *'
+    # Pickup reminders - every 30 minutes
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      job:
+        description: 'Which job to run (billing-retry or pickup-reminders)'
+        required: true
+        type: choice
+        options:
+          - billing-retry
+          - pickup-reminders
+          - both
+
+jobs:
+  billing-retry:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'billing-retry' || github.event.inputs.job == 'both'))
+    steps:
+      - name: Run billing retry
+        run: |
+          response=$(curl -w "\n%{http_code}" -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.INTERNAL_CRON_SECRET }}" \
+            "${{ secrets.API_BASE_URL }}/v1/internal/billing/authorize-pending")
+
+          status_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Status Code: $status_code"
+          echo "Response: $body"
+
+          if [ "$status_code" -ge 400 ]; then
+            echo "Error: Request failed with status $status_code"
+            exit 1
+          fi
+
+  pickup-reminders:
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && (github.event.inputs.job == 'pickup-reminders' || github.event.inputs.job == 'both'))
+    steps:
+      - name: Send pickup reminders
+        run: |
+          response=$(curl -w "\n%{http_code}" -s -X POST \
+            -H "Authorization: Bearer ${{ secrets.INTERNAL_CRON_SECRET }}" \
+            "${{ secrets.API_BASE_URL }}/v1/internal/email/pickup-reminders")
+
+          status_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | sed '$d')
+
+          echo "Status Code: $status_code"
+          echo "Response: $body"
+
+          if [ "$status_code" -ge 400 ]; then
+            echo "Error: Request failed with status $status_code"
+            exit 1
+          fi

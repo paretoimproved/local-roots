@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { api } from "@/lib/api";
+import type { ReviewsResponse } from "@/lib/api";
 import { formatMoney } from "@/lib/ui";
+import { ReviewSummary, ReviewCard } from "@/components/review-card";
 
 function formatNext(plan: Awaited<ReturnType<typeof api.listStoreSubscriptionPlans>>[number]) {
   const tz = plan.pickup_location.timezone || "UTC";
@@ -32,9 +34,21 @@ export default async function StoreBoxesPage({
   let plans: Awaited<ReturnType<typeof api.listStoreSubscriptionPlans>> | null =
     null;
   let error: string | null = null;
+  let reviews: ReviewsResponse | null = null;
 
   try {
-    plans = await api.listStoreSubscriptionPlans(storeId);
+    const [plansResult, reviewsResult] = await Promise.allSettled([
+      api.listStoreSubscriptionPlans(storeId),
+      api.listStoreReviews(storeId),
+    ]);
+    if (plansResult.status === "fulfilled") {
+      plans = plansResult.value;
+    } else {
+      error = plansResult.reason instanceof Error ? plansResult.reason.message : "Unknown error";
+    }
+    if (reviewsResult.status === "fulfilled") {
+      reviews = reviewsResult.value;
+    }
   } catch (e) {
     error = e instanceof Error ? e.message : "Unknown error";
   }
@@ -49,6 +63,11 @@ export default async function StoreBoxesPage({
           <p className="text-sm text-[color:var(--lr-muted)]">
             Store: <span className="font-mono text-xs">{storeId}</span>
           </p>
+          {reviews && reviews.review_count > 0 ? (
+            <div className="mt-1">
+              <ReviewSummary avgRating={reviews.avg_rating} reviewCount={reviews.review_count} />
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-wrap gap-2">
@@ -131,6 +150,19 @@ export default async function StoreBoxesPage({
             </li>
           ))}
         </ul>
+      ) : null}
+
+      {reviews && reviews.reviews.length > 0 ? (
+        <section className="grid gap-3">
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            Recent reviews
+          </h2>
+          <div className="grid gap-3">
+            {reviews.reviews.slice(0, 5).map((r) => (
+              <ReviewCard key={r.id} review={r} />
+            ))}
+          </div>
+        </section>
       ) : null}
     </div>
   );
