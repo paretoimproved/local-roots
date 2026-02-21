@@ -438,6 +438,7 @@ type geocodeResponse struct {
 }
 
 // PublicGeocode converts a text query (city, zip, address) into lat/lng.
+// Uses Places API (New) Text Search — same API already enabled for seller geo.
 // This endpoint is public (no auth) so buyers can search for stores by location.
 func (a GeoAPI) PublicGeocode(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(a.GooglePlacesAPIKey) == "" {
@@ -451,17 +452,28 @@ func (a GeoAPI) PublicGeocode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uq := url.Values{}
-	uq.Set("address", q)
-	uq.Set("key", a.GooglePlacesAPIKey)
-	uq.Set("components", "country:US")
+	type textSearchReq struct {
+		TextQuery           string   `json:"textQuery"`
+		MaxResultCount      int      `json:"maxResultCount"`
+		IncludedRegionCodes []string `json:"includedRegionCodes,omitempty"`
+		LanguageCode        string   `json:"languageCode,omitempty"`
+	}
 
-	reqURL := "https://maps.googleapis.com/maps/api/geocode/json?" + uq.Encode()
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, reqURL, nil)
+	reqBody, _ := json.Marshal(textSearchReq{
+		TextQuery:           q,
+		MaxResultCount:      1,
+		IncludedRegionCodes: []string{"us"},
+		LanguageCode:        "en",
+	})
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, "https://places.googleapis.com/v1/places:searchText", bytes.NewReader(reqBody))
 	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Goog-Api-Key", a.GooglePlacesAPIKey)
+	req.Header.Set("X-Goog-FieldMask", "places.formattedAddress,places.location")
 
 	client := &http.Client{Timeout: 6 * time.Second}
 	res, err := client.Do(req)
@@ -477,33 +489,30 @@ func (a GeoAPI) PublicGeocode(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type googleGeocodeResp struct {
-		Status  string `json:"status"`
-		Results []struct {
-			FormattedAddress string `json:"formatted_address"`
-			Geometry         struct {
-				Location struct {
-					Lat float64 `json:"lat"`
-					Lng float64 `json:"lng"`
-				} `json:"location"`
-			} `json:"geometry"`
-		} `json:"results"`
+	type textSearchResp struct {
+		Places []struct {
+			FormattedAddress string `json:"formattedAddress"`
+			Location         *struct {
+				Latitude  float64 `json:"latitude"`
+				Longitude float64 `json:"longitude"`
+			} `json:"location"`
+		} `json:"places"`
 	}
 
-	var gout googleGeocodeResp
+	var gout textSearchResp
 	if err := json.Unmarshal(raw, &gout); err != nil {
 		resp.BadRequest(w, "unexpected geocoding response")
 		return
 	}
-	if gout.Status != "OK" || len(gout.Results) == 0 {
+	if len(gout.Places) == 0 || gout.Places[0].Location == nil {
 		resp.BadRequest(w, "location not found")
 		return
 	}
 
-	first := gout.Results[0]
+	first := gout.Places[0]
 	resp.OK(w, geocodeResponse{
-		Lat:   first.Geometry.Location.Lat,
-		Lng:   first.Geometry.Location.Lng,
+		Lat:   first.Location.Latitude,
+		Lng:   first.Location.Longitude,
 		Label: first.FormattedAddress,
 	})
 }
