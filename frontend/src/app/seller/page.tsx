@@ -43,6 +43,17 @@ export default function SellerHome() {
 
   const hasStore = useMemo(() => (stores?.length ?? 0) > 0, [stores]);
 
+  const isAdmin = useMemo(() => {
+    if (!token) return false;
+    try {
+      const payload = token.split(".")[1];
+      const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+      return json.role === "admin";
+    } catch {
+      return false;
+    }
+  }, [token]);
+
   async function createStore() {
     if (!token) return;
     setSubmitting(true);
@@ -132,6 +143,24 @@ export default function SellerHome() {
           </p>
         )}
       </section>
+
+      {isAdmin ? (
+        <section className="lr-card lr-card-strong p-6">
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            Admin
+          </h2>
+          <ul className="mt-3 grid gap-2">
+            <li>
+              <Link
+                href="/stores?demo=true"
+                className="text-sm font-medium text-[color:var(--lr-accent)] hover:underline"
+              >
+                Preview demo stores
+              </Link>
+            </li>
+          </ul>
+        </section>
+      ) : null}
 
       {!hasStore ? (
         <section className="lr-card lr-card-strong p-6">

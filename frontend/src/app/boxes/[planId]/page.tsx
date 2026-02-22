@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import type { ReviewsResponse } from "@/lib/api";
 import { SubscribeForm } from "@/components/subscribe-form";
@@ -86,6 +87,21 @@ export default async function BoxPlanPage({
           </p>
           <p className="mt-2 text-sm text-[color:var(--lr-muted)]">{error}</p>
           <RefreshButton />
+        </div>
+      ) : null}
+
+      {plan?.image_url ? (
+        <div className="lr-card lr-card-strong overflow-hidden">
+          <div className="relative aspect-[16/9] w-full">
+            <Image
+              src={plan.image_url}
+              alt={plan.title}
+              fill
+              className="object-cover"
+              sizes="(max-width: 1024px) 100vw, 1024px"
+              priority
+            />
+          </div>
         </div>
       ) : null}
 

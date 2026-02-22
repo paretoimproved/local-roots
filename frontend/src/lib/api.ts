@@ -4,10 +4,12 @@ export type Store = {
   id: string;
   name: string;
   description: string | null;
+  image_url?: string | null;
   created_at: string;
   city?: string | null;
   region?: string | null;
   distance_km?: number | null;
+  is_demo?: boolean;
 };
 
 export type PickupLocation = {
@@ -51,6 +53,7 @@ export type SubscriptionPlan = {
   store_id: string;
   title: string;
   description: string | null;
+  image_url?: string | null;
   cadence: "weekly" | "biweekly" | "monthly" | string;
   price_cents: number;
   subscriber_limit: number;
@@ -103,14 +106,16 @@ export const api = {
       cache: "no-store",
     });
   },
-  listStores: (opts?: { lat?: number; lng?: number; radius_km?: number }) => {
+  listStores: (opts?: { lat?: number; lng?: number; radius_km?: number; demo?: boolean; token?: string }) => {
     const params = new URLSearchParams();
     if (opts?.lat != null) params.set("lat", String(opts.lat));
     if (opts?.lng != null) params.set("lng", String(opts.lng));
     if (opts?.radius_km != null) params.set("radius_km", String(opts.radius_km));
+    if (opts?.demo) params.set("demo", "true");
     const qs = params.toString();
     return requestJSON<Store[]>(`/v1/stores${qs ? `?${qs}` : ""}`, {
       method: "GET",
+      ...(opts?.token ? { token: opts.token } : {}),
       ...(qs ? { cache: "no-store" as const } : { next: { revalidate: 30 } }),
     });
   },

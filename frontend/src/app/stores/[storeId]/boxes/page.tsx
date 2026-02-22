@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import type { ReviewsResponse } from "@/lib/api";
 import { formatMoney } from "@/lib/ui";
@@ -108,9 +109,20 @@ export default async function StoreBoxesPage({
           {plans.map((p) => (
             <li
               key={p.id}
-              className="lr-card lr-card-strong p-6 transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
+              className="lr-card lr-card-strong overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
             >
-              <div className="flex flex-wrap items-start justify-between gap-6">
+              {p.image_url ? (
+                <div className="relative aspect-[16/9] w-full">
+                  <Image
+                    src={p.image_url}
+                    alt={p.title}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 700px"
+                  />
+                </div>
+              ) : null}
+              <div className="flex flex-wrap items-start justify-between gap-6 p-6">
                 <div className="min-w-[240px]">
                   <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
                     <Link className="hover:underline" href={`/boxes/${p.id}`}>

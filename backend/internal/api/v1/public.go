@@ -4,25 +4,30 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/paretoimproved/local-roots/backend/internal/auth"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
 
 type PublicAPI struct {
-	DB *pgxpool.Pool
+	DB        *pgxpool.Pool
+	JWTSecret string
 }
 
 type Store struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
 	Description *string   `json:"description"`
+	ImageURL    *string   `json:"image_url,omitempty"`
 	CreatedAt   time.Time `json:"created_at"`
 	City        *string   `json:"city,omitempty"`
 	Region      *string   `json:"region,omitempty"`
 	DistanceKM  *float64  `json:"distance_km,omitempty"`
+	IsDemo      bool      `json:"is_demo"`
 }
 
 func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
@@ -32,6 +37,22 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := r.URL.Query()
+	showDemo := q.Get("demo") == "true"
+
+	// Only honour demo=true for authenticated admin users.
+	if showDemo && a.JWTSecret != "" {
+		allowed := false
+		if hdr := r.Header.Get("Authorization"); strings.HasPrefix(hdr, "Bearer ") {
+			tokenStr := strings.TrimPrefix(hdr, "Bearer ")
+			if claims, err := auth.ParseJWT([]byte(a.JWTSecret), tokenStr); err == nil && claims.Role == "admin" {
+				allowed = true
+			}
+		}
+		if !allowed {
+			showDemo = false
+		}
+	}
+
 	latStr := q.Get("lat")
 	lngStr := q.Get("lng")
 
@@ -68,19 +89,23 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	var query string
 	var args []any
 
+	args = append(args, showDemo)
+
 	if hasGeo {
 		query = fmt.Sprintf(`
 			select distinct on (s.id)
-				s.id::text, s.name, s.description, s.created_at,
+				s.id::text, s.name, s.description, s.image_url, s.created_at,
 				pl.city, pl.region,
 				6371 * acos(
 					cos(radians(%f)) * cos(radians(pl.lat)) *
 					cos(radians(pl.lng) - radians(%f)) +
 					sin(radians(%f)) * sin(radians(pl.lat))
-				) as distance_km
+				) as distance_km,
+				s.is_demo
 			from stores s
 			join pickup_locations pl on pl.store_id = s.id
 			where s.is_active = true
+				and s.is_demo = $1
 				and exists (
 					select 1 from subscription_plans sp
 					where sp.store_id = s.id
@@ -99,8 +124,8 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 		query = `select * from (` + query + `) sub order by distance_km asc limit 100`
 	} else {
 		query = `
-			select s.id::text, s.name, s.description, s.created_at,
-				nearest.city, nearest.region
+			select s.id::text, s.name, s.description, s.image_url, s.created_at,
+				nearest.city, nearest.region, s.is_demo
 			from stores s
 			left join lateral (
 				select pl.city, pl.region
@@ -109,6 +134,7 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 				limit 1
 			) nearest on true
 			where s.is_active = true
+				and s.is_demo = $1
 				and exists (
 					select 1 from subscription_plans sp
 					where sp.store_id = s.id
@@ -131,12 +157,12 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var s Store
 		if hasGeo {
-			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.CreatedAt, &s.City, &s.Region, &s.DistanceKM); err != nil {
+			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.ImageURL, &s.CreatedAt, &s.City, &s.Region, &s.DistanceKM, &s.IsDemo); err != nil {
 				resp.Internal(w, err)
 				return
 			}
 		} else {
-			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.CreatedAt, &s.City, &s.Region); err != nil {
+			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.ImageURL, &s.CreatedAt, &s.City, &s.Region, &s.IsDemo); err != nil {
 				resp.Internal(w, err)
 				return
 			}

@@ -2,7 +2,10 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { api, type Store, type PlacePrediction } from "@/lib/api";
+import { session } from "@/lib/session";
 
 const RADIUS_OPTIONS = [
   { label: "10 mi", km: 16 },
@@ -21,6 +24,9 @@ function formatDistance(km: number): string {
 }
 
 export default function StoresPage() {
+  const searchParams = useSearchParams();
+  const isDemo = searchParams.get("demo") === "true";
+
   const [stores, setStores] = useState<Store[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,9 +51,10 @@ export default function StoresPage() {
       setLoading(true);
       setError(null);
       try {
+        const token = isDemo ? session.getToken() ?? undefined : undefined;
         const opts = loc
-          ? { lat: loc.lat, lng: loc.lng, radius_km: radius ?? radiusKm }
-          : undefined;
+          ? { lat: loc.lat, lng: loc.lng, radius_km: radius ?? radiusKm, demo: isDemo || undefined, token }
+          : isDemo ? { demo: true, token } : undefined;
         const data = await api.listStores(opts);
         setStores(data);
         setHasLocation(!!loc);
@@ -57,7 +64,7 @@ export default function StoresPage() {
         setLoading(false);
       }
     },
-    [radiusKm],
+    [radiusKm, isDemo],
   );
 
   // Initial load: try geolocation, fall back to all stores
@@ -212,6 +219,20 @@ export default function StoresPage() {
         </p>
       </div>
 
+      {isDemo ? (
+        <div className="flex items-center justify-between rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
+          <p className="text-sm font-medium text-amber-800">
+            Viewing demo stores
+          </p>
+          <Link
+            href="/stores"
+            className="text-sm font-semibold text-amber-700 underline hover:text-amber-900"
+          >
+            Exit demo
+          </Link>
+        </div>
+      ) : null}
+
       {/* Search controls */}
       <div ref={wrapperRef} className="relative">
       <div className="lr-card lr-card-strong p-4">
@@ -360,9 +381,20 @@ pnpm migrate:up`}</code>
           {stores.map((s) => (
             <li
               key={s.id}
-              className="lr-card lr-card-strong p-6 transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
+              className="lr-card lr-card-strong overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
             >
-              <div className="flex items-start justify-between gap-6">
+              {s.image_url ? (
+                <div className="relative aspect-[16/9] w-full">
+                  <Image
+                    src={s.image_url}
+                    alt={s.name}
+                    fill
+                    className="object-cover"
+                    sizes="(max-width: 768px) 100vw, 700px"
+                  />
+                </div>
+              ) : null}
+              <div className="flex items-start justify-between gap-6 p-6">
                 <div>
                   <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
                     <Link className="hover:underline" href={`/stores/${s.id}`}>

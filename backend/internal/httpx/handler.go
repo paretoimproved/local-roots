@@ -34,7 +34,7 @@ func NewHandler(deps Deps) http.Handler {
 
 	emailClient := email.New(deps.Config.ResendAPIKey, deps.Config.EmailFrom)
 
-	public := v1.PublicAPI{DB: deps.DB}
+	public := v1.PublicAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("GET /v1/stores", public.ListStores)
 	mux.HandleFunc("GET /v1/stores/{storeId}/pickup-windows", public.ListStorePickupWindows)
 	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}/offerings", public.ListPickupWindowOfferings)

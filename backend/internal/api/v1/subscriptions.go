@@ -40,6 +40,7 @@ type SubscriptionPlanPublic struct {
 	StoreID         string    `json:"store_id"`
 	Title           string    `json:"title"`
 	Description     *string   `json:"description"`
+	ImageURL        *string   `json:"image_url,omitempty"`
 	Cadence         string    `json:"cadence"`
 	PriceCents      int       `json:"price_cents"`
 	SubscriberLimit int       `json:"subscriber_limit"`
@@ -93,9 +94,17 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 			pl.city,
 			pl.region,
 			pl.postal_code,
-			pl.timezone
+			pl.timezone,
+			pi.url
 		from subscription_plans sp
 		join pickup_locations pl on pl.id = sp.pickup_location_id
+		left join lateral (
+			select pimg.url
+			from product_images pimg
+			where pimg.product_id = sp.product_id
+			order by pimg.sort_order asc
+			limit 1
+		) pi on true
 		where sp.store_id = $1::uuid
 			and sp.is_active = true
 			and sp.is_live = true
@@ -133,6 +142,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 			&sp.PickupLocation.Region,
 			&sp.PickupLocation.Postal,
 			&sp.PickupLocation.Timezone,
+			&sp.ImageURL,
 		); err != nil {
 			resp.Internal(w, err)
 			return
@@ -186,9 +196,17 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 			pl.city,
 			pl.region,
 			pl.postal_code,
-			pl.timezone
+			pl.timezone,
+			pi.url
 		from subscription_plans sp
 		join pickup_locations pl on pl.id = sp.pickup_location_id
+		left join lateral (
+			select pimg.url
+			from product_images pimg
+			where pimg.product_id = sp.product_id
+			order by pimg.sort_order asc
+			limit 1
+		) pi on true
 		where sp.id = $1::uuid
 		limit 1
 	`, planID).Scan(
@@ -212,6 +230,7 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 		&sp.PickupLocation.Region,
 		&sp.PickupLocation.Postal,
 		&sp.PickupLocation.Timezone,
+		&sp.ImageURL,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
