@@ -106,7 +106,7 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 				from stores s
 				join pickup_locations pl on pl.store_id = s.id
 				where s.is_active = true
-					and s.is_demo = $1
+					and ($1 = false or s.is_demo = true)
 					and exists (
 						select 1 from subscription_plans sp
 						where sp.store_id = s.id
@@ -132,14 +132,14 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 				limit 1
 			) nearest on true
 			where s.is_active = true
-				and s.is_demo = $1
+				and ($1 = false or s.is_demo = true)
 				and exists (
 					select 1 from subscription_plans sp
 					where sp.store_id = s.id
 						and sp.is_active = true
 						and sp.is_live = true
 				)
-			order by s.created_at desc
+			order by s.created_at asc
 			limit 100
 		`
 	}
