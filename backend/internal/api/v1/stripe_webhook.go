@@ -148,6 +148,24 @@ func constructStripeEvent(body []byte, sig string, secrets []string) (stripe.Eve
 	return stripe.Event{}, lastErr
 }
 
+// validPaymentTransition returns true if moving from → to is a legal
+// payment_status progression. Backward or no-op transitions are rejected
+// so that out-of-order or duplicate Stripe webhooks cannot corrupt state.
+func validPaymentTransition(from, to string) bool {
+	allowed := map[string]map[string]bool{
+		"unpaid":          {"authorized": true, "paid": true, "failed": true},
+		"pending":         {"authorized": true, "paid": true, "failed": true},
+		"authorized":      {"paid": true, "voided": true, "failed": true},
+		"requires_action": {"authorized": true, "paid": true, "failed": true, "voided": true},
+		"failed":          {"authorized": true, "paid": true},
+	}
+	m, ok := allowed[from]
+	if !ok {
+		return false
+	}
+	return m[to]
+}
+
 func (a StripeWebhookAPI) updatePaymentByPI(ctx context.Context, paymentIntentID string, paymentStatus string, capturedCents *int, cancelIfPlaced bool) error {
 	tx, err := a.DB.Begin(ctx)
 	if err != nil {
@@ -156,23 +174,29 @@ func (a StripeWebhookAPI) updatePaymentByPI(ctx context.Context, paymentIntentID
 	defer tx.Rollback(ctx)
 
 	var (
-		orderID string
-		storeID string
-		status  string
-		method  string
+		orderID              string
+		storeID              string
+		status               string
+		method               string
+		currentPaymentStatus string
 	)
 	err = tx.QueryRow(ctx, `
-		select id::text, store_id::text, status, payment_method
+		select id::text, store_id::text, status, payment_method, payment_status
 		from orders
 		where stripe_payment_intent_id = $1
 		limit 1
 		for update
-	`, paymentIntentID).Scan(&orderID, &storeID, &status, &method)
+	`, paymentIntentID).Scan(&orderID, &storeID, &status, &method, &currentPaymentStatus)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return nil
 		}
 		return err
+	}
+
+	// Reject backward or invalid payment state transitions (e.g., paid→authorized).
+	if !validPaymentTransition(currentPaymentStatus, paymentStatus) {
+		return nil
 	}
 
 	// Sync payment fields from Stripe; this keeps UI accurate after async changes.

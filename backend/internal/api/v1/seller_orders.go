@@ -359,27 +359,7 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 				}
 				platformShare := (deferred.captureAmt * splitBps) / 10000
 				sellerShare := deferred.captureAmt - platformShare
-				if sellerShare > 0 {
-					var connectAccountID *string
-					var connectStatus string
-					if err := a.DB.QueryRow(ctx, `
-						select stripe_account_id, stripe_account_status
-						from stores
-						where id = $1::uuid
-					`, sc.StoreID).Scan(&connectAccountID, &connectStatus); err == nil &&
-						connectAccountID != nil && strings.TrimSpace(*connectAccountID) != "" &&
-						connectStatus == "active" {
-						chargeID, _ := a.Stripe.GetChargeIDFromPaymentIntent(ctx, deferred.piID)
-						transferID, err := a.Stripe.CreateTransfer(ctx, sellerShare, *connectAccountID, chargeID, "noshow-transfer-"+orderID)
-						if err == nil && transferID != "" {
-							_, _ = a.DB.Exec(ctx, `
-								update orders
-								set stripe_transfer_id = $2, updated_at = now()
-								where id = $1::uuid
-							`, orderID, transferID)
-						}
-					}
-				}
+				transferToSeller(ctx, a.DB, a.Stripe, sc.StoreID, orderID, deferred.piID, sellerShare, "noshow-transfer-")
 			}
 		}
 	}
@@ -519,28 +499,7 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 
 		// Transfer seller's share to their Connect account.
 		// Seller gets subtotal_cents; buyer_fee_cents stays on the platform.
-		if subtotalCents > 0 {
-			var connectAccountID *string
-			var connectStatus string
-			if err := a.DB.QueryRow(ctx, `
-				select stripe_account_id, stripe_account_status
-				from stores
-				where id = $1::uuid
-			`, sc.StoreID).Scan(&connectAccountID, &connectStatus); err == nil &&
-				connectAccountID != nil && strings.TrimSpace(*connectAccountID) != "" &&
-				connectStatus == "active" {
-				// Get charge ID from PI for source_transaction.
-				chargeID, _ := a.Stripe.GetChargeIDFromPaymentIntent(ctx, trimPI)
-				transferID, err := a.Stripe.CreateTransfer(ctx, subtotalCents, *connectAccountID, chargeID, "transfer-"+orderID)
-				if err == nil && transferID != "" {
-					_, _ = a.DB.Exec(ctx, `
-						update orders
-						set stripe_transfer_id = $2, updated_at = now()
-						where id = $1::uuid
-					`, orderID, transferID)
-				}
-			}
-		}
+		transferToSeller(ctx, a.DB, a.Stripe, sc.StoreID, orderID, trimPI, subtotalCents, "transfer-")
 
 		// Send payment receipt email.
 		if a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
@@ -559,6 +518,36 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 		"pickup_window_id": pickupWindowID,
 		"status":           "picked_up",
 	})
+}
+
+// transferToSeller transfers funds from a captured payment to the seller's
+// Stripe Connect account. It silently no-ops if the seller has no active
+// Connect account or if the transfer amount is zero.
+func transferToSeller(ctx context.Context, db *pgxpool.Pool, sc *stripepay.Client, storeID, orderID, piID string, amount int, idempotencyPrefix string) {
+	if amount <= 0 || sc == nil || !sc.Enabled() {
+		return
+	}
+	var connectAccountID *string
+	var connectStatus string
+	if err := db.QueryRow(ctx, `
+		select stripe_account_id, stripe_account_status
+		from stores
+		where id = $1::uuid
+	`, storeID).Scan(&connectAccountID, &connectStatus); err != nil {
+		return
+	}
+	if connectAccountID == nil || strings.TrimSpace(*connectAccountID) == "" || connectStatus != "active" {
+		return
+	}
+	chargeID, _ := sc.GetChargeIDFromPaymentIntent(ctx, piID)
+	transferID, err := sc.CreateTransfer(ctx, amount, *connectAccountID, chargeID, idempotencyPrefix+orderID)
+	if err == nil && transferID != "" {
+		_, _ = db.Exec(ctx, `
+			update orders
+			set stripe_transfer_id = $2, updated_at = now()
+			where id = $1::uuid
+		`, orderID, transferID)
+	}
 }
 
 type orderEmailInfo struct {

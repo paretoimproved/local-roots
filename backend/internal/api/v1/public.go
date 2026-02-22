@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -92,36 +91,35 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	args = append(args, showDemo)
 
 	if hasGeo {
-		query = fmt.Sprintf(`
-			select distinct on (s.id)
-				s.id::text, s.name, s.description, s.image_url, s.created_at,
-				pl.city, pl.region,
-				6371 * acos(
-					cos(radians(%f)) * cos(radians(pl.lat)) *
-					cos(radians(pl.lng) - radians(%f)) +
-					sin(radians(%f)) * sin(radians(pl.lat))
-				) as distance_km,
-				s.is_demo
-			from stores s
-			join pickup_locations pl on pl.store_id = s.id
-			where s.is_active = true
-				and s.is_demo = $1
-				and exists (
-					select 1 from subscription_plans sp
-					where sp.store_id = s.id
-						and sp.is_active = true
-						and sp.is_live = true
-				)
-				and 6371 * acos(
-					cos(radians(%f)) * cos(radians(pl.lat)) *
-					cos(radians(pl.lng) - radians(%f)) +
-					sin(radians(%f)) * sin(radians(pl.lat))
-				) <= %f
-			order by s.id, distance_km asc
-		`, lat, lng, lat, lat, lng, lat, radiusKM)
-
-		// Wrap to re-order by distance
-		query = `select * from (` + query + `) sub order by distance_km asc limit 100`
+		args = append(args, lat, lng, radiusKM)
+		query = `
+			with distances as (
+				select distinct on (s.id)
+					s.id::text, s.name, s.description, s.image_url, s.created_at,
+					pl.city, pl.region,
+					6371 * acos(
+						cos(radians($2)) * cos(radians(pl.lat)) *
+						cos(radians(pl.lng) - radians($3)) +
+						sin(radians($2)) * sin(radians(pl.lat))
+					) as distance_km,
+					s.is_demo
+				from stores s
+				join pickup_locations pl on pl.store_id = s.id
+				where s.is_active = true
+					and s.is_demo = $1
+					and exists (
+						select 1 from subscription_plans sp
+						where sp.store_id = s.id
+							and sp.is_active = true
+							and sp.is_live = true
+					)
+				order by s.id, distance_km asc
+			)
+			select * from distances
+			where distance_km <= $4
+			order by distance_km asc
+			limit 100
+		`
 	} else {
 		query = `
 			select s.id::text, s.name, s.description, s.image_url, s.created_at,

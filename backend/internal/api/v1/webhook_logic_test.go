@@ -42,6 +42,54 @@ func TestWebhookConnectStatusDerivation(t *testing.T) {
 	}
 }
 
+func TestValidPaymentTransition(t *testing.T) {
+	cases := []struct {
+		from string
+		to   string
+		want bool
+	}{
+		// Forward transitions — allowed.
+		{"unpaid", "authorized", true},
+		{"unpaid", "paid", true},
+		{"unpaid", "failed", true},
+		{"pending", "authorized", true},
+		{"pending", "paid", true},
+		{"pending", "failed", true},
+		{"authorized", "paid", true},
+		{"authorized", "voided", true},
+		{"authorized", "failed", true},
+		{"requires_action", "authorized", true},
+		{"requires_action", "paid", true},
+		{"requires_action", "failed", true},
+		{"requires_action", "voided", true},
+		{"failed", "authorized", true},
+		{"failed", "paid", true},
+
+		// Backward/invalid transitions — rejected.
+		{"paid", "authorized", false},
+		{"paid", "unpaid", false},
+		{"paid", "voided", false},
+		{"paid", "failed", false},
+		{"voided", "authorized", false},
+		{"voided", "paid", false},
+		{"voided", "unpaid", false},
+		{"refunded", "paid", false},
+		{"refunded", "authorized", false},
+
+		// No-op transitions — rejected.
+		{"authorized", "authorized", false},
+		{"paid", "paid", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.from+"→"+tc.to, func(t *testing.T) {
+			if got := validPaymentTransition(tc.from, tc.to); got != tc.want {
+				t.Errorf("validPaymentTransition(%q, %q) = %v, want %v", tc.from, tc.to, got, tc.want)
+			}
+		})
+	}
+}
+
 // TestSplitWebhookSecrets is already in stripe_webhook_test.go.
 // These tests verify additional edge cases.
 func TestSplitWebhookSecrets_Additional(t *testing.T) {
