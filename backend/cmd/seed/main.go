@@ -288,7 +288,7 @@ func seedFarm(ctx context.Context, db *pgxpool.Pool, f farm, seedPassword string
 	}
 
 	// --- Clean slate for this store ---
-	for _, tbl := range []string{"reviews", "order_items", "orders", "subscription_cycles", "subscriptions", "subscription_plans", "offerings", "product_images", "products", "pickup_windows", "pickup_locations"} {
+	for _, tbl := range []string{"reviews", "orders", "subscription_cycles", "subscriptions", "subscription_plans", "offerings", "products", "pickup_windows", "pickup_locations"} {
 		if _, err := tx.Exec(ctx, fmt.Sprintf("delete from %s where store_id = $1::uuid", tbl), storeID); err != nil {
 			return fmt.Errorf("clean %s: %w", tbl, err)
 		}
