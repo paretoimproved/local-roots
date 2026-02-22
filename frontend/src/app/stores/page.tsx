@@ -75,24 +75,19 @@ function StoresContent() {
     [radiusKm, isDemo],
   );
 
-  // Initial load: try geolocation, fall back to all stores
+  // Initial load: show all stores; detect geolocation silently for search
   useEffect(() => {
-    if (!navigator.geolocation) {
-      fetchStores();
-      return;
-    }
+    fetchStores();
 
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const loc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setCoords(loc);
-        fetchStores(loc);
-      },
-      () => {
-        fetchStores();
-      },
-      { timeout: 5000 },
-    );
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        },
+        () => {},
+        { timeout: 5000 },
+      );
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
