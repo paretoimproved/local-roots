@@ -9,7 +9,7 @@ import {
   type BuyerOrderSummary,
   type BuyerSubscriptionSummary,
 } from "@/lib/buyer-api";
-import { buyerSession } from "@/lib/session";
+import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
 import { formatMoney } from "@/lib/ui";
@@ -52,7 +52,7 @@ export default function BuyerDashboardPage() {
   useEffect(() => { document.title = "My pickups — LocalRoots"; }, []);
 
   const load = useCallback(async () => {
-    const token = buyerSession.getToken();
+    const token = session.getToken();
     if (!token) {
       router.replace("/buyer/login");
       return;
@@ -71,7 +71,7 @@ export default function BuyerDashboardPage() {
       // Redirect on auth errors (API 401/403). Show a toast so the user
       // understands why they are being sent back to login.
       if (/API\s+(401|403)\b/.test(msg)) {
-        buyerSession.clearToken();
+        session.clearToken();
         showToast({
           kind: "error",
           message: "Your session has expired. Please sign in again.",
@@ -90,7 +90,7 @@ export default function BuyerDashboardPage() {
   }, [load]);
 
   function signOut() {
-    buyerSession.clearToken();
+    session.clearToken();
     router.replace("/buyer/login");
   }
 

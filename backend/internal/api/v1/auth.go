@@ -94,7 +94,7 @@ func (a AuthAPI) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 7*24*time.Hour)
+	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 30*24*time.Hour)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -157,7 +157,7 @@ func (a AuthAPI) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 7*24*time.Hour)
+	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 30*24*time.Hour)
 	if err != nil {
 		resp.Internal(w, err)
 		return

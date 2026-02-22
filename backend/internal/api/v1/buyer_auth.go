@@ -184,10 +184,6 @@ func (a BuyerAuthAPI) Verify(w http.ResponseWriter, r *http.Request) {
 
 // GetMe returns the authenticated buyer's info. Gated behind RequireUser.
 func (a BuyerAuthAPI) GetMe(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if u.Role != "buyer" {
-		resp.Forbidden(w, "buyer access only")
-		return
-	}
 	resp.OK(w, map[string]any{
 		"id":           u.ID,
 		"email":        u.Email,
@@ -209,10 +205,6 @@ type BuyerOrderSummary struct {
 
 // ListOrders returns orders for the authenticated buyer. Gated behind RequireUser.
 func (a BuyerAuthAPI) ListOrders(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if u.Role != "buyer" {
-		resp.Forbidden(w, "buyer access only")
-		return
-	}
 	rows, err := a.DB.Query(r.Context(), `
 		select
 			o.id::text,
@@ -265,10 +257,6 @@ type BuyerSubscriptionSummary struct {
 
 // ListSubscriptions returns subscriptions for the authenticated buyer.
 func (a BuyerAuthAPI) ListSubscriptions(w http.ResponseWriter, r *http.Request, u AuthUser) {
-	if u.Role != "buyer" {
-		resp.Forbidden(w, "buyer access only")
-		return
-	}
 	rows, err := a.DB.Query(r.Context(), `
 		select
 			s.id::text,

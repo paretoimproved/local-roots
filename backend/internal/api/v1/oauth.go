@@ -179,25 +179,20 @@ func (o OAuthAPI) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Link existing orders and subscriptions by email (mirrors buyer_auth.go).
-	if u.Role == "buyer" || role == "buyer" {
-		_, _ = o.DB.Exec(ctx, `
-			UPDATE orders SET buyer_user_id = $1::uuid
-			WHERE lower(buyer_email) = $2 AND buyer_user_id IS NULL
-		`, u.ID, email)
-		_, _ = o.DB.Exec(ctx, `
-			UPDATE subscriptions SET buyer_user_id = $1::uuid
-			WHERE lower(buyer_email) = $2 AND buyer_user_id IS NULL
-		`, u.ID, email)
-	}
+	_, _ = o.DB.Exec(ctx, `
+		UPDATE orders SET buyer_user_id = $1::uuid
+		WHERE lower(buyer_email) = $2 AND buyer_user_id IS NULL
+	`, u.ID, email)
+	_, _ = o.DB.Exec(ctx, `
+		UPDATE subscriptions SET buyer_user_id = $1::uuid
+		WHERE lower(buyer_email) = $2 AND buyer_user_id IS NULL
+	`, u.ID, email)
 
 	o.issueToken(w, u)
 }
 
 func (o OAuthAPI) issueToken(w http.ResponseWriter, u AuthUser) {
-	ttl := 30 * 24 * time.Hour // 30 days for buyers
-	if u.Role == "seller" {
-		ttl = 7 * 24 * time.Hour // 7 days for sellers
-	}
+	ttl := 30 * 24 * time.Hour
 
 	tok, err := auth.SignJWT([]byte(o.JWTSecret), u.ID, u.Role, ttl)
 	if err != nil {

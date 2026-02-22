@@ -2,12 +2,12 @@
 
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
-import { buyerSession } from "@/lib/session";
+import { session } from "@/lib/session";
 
 const emptySubscribe = () => () => {};
 
 function getSnapshot() {
-  return buyerSession.getToken() !== null;
+  return session.getToken() !== null;
 }
 
 function getServerSnapshot() {

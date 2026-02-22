@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { buyerAuthApi } from "@/lib/buyer-api";
-import { buyerSession, session } from "@/lib/session";
+import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { friendlyErrorMessage } from "@/lib/ui";
 import { GoogleSignInButton } from "@/components/google-sign-in";
@@ -14,7 +14,7 @@ export default function BuyerLoginPage() {
   const router = useRouter();
   useEffect(() => { document.title = "Sign in — LocalRoots"; }, []);
   useEffect(() => {
-    if (buyerSession.getToken()) router.replace("/buyer");
+    if (session.getToken()) router.replace("/buyer");
   }, [router]);
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -42,12 +42,10 @@ export default function BuyerLoginPage() {
     setError(null);
     try {
       const res = await oauthApi.googleLogin(idToken, "buyer");
+      session.setToken(res.token);
       if (res.user.role === "seller") {
-        // Existing seller signing in via buyer page — redirect to seller dashboard.
-        session.setToken(res.token);
         router.replace("/seller");
       } else {
-        buyerSession.setToken(res.token);
         router.replace("/buyer");
       }
     } catch (err: unknown) {

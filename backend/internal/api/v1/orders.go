@@ -50,7 +50,7 @@ func resolveBuyerAuth(r *http.Request, jwtSecret string) buyerIdentity {
 	}
 	if jwtSecret != "" {
 		claims, err := auth.ParseJWT([]byte(jwtSecret), raw)
-		if err == nil && claims.Role == "buyer" && claims.UserID != "" {
+		if err == nil && claims.UserID != "" {
 			return buyerIdentity{userID: &claims.UserID}
 		}
 	}

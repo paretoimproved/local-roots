@@ -96,7 +96,7 @@ func TestResolveBuyerAuth_NoHeader(t *testing.T) {
 func TestResolveBuyerAuth_SellerJWT(t *testing.T) {
 	secret := "test-jwt-secret-32chars-minimum!"
 
-	// Create a seller JWT — should NOT authenticate as buyer.
+	// Create a seller JWT — should now authenticate (unified session).
 	tok, err := auth.SignJWT([]byte(secret), "seller-456", "seller", time.Hour)
 	if err != nil {
 		t.Fatal(err)
@@ -106,13 +106,15 @@ func TestResolveBuyerAuth_SellerJWT(t *testing.T) {
 	r.Header.Set("Authorization", "Bearer "+tok)
 
 	bi := resolveBuyerAuth(r, secret)
-	// A valid JWT with role=seller should fall back to opaque token treatment.
-	if bi.userID != nil {
-		t.Error("seller JWT should NOT set userID for buyer auth")
+	// A valid JWT with role=seller should now resolve by userID.
+	if bi.userID == nil {
+		t.Fatal("seller JWT should set userID for unified session")
 	}
-	// The raw token is treated as an opaque buyer token (will fail DB lookup later).
-	if bi.buyerToken == nil {
-		t.Fatal("should fall back to opaque token")
+	if *bi.userID != "seller-456" {
+		t.Errorf("userID: got %q want %q", *bi.userID, "seller-456")
+	}
+	if bi.buyerToken != nil {
+		t.Error("buyerToken should be nil for JWT auth")
 	}
 }
 

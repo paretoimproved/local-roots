@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { buyerAuthApi } from "@/lib/buyer-api";
-import { buyerSession } from "@/lib/session";
+import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { friendlyErrorMessage } from "@/lib/ui";
 
@@ -24,7 +24,7 @@ function VerifyInner() {
       .verify(token)
       .then((res) => {
         if (cancelled) return;
-        buyerSession.setToken(res.token);
+        session.setToken(res.token);
         router.replace("/buyer");
       })
       .catch((err: unknown) => {
