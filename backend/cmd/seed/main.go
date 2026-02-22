@@ -236,6 +236,17 @@ func seed(ctx context.Context, db *pgxpool.Pool) error {
 		fmt.Printf("Seeded: %s\n", f.storeName)
 	}
 
+	// Ensure an admin user exists for demo mode access.
+	if _, err := db.Exec(ctx, `
+		insert into users (email, role, display_name)
+		values ('brandonq812@gmail.com', 'admin', 'Brandon')
+		on conflict (email) do update
+			set role = 'admin', updated_at = now()
+	`); err != nil {
+		return fmt.Errorf("admin user: %w", err)
+	}
+	fmt.Println("Seeded: admin user (brandonq812@gmail.com)")
+
 	return nil
 }
 
