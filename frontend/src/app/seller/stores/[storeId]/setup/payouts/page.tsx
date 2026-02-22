@@ -18,6 +18,7 @@ export default function PayoutsPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ConnectStatus>("none");
   const [starting, setStarting] = useState(false);
+  const [waitingForStripe, setWaitingForStripe] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch connect status on mount
@@ -80,12 +81,22 @@ export default function PayoutsPage() {
       return;
     }
 
+    // Open window immediately so browsers don't block the popup.
+    const win = window.open("", "_blank");
+
     setStarting(true);
     try {
       const res = await sellerApi.connectOnboard(token, storeId);
-      window.open(res.url, "_blank");
+      if (win) {
+        win.location.href = res.url;
+      } else {
+        window.location.href = res.url;
+        return;
+      }
+      setWaitingForStripe(true);
       startPolling();
     } catch (e: unknown) {
+      if (win) win.close();
       showToast({ kind: "error", message: friendlyErrorMessage(e) });
     } finally {
       setStarting(false);
@@ -99,12 +110,21 @@ export default function PayoutsPage() {
       return;
     }
 
+    const win = window.open("", "_blank");
+
     setStarting(true);
     try {
       const res = await sellerApi.connectRefreshLink(token, storeId);
-      window.open(res.url, "_blank");
+      if (win) {
+        win.location.href = res.url;
+      } else {
+        window.location.href = res.url;
+        return;
+      }
+      setWaitingForStripe(true);
       startPolling();
     } catch (e: unknown) {
+      if (win) win.close();
       showToast({ kind: "error", message: friendlyErrorMessage(e) });
     } finally {
       setStarting(false);
@@ -119,6 +139,28 @@ export default function PayoutsPage() {
           role="status"
           aria-label="Loading"
         />
+      </div>
+    );
+  }
+
+  // Waiting for Stripe onboarding in another tab
+  if (waitingForStripe && status !== "active") {
+    return (
+      <div className="lr-animate grid justify-items-center gap-6 text-center">
+        <div
+          className="h-8 w-8 rounded-full border-2 border-[color:var(--lr-leaf)] border-t-transparent animate-spin"
+          role="status"
+          aria-label="Waiting for Stripe"
+        />
+        <div>
+          <h1 className="text-2xl font-bold text-[color:var(--lr-ink)]">
+            Finish setup on Stripe
+          </h1>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            We opened Stripe in another tab. Complete the setup there, then come
+            back here — this page will update automatically.
+          </p>
+        </div>
       </div>
     );
   }
