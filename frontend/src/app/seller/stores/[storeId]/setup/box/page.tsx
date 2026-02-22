@@ -152,7 +152,7 @@ export default function BoxPage() {
         });
       }
       showToast({ kind: "success", message: "Box saved." });
-      router.push(`/seller/stores/${storeId}/setup/review`);
+      router.push(`/seller/stores/${storeId}/setup/payouts`);
     } catch (e: unknown) {
       showToast({ kind: "error", message: friendlyErrorMessage(e) });
     } finally {

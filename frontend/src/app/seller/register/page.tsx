@@ -89,7 +89,7 @@ export default function SellerRegisterPage() {
         >
           <label className="grid gap-1">
             <span className="text-sm font-medium text-[color:var(--lr-muted)]">
-              Display name
+              Your name <span className="font-normal">(optional)</span>
             </span>
             <input
               className="lr-field px-3 py-2 text-sm"

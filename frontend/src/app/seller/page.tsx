@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { sellerApi, type SellerStore } from "@/lib/seller-api";
+import { sellerApi, type SellerStore, type SellerSubscriptionPlan } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
-import { useToast } from "@/components/toast";
 import { friendlyErrorMessage } from "@/lib/ui";
 
 export default function SellerHome() {
   const router = useRouter();
   useEffect(() => { document.title = "Seller dashboard — LocalRoots"; }, []);
-  const { showToast } = useToast();
   const [token, setToken] = useState<string | null>(null);
   const [stores, setStores] = useState<SellerStore[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +19,8 @@ export default function SellerHome() {
   const [description, setDescription] = useState("");
   const [phone, setPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [plansByStore, setPlansByStore] = useState<Record<string, SellerSubscriptionPlan[]>>({});
+  const [showCreatedToast, setShowCreatedToast] = useState(false);
 
   useEffect(() => {
     const t = session.getToken();
@@ -42,6 +42,26 @@ export default function SellerHome() {
   }, [token]);
 
   const hasStore = useMemo(() => (stores?.length ?? 0) > 0, [stores]);
+
+  // Fetch plans for each store to determine setup completion
+  useEffect(() => {
+    if (!token || !stores?.length) return;
+    let cancelled = false;
+    Promise.all(
+      stores.map((s) =>
+        sellerApi
+          .listSubscriptionPlans(token, s.id)
+          .then((plans): [string, SellerSubscriptionPlan[]] => [s.id, plans])
+          .catch((): [string, SellerSubscriptionPlan[]] => [s.id, []]),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      const map: Record<string, SellerSubscriptionPlan[]> = {};
+      for (const [id, plans] of results) map[id] = plans;
+      setPlansByStore(map);
+    });
+    return () => { cancelled = true; };
+  }, [token, stores]);
 
   const isAdmin = useMemo(() => {
     if (!token) return false;
@@ -68,7 +88,7 @@ export default function SellerHome() {
       setDescription("");
       setPhone("");
       setStores(await sellerApi.listMyStores(token));
-      showToast({ kind: "success", message: "Store created." });
+      setShowCreatedToast(true);
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));
     } finally {
@@ -103,6 +123,12 @@ export default function SellerHome() {
 
       {error ? <ErrorAlert error={error} /> : null}
 
+      {showCreatedToast ? (
+        <div className="lr-card border-[color:var(--lr-leaf)] bg-emerald-50/60 p-4 text-sm text-[color:var(--lr-ink)]">
+          Store created! Let&apos;s set it up.
+        </div>
+      ) : null}
+
       <section className="lr-card lr-card-strong p-6">
         <div className="flex items-baseline justify-between gap-6">
           <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
@@ -115,32 +141,46 @@ export default function SellerHome() {
 
         {stores && stores.length ? (
           <ul className="mt-4 grid gap-3">
-            {stores.map((s) => (
-              <li
-                key={s.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/60 px-4 py-3 ring-1 ring-[color:var(--lr-border)]"
-              >
-                <div>
-                  <div className="font-medium text-[color:var(--lr-ink)]">
-                    {s.name}
-                  </div>
-                  <div className="text-sm text-[color:var(--lr-muted)]">
-                    {s.description}
-                  </div>
-                </div>
-                <Link
-                  className="lr-btn lr-btn-primary px-4 py-2 text-sm font-medium"
-                  href={`/seller/stores/${s.id}`}
+            {stores.map((s) => {
+              const plans = plansByStore[s.id];
+              const hasLivePlan = plans?.some((p) => p.is_live) ?? false;
+              const needsSetup = !hasLivePlan;
+              return (
+                <li
+                  key={s.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-white/60 px-4 py-3 ring-1 ring-[color:var(--lr-border)]"
                 >
-                  Manage
-                </Link>
-              </li>
-            ))}
+                  <div>
+                    <div className="font-medium text-[color:var(--lr-ink)]">
+                      {s.name}
+                    </div>
+                    <div className="text-sm text-[color:var(--lr-muted)]">
+                      {s.description}
+                    </div>
+                  </div>
+                  <Link
+                    className={
+                      needsSetup
+                        ? "lr-btn lr-btn-primary px-4 py-2 text-sm font-medium"
+                        : "lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+                    }
+                    href={`/seller/stores/${s.id}`}
+                  >
+                    {needsSetup ? "Continue setup \u2192" : "Manage"}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         ) : (
-          <p className="mt-4 text-sm text-[color:var(--lr-muted)]">
-            No stores yet. Create your first one below.
-          </p>
+          <div className="mt-4 grid gap-1">
+            <p className="text-base font-medium text-[color:var(--lr-ink)]">
+              Welcome!
+            </p>
+            <p className="text-sm text-[color:var(--lr-muted)]">
+              Create your store to get started — it takes about 5 minutes.
+            </p>
+          </div>
         )}
       </section>
 

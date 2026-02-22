@@ -37,7 +37,7 @@ export default function SetupLocationPage() {
   const [tzFallback, setTzFallback] = useState(false);
 
   // Spot name
-  const [label, setLabel] = useState("My farm");
+  const [label, setLabel] = useState("");
 
   // Initial query for AddressAutocomplete (used for pre-fill)
   const [initialQuery, setInitialQuery] = useState<string | undefined>(
@@ -70,7 +70,7 @@ export default function SetupLocationPage() {
           setPostalCode(loc.postal_code);
           setCountry(loc.country);
           setTimezone(loc.timezone);
-          setLabel(loc.label ?? "My farm");
+          setLabel(loc.label ?? "");
           setAddressSelected(true);
 
           // Build a formatted address for display
@@ -227,7 +227,7 @@ export default function SetupLocationPage() {
             className="lr-field w-full px-3 py-2 text-sm"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="My farm"
+            placeholder="e.g. Green Valley Farm Stand"
           />
         </div>
 

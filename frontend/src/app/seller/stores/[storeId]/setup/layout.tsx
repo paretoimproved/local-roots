@@ -8,13 +8,15 @@ import { session } from "@/lib/session";
 const STEPS = [
   { label: "Pickup spot", path: "location" },
   { label: "Your box", path: "box" },
+  { label: "Get paid", path: "payouts" },
   { label: "Start selling", path: "review" },
 ] as const;
 
 function stepIndex(pathname: string): number {
   if (pathname.endsWith("/location")) return 0;
   if (pathname.endsWith("/box")) return 1;
-  if (pathname.endsWith("/review")) return 2;
+  if (pathname.endsWith("/payouts")) return 2;
+  if (pathname.endsWith("/review")) return 3;
   return -1;
 }
 
@@ -41,7 +43,7 @@ export default function SetupLayout({ children }: { children: ReactNode }) {
       </Link>
 
       <p className="mt-6 text-center text-sm font-medium text-[color:var(--lr-muted)]">
-        3 quick steps to start selling
+        4 quick steps to start selling
       </p>
 
       {/* ── Progress stepper ── */}

@@ -41,12 +41,24 @@ export default function SetupRouter() {
         }
 
         const hasLive = plans.some((p) => p.is_live);
-        if (!hasLive) {
-          router.replace(`/seller/stores/${storeId}/setup/review`);
+        if (hasLive) {
+          router.replace(`/seller/stores/${storeId}`);
           return;
         }
 
-        router.replace(`/seller/stores/${storeId}`);
+        // Check Stripe Connect status
+        const cs = await sellerApi
+          .connectStatus(token!, storeId)
+          .catch(() => ({ status: "none" }));
+
+        if (cancelled) return;
+
+        if (cs.status !== "active") {
+          router.replace(`/seller/stores/${storeId}/setup/payouts`);
+          return;
+        }
+
+        router.replace(`/seller/stores/${storeId}/setup/review`);
       } catch {
         if (!cancelled) setError("Something went wrong. Please try again.");
       }

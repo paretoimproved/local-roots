@@ -473,6 +473,14 @@ export default function SettingsPage() {
         </div>
       </header>
 
+      <nav className="flex gap-4 border-b border-[color:var(--lr-border)] pb-2 text-sm">
+        <a href="#store-details" className="text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]">Store details</a>
+        <a href="#pickup-spot" className="text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]">Pickup spot</a>
+        <a href="#farm-box" className="text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]">Farm box</a>
+        <a href="#payouts" className="text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]">Payouts</a>
+        <a href="#advanced" className="text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]">Advanced</a>
+      </nav>
+
       {error ? (
         <div className="lr-card border-rose-200 bg-rose-50/60 p-4 text-sm text-rose-900">
           {error}
@@ -486,7 +494,7 @@ export default function SettingsPage() {
       ) : (
         <>
           {/* Section 1: Store Details */}
-          <section className="lr-card lr-animate grid gap-4 p-6">
+          <section id="store-details" className="lr-card lr-animate grid gap-4 p-6 scroll-mt-4">
             <div>
               <h2 className="text-base font-semibold">Store details</h2>
               <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
@@ -542,7 +550,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Section 2: Pickup Spot */}
-          <section className="lr-card lr-animate grid gap-4 p-6">
+          <section id="pickup-spot" className="lr-card lr-animate grid gap-4 p-6 scroll-mt-4">
             <div>
               <h2 className="text-base font-semibold">Pickup spot</h2>
               <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
@@ -635,7 +643,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Section 3: Farm Box */}
-          <section className="lr-card lr-animate grid gap-4 p-6">
+          <section id="farm-box" className="lr-card lr-animate grid gap-4 p-6 scroll-mt-4">
             <div>
               <h2 className="text-base font-semibold">Farm box</h2>
               <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
@@ -746,7 +754,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Section 4: Payouts */}
-          <section className="lr-card lr-animate grid gap-4 p-6">
+          <section id="payouts" className="lr-card lr-animate grid gap-4 p-6 scroll-mt-4">
             <div>
               <h2 className="text-base font-semibold">Payouts</h2>
               <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
@@ -838,7 +846,7 @@ export default function SettingsPage() {
           </section>
 
           {/* Section 5: Advanced Tools (collapsible) */}
-          <section className="lr-card lr-animate grid gap-0 overflow-hidden">
+          <section id="advanced" className="lr-card lr-animate grid gap-0 overflow-hidden scroll-mt-4">
             <button
               type="button"
               className="flex w-full items-center justify-between p-6 text-left"

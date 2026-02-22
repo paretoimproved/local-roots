@@ -41,11 +41,8 @@ export default function RootLayout({
             <header className="flex flex-wrap items-end justify-between gap-4">
               <Link href="/" className="group grid gap-1">
                 <div className="text-xl font-semibold tracking-tight">
-                  <span className="mr-2 font-[family-name:var(--font-lr-serif)]">
+                  <span className="font-[family-name:var(--font-lr-serif)]">
                     LocalRoots
-                  </span>
-                  <span className="inline-flex translate-y-[-1px] items-center rounded-full px-2 py-0.5 text-xs font-medium text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
-                    pickup only
                   </span>
                 </div>
                 <div className="text-sm text-[color:var(--lr-muted)] group-hover:text-[color:var(--lr-ink)]">
@@ -59,14 +56,6 @@ export default function RootLayout({
                 </Link>
                 <BuyerNavLink />
                 <SellerNavLink />
-                <a
-                  className="lr-btn px-4 py-2 text-[color:var(--lr-ink)]"
-                  href="https://github.com/paretoimproved/local-roots"
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  GitHub
-                </a>
               </nav>
             </header>
 

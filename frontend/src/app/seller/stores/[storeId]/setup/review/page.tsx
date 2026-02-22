@@ -49,7 +49,6 @@ export default function ReviewPage() {
   const [plan, setPlan] = useState<SellerSubscriptionPlan | null>(null);
   const [launched, setLaunched] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [connectStatus, setConnectStatus] = useState<string>("none");
 
   useEffect(() => {
     const token = session.getToken();
@@ -62,12 +61,10 @@ export default function ReviewPage() {
 
     async function load() {
       try {
-        const [locations, plans, cs] = await Promise.all([
+        const [locations, plans] = await Promise.all([
           sellerApi.listPickupLocations(token!, storeId),
           sellerApi.listSubscriptionPlans(token!, storeId),
-          sellerApi.connectStatus(token!, storeId).catch(() => ({ status: "none" })),
         ]);
-        if (!cancelled) setConnectStatus(cs.status);
 
         if (cancelled) return;
 
@@ -272,6 +269,9 @@ export default function ReviewPage() {
             <p className="mt-0.5 text-sm text-[color:var(--lr-muted)]">
               First pickup: {friendlyDate(plan.first_start_at, location.timezone)}
             </p>
+            <p className="mt-1.5 text-xs text-[color:var(--lr-muted)]">
+              Buyers will pay a 5% service fee on top of your box price.
+            </p>
           </div>
           <button
             type="button"
@@ -294,54 +294,37 @@ export default function ReviewPage() {
         <p className="mt-3 text-center text-xs text-[color:var(--lr-muted)] break-all">
           {shareUrl}
         </p>
+        <p className="mt-2 text-center text-xs text-[color:var(--lr-muted)]">
+          Print this and post it at your stand. Customers scan it to view your
+          box and subscribe.
+        </p>
       </div>
 
-      {/* Connect gate + Start selling button */}
+      {/* Going-live explanation + Start selling button */}
       <div className="flex flex-col items-center gap-3 pt-2">
-        {connectStatus !== "active" ? (
-          <div className="lr-card w-full rounded-2xl border-amber-200 bg-amber-50/60 p-5 text-center">
-            <p className="text-sm font-semibold text-amber-900">
-              Set up payouts first
-            </p>
-            <p className="mt-1 text-xs text-amber-800">
-              Connect your bank account so you can receive payments from customers.
-            </p>
-            <button
-              type="button"
-              className="lr-btn lr-btn-primary mt-3 px-5 py-2 text-sm font-medium"
-              onClick={() =>
-                router.push(`/seller/stores/${storeId}/settings?connect=setup`)
-              }
-            >
-              Set up payouts
-            </button>
-          </div>
-        ) : (
-          <>
-            <button
-              type="button"
-              className="lr-btn lr-btn-primary w-full px-6 py-3 text-sm font-semibold disabled:opacity-50"
-              disabled={launching}
-              onClick={handleLaunch}
-            >
-              {launching ? (
-                <span className="flex items-center justify-center gap-2">
-                  <span
-                    className="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"
-                    aria-hidden="true"
-                  />
-                  Launching...
-                </span>
-              ) : (
-                "Start selling"
-              )}
-            </button>
-            <p className="max-w-xs text-center text-xs text-[color:var(--lr-muted)]">
-              This opens your first pickup and creates your shareable link and
-              farmstand QR.
-            </p>
-          </>
-        )}
+        <p className="max-w-sm text-center text-sm text-[color:var(--lr-muted)]">
+          Your store will be listed on LocalRoots and visible to nearby buyers.
+          Share your QR code at your farmstand so customers can find and
+          subscribe to your box.
+        </p>
+        <button
+          type="button"
+          className="lr-btn lr-btn-primary w-full px-6 py-3 text-sm font-semibold disabled:opacity-50"
+          disabled={launching}
+          onClick={handleLaunch}
+        >
+          {launching ? (
+            <span className="flex items-center justify-center gap-2">
+              <span
+                className="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"
+                aria-hidden="true"
+              />
+              Launching...
+            </span>
+          ) : (
+            "Start selling"
+          )}
+        </button>
       </div>
     </div>
   );
