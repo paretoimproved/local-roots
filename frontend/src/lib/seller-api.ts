@@ -456,4 +456,9 @@ export const sellerApi = {
       `/v1/seller/stores/${storeId}/connect/refresh-link`,
       { method: "POST", token, body: JSON.stringify({}) },
     ),
+  connectAccountSession: (token: string, storeId: string) =>
+    requestJSON<{ client_secret: string }>(
+      `/v1/seller/stores/${storeId}/connect/account-session`,
+      { method: "POST", token, body: JSON.stringify({}) },
+    ),
 };

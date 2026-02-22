@@ -231,13 +231,30 @@ func (c *Client) CaptureAuthorizationAmount(ctx context.Context, paymentIntentID
 
 // --- Stripe Connect ---
 
-func (c *Client) CreateConnectAccount(ctx context.Context, email string) (accountID string, err error) {
+type ConnectAccountInput struct {
+	Email        string
+	BusinessName string
+	FirstName    string
+	LastName     string
+	Address      *ConnectAddress
+}
+
+type ConnectAddress struct {
+	Line1      string
+	Line2      string
+	City       string
+	State      string
+	PostalCode string
+	Country    string
+}
+
+func (c *Client) CreateConnectAccount(ctx context.Context, in ConnectAccountInput) (accountID string, err error) {
 	if !c.Enabled() {
 		return "", ErrNotConfigured
 	}
 	p := &stripe.AccountParams{
-		Type:         stripe.String(string(stripe.AccountTypeExpress)),
-		Email:        stripe.String(email),
+		Type:  stripe.String(string(stripe.AccountTypeExpress)),
+		Email: stripe.String(in.Email),
 		Capabilities: &stripe.AccountCapabilitiesParams{
 			CardPayments: &stripe.AccountCapabilitiesCardPaymentsParams{
 				Requested: stripe.Bool(true),
@@ -247,12 +264,60 @@ func (c *Client) CreateConnectAccount(ctx context.Context, email string) (accoun
 			},
 		},
 	}
+	if in.BusinessName != "" {
+		p.BusinessProfile = &stripe.AccountBusinessProfileParams{
+			Name: stripe.String(in.BusinessName),
+		}
+		if in.Address != nil && in.Address.Line1 != "" {
+			p.BusinessProfile.SupportAddress = &stripe.AddressParams{
+				Line1:      stripe.String(in.Address.Line1),
+				City:       stripe.String(in.Address.City),
+				State:      stripe.String(in.Address.State),
+				PostalCode: stripe.String(in.Address.PostalCode),
+				Country:    stripe.String(in.Address.Country),
+			}
+			if in.Address.Line2 != "" {
+				p.BusinessProfile.SupportAddress.Line2 = stripe.String(in.Address.Line2)
+			}
+		}
+	}
+	if in.FirstName != "" {
+		p.Individual = &stripe.PersonParams{
+			FirstName: stripe.String(in.FirstName),
+		}
+		if in.LastName != "" {
+			p.Individual.LastName = stripe.String(in.LastName)
+		}
+	}
 	p.Context = ctx
 	acct, err := c.api.Accounts.New(p)
 	if err != nil {
 		return "", err
 	}
 	return acct.ID, nil
+}
+
+func (c *Client) CreateAccountSession(ctx context.Context, accountID string) (clientSecret string, err error) {
+	if !c.Enabled() {
+		return "", ErrNotConfigured
+	}
+	p := &stripe.AccountSessionParams{
+		Account: stripe.String(accountID),
+		Components: &stripe.AccountSessionComponentsParams{
+			AccountOnboarding: &stripe.AccountSessionComponentsAccountOnboardingParams{
+				Enabled: stripe.Bool(true),
+			},
+			AccountManagement: &stripe.AccountSessionComponentsAccountManagementParams{
+				Enabled: stripe.Bool(true),
+			},
+		},
+	}
+	p.Context = ctx
+	sess, err := c.api.AccountSessions.New(p)
+	if err != nil {
+		return "", err
+	}
+	return sess.ClientSecret, nil
 }
 
 func (c *Client) CreateAccountLink(ctx context.Context, accountID string, refreshURL string, returnURL string) (url string, err error) {

@@ -127,6 +127,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/connect/onboard", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.Onboard)))
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/connect/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.GetStatus)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/connect/refresh-link", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.RefreshLink)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/connect/account-session", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.AccountSession)))
 
 	sellerSub := v1.SellerSubscriptionAPI{
 		DB:              deps.DB,

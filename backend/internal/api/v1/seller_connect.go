@@ -34,14 +34,25 @@ func (a SellerConnectAPI) Onboard(w http.ResponseWriter, r *http.Request, u Auth
 
 	ctx := r.Context()
 
-	// Load or create the Connect account.
+	// Load store + user + first pickup location for pre-fill.
 	var stripeAccountID *string
-	var email string
+	var email, storeName string
+	var displayName *string
+	var plAddr1, plCity, plRegion, plPostalCode, plCountry *string
+	var plAddr2 *string
 	if err := a.DB.QueryRow(ctx, `
-		select stripe_account_id, (select email from users where id = stores.owner_user_id)
-		from stores
-		where id = $1::uuid
-	`, sc.StoreID).Scan(&stripeAccountID, &email); err != nil {
+		SELECT s.stripe_account_id, u.email, s.name, u.display_name,
+		       pl.address1, pl.address2, pl.city, pl.region, pl.postal_code, pl.country
+		FROM stores s
+		JOIN users u ON u.id = s.owner_user_id
+		LEFT JOIN pickup_locations pl ON pl.store_id = s.id
+		WHERE s.id = $1::uuid
+		ORDER BY pl.created_at ASC
+		LIMIT 1
+	`, sc.StoreID).Scan(
+		&stripeAccountID, &email, &storeName, &displayName,
+		&plAddr1, &plAddr2, &plCity, &plRegion, &plPostalCode, &plCountry,
+	); err != nil {
 		resp.Internal(w, err)
 		return
 	}
@@ -50,19 +61,41 @@ func (a SellerConnectAPI) Onboard(w http.ResponseWriter, r *http.Request, u Auth
 	if stripeAccountID != nil && strings.TrimSpace(*stripeAccountID) != "" {
 		accountID = strings.TrimSpace(*stripeAccountID)
 	} else {
-		// Create a new Express account.
-		id, err := a.Stripe.CreateConnectAccount(ctx, email)
+		// Build pre-fill input.
+		in := stripepay.ConnectAccountInput{Email: email, BusinessName: storeName}
+		if displayName != nil && *displayName != "" {
+			parts := strings.SplitN(*displayName, " ", 2)
+			in.FirstName = parts[0]
+			if len(parts) > 1 {
+				in.LastName = parts[1]
+			}
+		}
+		if plAddr1 != nil && *plAddr1 != "" {
+			addr := &stripepay.ConnectAddress{
+				Line1:      *plAddr1,
+				City:       derefStr(plCity),
+				State:      derefStr(plRegion),
+				PostalCode: derefStr(plPostalCode),
+				Country:    derefStr(plCountry),
+			}
+			if plAddr2 != nil {
+				addr.Line2 = *plAddr2
+			}
+			in.Address = addr
+		}
+
+		id, err := a.Stripe.CreateConnectAccount(ctx, in)
 		if err != nil {
 			resp.Internal(w, err)
 			return
 		}
 		accountID = id
 		if _, err := a.DB.Exec(ctx, `
-			update stores
-			set stripe_account_id = $2,
+			UPDATE stores
+			SET stripe_account_id = $2,
 				stripe_account_status = 'onboarding',
 				updated_at = now()
-			where id = $1::uuid
+			WHERE id = $1::uuid
 		`, sc.StoreID, accountID); err != nil {
 			resp.Internal(w, err)
 			return
@@ -84,6 +117,44 @@ func (a SellerConnectAPI) Onboard(w http.ResponseWriter, r *http.Request, u Auth
 		"url":        url,
 		"account_id": accountID,
 	})
+}
+
+// AccountSession creates a Stripe Account Session for embedded onboarding.
+func (a SellerConnectAPI) AccountSession(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
+	if a.Stripe == nil || !a.Stripe.Enabled() {
+		resp.ServiceUnavailable(w, "payments not configured")
+		return
+	}
+
+	ctx := r.Context()
+
+	var stripeAccountID *string
+	if err := a.DB.QueryRow(ctx, `
+		SELECT stripe_account_id FROM stores WHERE id = $1::uuid
+	`, sc.StoreID).Scan(&stripeAccountID); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	if stripeAccountID == nil || strings.TrimSpace(*stripeAccountID) == "" {
+		resp.BadRequest(w, "Connect account not found; start onboarding first")
+		return
+	}
+
+	clientSecret, err := a.Stripe.CreateAccountSession(ctx, *stripeAccountID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, map[string]any{"client_secret": clientSecret})
+}
+
+func derefStr(s *string) string {
+	if s == nil {
+		return ""
+	}
+	return *s
 }
 
 // GetStatus fetches the Connect account status from Stripe and updates the local DB.

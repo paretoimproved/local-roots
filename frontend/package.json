@@ -10,6 +10,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@stripe/connect-js": "^3.3.34",
+    "@stripe/react-connect-js": "^3.3.33",
     "@stripe/react-stripe-js": "^5.6.0",
     "@stripe/stripe-js": "^8.7.0",
     "next": "16.1.6",

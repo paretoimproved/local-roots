@@ -1,11 +1,12 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { sellerApi } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
 import { friendlyErrorMessage } from "@/lib/ui";
+import { StripeConnectOnboarding } from "@/components/stripe-connect-onboarding";
 
 type ConnectStatus = "none" | "onboarding" | "active" | "restricted";
 
@@ -18,8 +19,6 @@ export default function PayoutsPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ConnectStatus>("none");
   const [starting, setStarting] = useState(false);
-  const [waitingForStripe, setWaitingForStripe] = useState(false);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Fetch connect status on mount
   useEffect(() => {
@@ -48,49 +47,6 @@ export default function PayoutsPage() {
     };
   }, [storeId, router]);
 
-  // Clean up polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearTimeout(pollRef.current as unknown as number);
-    };
-  }, []);
-
-  function startPolling() {
-    if (pollRef.current) clearInterval(pollRef.current);
-    const startedAt = Date.now();
-
-    async function poll() {
-      const token = session.getToken();
-      if (!token) return;
-      try {
-        const cs = await sellerApi.connectStatus(token, storeId);
-        const s = cs.status as ConnectStatus;
-        setStatus(s);
-        if (s === "active") {
-          if (pollRef.current) clearInterval(pollRef.current);
-          pollRef.current = null;
-          return;
-        }
-      } catch {
-        // keep polling
-      }
-
-      // Back off over time: 3s → 10s → 30s, stop after 10 minutes
-      const elapsed = Date.now() - startedAt;
-      if (elapsed > 10 * 60 * 1000) {
-        if (pollRef.current) clearInterval(pollRef.current);
-        pollRef.current = null;
-        setWaitingForStripe(false);
-        return;
-      }
-      const nextDelay = elapsed < 30_000 ? 3000 : elapsed < 2 * 60_000 ? 10_000 : 30_000;
-      if (pollRef.current) clearInterval(pollRef.current);
-      pollRef.current = setTimeout(poll, nextDelay) as unknown as ReturnType<typeof setInterval>;
-    }
-
-    pollRef.current = setTimeout(poll, 3000) as unknown as ReturnType<typeof setInterval>;
-  }
-
   async function handleConnect() {
     const token = session.getToken();
     if (!token) {
@@ -98,53 +54,25 @@ export default function PayoutsPage() {
       return;
     }
 
-    // Open window immediately so browsers don't block the popup.
-    const win = window.open("", "_blank");
-
     setStarting(true);
     try {
-      const res = await sellerApi.connectOnboard(token, storeId);
-      if (win) {
-        win.location.href = res.url;
-      } else {
-        window.location.href = res.url;
-        return;
-      }
-      setWaitingForStripe(true);
-      startPolling();
+      await sellerApi.connectOnboard(token, storeId);
+      setStatus("onboarding");
     } catch (e: unknown) {
-      if (win) win.close();
       showToast({ kind: "error", message: friendlyErrorMessage(e) });
     } finally {
       setStarting(false);
     }
   }
 
-  async function handleRefresh() {
+  async function handleOnboardingExit() {
     const token = session.getToken();
-    if (!token) {
-      router.replace("/seller/login");
-      return;
-    }
-
-    const win = window.open("", "_blank");
-
-    setStarting(true);
+    if (!token) return;
     try {
-      const res = await sellerApi.connectRefreshLink(token, storeId);
-      if (win) {
-        win.location.href = res.url;
-      } else {
-        window.location.href = res.url;
-        return;
-      }
-      setWaitingForStripe(true);
-      startPolling();
-    } catch (e: unknown) {
-      if (win) win.close();
-      showToast({ kind: "error", message: friendlyErrorMessage(e) });
-    } finally {
-      setStarting(false);
+      const cs = await sellerApi.connectStatus(token, storeId);
+      setStatus(cs.status as ConnectStatus);
+    } catch {
+      // keep current status
     }
   }
 
@@ -160,61 +88,7 @@ export default function PayoutsPage() {
     );
   }
 
-  // Waiting for Stripe onboarding in another tab
-  if (waitingForStripe && status !== "active") {
-    const isPolling = pollRef.current !== null;
-    return (
-      <div className="lr-animate grid justify-items-center gap-6 text-center">
-        {isPolling ? (
-          <div
-            className="h-8 w-8 rounded-full border-2 border-[color:var(--lr-leaf)] border-t-transparent animate-spin"
-            role="status"
-            aria-label="Waiting for Stripe"
-          />
-        ) : null}
-        <div>
-          <h1 className="text-2xl font-bold text-[color:var(--lr-ink)]">
-            Finish setup on Stripe
-          </h1>
-          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-            {isPolling
-              ? "We opened Stripe in another tab. Complete the setup there, then come back here \u2014 this page will update automatically."
-              : "Done with Stripe? Check your status below, or click Continue Stripe setup to pick up where you left off."}
-          </p>
-        </div>
-        {!isPolling ? (
-          <div className="flex flex-wrap justify-center gap-3">
-            <button
-              type="button"
-              className="lr-btn lr-btn-primary px-5 py-2 text-sm font-semibold"
-              onClick={async () => {
-                const token = session.getToken();
-                if (!token) return;
-                try {
-                  const cs = await sellerApi.connectStatus(token, storeId);
-                  setStatus(cs.status as ConnectStatus);
-                  if (cs.status === "active") setWaitingForStripe(false);
-                } catch {
-                  showToast({ kind: "error", message: "Could not check status." });
-                }
-              }}
-            >
-              Check status
-            </button>
-            <button
-              type="button"
-              className="lr-btn px-5 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-              onClick={() => setWaitingForStripe(false)}
-            >
-              Back
-            </button>
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  // Active state — show success and continue
+  // Active — show success and continue
   if (status === "active") {
     return (
       <div className="lr-animate grid justify-items-center gap-6 text-center">
@@ -261,14 +135,44 @@ export default function PayoutsPage() {
     );
   }
 
-  // CTA labels based on status
-  const isOnboarding = status === "onboarding";
-  const isRestricted = status === "restricted";
+  // Onboarding or restricted — show embedded Stripe form
+  if (status === "onboarding" || status === "restricted") {
+    return (
+      <div className="lr-animate grid gap-6">
+        <div>
+          <h1 className="text-2xl font-bold text-[color:var(--lr-ink)]">
+            {status === "restricted"
+              ? "Update your Stripe account"
+              : "Complete your Stripe setup"}
+          </h1>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            {status === "restricted"
+              ? "Stripe needs additional information to finish setting up your account."
+              : "Fill out the form below to connect your bank account. It takes about 2 minutes."}
+          </p>
+        </div>
 
-  let ctaLabel = "Connect your bank account";
-  if (isOnboarding) ctaLabel = "Continue Stripe setup";
-  if (isRestricted) ctaLabel = "Update your Stripe account";
+        {status === "restricted" && (
+          <div className="lr-card rounded-2xl border-amber-200 bg-amber-50/60 p-4">
+            <p className="text-sm font-medium text-amber-900">
+              Your Stripe account needs attention
+            </p>
+            <p className="mt-1 text-xs text-amber-800">
+              Stripe needs additional information to finish setting up your
+              account. Complete the form below to continue.
+            </p>
+          </div>
+        )}
 
+        <StripeConnectOnboarding
+          storeId={storeId}
+          onExit={handleOnboardingExit}
+        />
+      </div>
+    );
+  }
+
+  // None — show CTA
   return (
     <div className="lr-animate grid gap-6">
       <div>
@@ -281,36 +185,13 @@ export default function PayoutsPage() {
         </p>
       </div>
 
-      {isRestricted && (
-        <div className="lr-card rounded-2xl border-amber-200 bg-amber-50/60 p-4">
-          <p className="text-sm font-medium text-amber-900">
-            Your Stripe account needs attention
-          </p>
-          <p className="mt-1 text-xs text-amber-800">
-            Stripe needs additional information to finish setting up your
-            account. Click below to continue.
-          </p>
-        </div>
-      )}
-
-      {isOnboarding && (
-        <div className="lr-card rounded-2xl p-4">
-          <p className="text-sm font-medium text-[color:var(--lr-ink)]">
-            You started connecting but did not finish
-          </p>
-          <p className="mt-1 text-xs text-[color:var(--lr-muted)]">
-            Pick up where you left off. It only takes a minute.
-          </p>
-        </div>
-      )}
-
       <div className="lr-card rounded-2xl p-5">
         <div className="grid gap-4 text-center">
           <button
             type="button"
             className="lr-btn lr-btn-primary w-full px-6 py-3 text-sm font-semibold disabled:opacity-50"
             disabled={starting}
-            onClick={isRestricted ? handleRefresh : handleConnect}
+            onClick={handleConnect}
           >
             {starting ? (
               <span className="flex items-center justify-center gap-2">
@@ -318,10 +199,10 @@ export default function PayoutsPage() {
                   className="inline-block h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin"
                   aria-hidden="true"
                 />
-                Opening Stripe...
+                Setting up...
               </span>
             ) : (
-              ctaLabel
+              "Connect your bank account"
             )}
           </button>
 
