@@ -59,6 +59,11 @@ jobs:
           echo "Status Code: $status_code"
           echo "Response: $body"
 
+          if [ "$status_code" -eq 503 ]; then
+            echo "Warning: Service not ready (email not configured). Skipping."
+            exit 0
+          fi
+
           if [ "$status_code" -ge 400 ]; then
             echo "Error: Request failed with status $status_code"
             exit 1

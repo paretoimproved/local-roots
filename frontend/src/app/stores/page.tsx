@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useSearchParams } from "next/navigation";
@@ -24,6 +24,14 @@ function formatDistance(km: number): string {
 }
 
 export default function StoresPage() {
+  return (
+    <Suspense>
+      <StoresContent />
+    </Suspense>
+  );
+}
+
+function StoresContent() {
   const searchParams = useSearchParams();
   const isDemo = searchParams.get("demo") === "true";
 
