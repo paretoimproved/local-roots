@@ -51,13 +51,15 @@ export default function PayoutsPage() {
   // Clean up polling on unmount
   useEffect(() => {
     return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
+      if (pollRef.current) clearTimeout(pollRef.current as unknown as number);
     };
   }, []);
 
   function startPolling() {
     if (pollRef.current) clearInterval(pollRef.current);
-    pollRef.current = setInterval(async () => {
+    const startedAt = Date.now();
+
+    async function poll() {
       const token = session.getToken();
       if (!token) return;
       try {
@@ -67,11 +69,26 @@ export default function PayoutsPage() {
         if (s === "active") {
           if (pollRef.current) clearInterval(pollRef.current);
           pollRef.current = null;
+          return;
         }
       } catch {
         // keep polling
       }
-    }, 3000);
+
+      // Back off over time: 3s → 10s → 30s, stop after 10 minutes
+      const elapsed = Date.now() - startedAt;
+      if (elapsed > 10 * 60 * 1000) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = null;
+        setWaitingForStripe(false);
+        return;
+      }
+      const nextDelay = elapsed < 30_000 ? 3000 : elapsed < 2 * 60_000 ? 10_000 : 30_000;
+      if (pollRef.current) clearInterval(pollRef.current);
+      pollRef.current = setTimeout(poll, nextDelay) as unknown as ReturnType<typeof setInterval>;
+    }
+
+    pollRef.current = setTimeout(poll, 3000) as unknown as ReturnType<typeof setInterval>;
   }
 
   async function handleConnect() {
@@ -145,22 +162,54 @@ export default function PayoutsPage() {
 
   // Waiting for Stripe onboarding in another tab
   if (waitingForStripe && status !== "active") {
+    const isPolling = pollRef.current !== null;
     return (
       <div className="lr-animate grid justify-items-center gap-6 text-center">
-        <div
-          className="h-8 w-8 rounded-full border-2 border-[color:var(--lr-leaf)] border-t-transparent animate-spin"
-          role="status"
-          aria-label="Waiting for Stripe"
-        />
+        {isPolling ? (
+          <div
+            className="h-8 w-8 rounded-full border-2 border-[color:var(--lr-leaf)] border-t-transparent animate-spin"
+            role="status"
+            aria-label="Waiting for Stripe"
+          />
+        ) : null}
         <div>
           <h1 className="text-2xl font-bold text-[color:var(--lr-ink)]">
             Finish setup on Stripe
           </h1>
           <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-            We opened Stripe in another tab. Complete the setup there, then come
-            back here — this page will update automatically.
+            {isPolling
+              ? "We opened Stripe in another tab. Complete the setup there, then come back here \u2014 this page will update automatically."
+              : "Done with Stripe? Check your status below, or click Continue Stripe setup to pick up where you left off."}
           </p>
         </div>
+        {!isPolling ? (
+          <div className="flex flex-wrap justify-center gap-3">
+            <button
+              type="button"
+              className="lr-btn lr-btn-primary px-5 py-2 text-sm font-semibold"
+              onClick={async () => {
+                const token = session.getToken();
+                if (!token) return;
+                try {
+                  const cs = await sellerApi.connectStatus(token, storeId);
+                  setStatus(cs.status as ConnectStatus);
+                  if (cs.status === "active") setWaitingForStripe(false);
+                } catch {
+                  showToast({ kind: "error", message: "Could not check status." });
+                }
+              }}
+            >
+              Check status
+            </button>
+            <button
+              type="button"
+              className="lr-btn px-5 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+              onClick={() => setWaitingForStripe(false)}
+            >
+              Back
+            </button>
+          </div>
+        ) : null}
       </div>
     );
   }
