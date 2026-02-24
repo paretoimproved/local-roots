@@ -52,13 +52,25 @@ Backend (`backend/`):
 - `DATABASE_URL`: Postgres connection string
 - `JWT_SECRET`: required for auth endpoints
 - `CORS_ALLOW_ORIGINS`: comma-separated explicit allowlist (required in `ENV=prod`)
-- `GOOGLE_PLACES_API_KEY`: required for seller geo endpoints
+- `FRONTEND_URL`: frontend origin for email links and Connect redirect URLs
+- `GOOGLE_PLACES_API_KEY`: required for seller geo endpoints and public autocomplete
+- `GOOGLE_OAUTH_CLIENT_ID`: required for Google Sign-In (buyer + seller)
+- `STRIPE_SECRET_KEY`: Stripe API secret key
+- `STRIPE_WEBHOOK_SECRET`: required for `/v1/stripe/webhook`
+- `RESEND_API_KEY`: required for transactional email (magic links, reminders)
+- `EMAIL_FROM`: sender address for transactional email
+- `INTERNAL_CRON_SECRET`: protects internal cron endpoints (billing, reminders)
+- `BUYER_FEE_BPS`: buyer service fee in basis points (optional, default `0`)
+- `BUYER_FEE_FLAT_CENTS`: buyer flat fee in cents (optional, default `0`)
+- `NO_SHOW_FEE_CENTS`: no-show penalty in cents (optional, default `500`)
+- `NO_SHOW_PLATFORM_SPLIT_BPS`: platform share of no-show fee in bps (optional)
 - `ADDR`: listen address (default `:8080`)
 - `ENV`: `dev` (default) or `prod`
 
 Frontend (`frontend/`):
 
 - `NEXT_PUBLIC_API_BASE_URL`: defaults to `http://localhost:8080`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Stripe publishable key (required for checkout + Connect onboarding)
 
 ## CORS Policy
 

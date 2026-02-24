@@ -52,7 +52,19 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 7. Click **"Continue →"**.
 8. **Expected:** Redirect to `/seller/stores/{storeId}/setup/review`.
 
-### 1e. Review — Payout gate
+### 1e. Setup wizard — Payouts (embedded Connect onboarding)
+
+1. After box setup, the wizard redirects to `/seller/stores/{storeId}/setup/payouts`.
+2. Verify heading: **"Get paid for your harvest"**.
+3. Verify CTA button reads **"Connect your bank account"**.
+4. Click **"Connect your bank account"**.
+5. **Expected:** Button shows **"Setting up..."** briefly, then the page transitions to heading **"Complete your Stripe setup"** with an embedded Stripe onboarding form rendered inline (no popup, no new tab).
+6. Complete the embedded Stripe onboarding form (test mode: use test data).
+7. **Expected:** On completion, the form disappears and a success view appears: green checkmark, heading **"Payouts connected"**, message **"Your bank account is set up."**, and a **"Continue"** button.
+8. Click **"Continue"**.
+9. **Expected:** Redirect to `/seller/stores/{storeId}/setup/review`.
+
+### 1f. Review — Payout gate
 
 1. On `/seller/stores/{storeId}/setup/review`, verify heading: **"You're ready to start selling!"**
 2. Verify **"PICKUP SPOT"** card shows the address from step 1c.
@@ -60,13 +72,12 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 4. Verify **"CUSTOMER PREVIEW"** card shows a QR code and shareable URL.
 5. **Expected (no Stripe Connect):** An amber warning card reads **"Set up payouts first"** with a sub-message about connecting a bank account. A **"Set up payouts"** link is visible. The **"Start selling"** button is NOT visible.
 
-### 1f. Review — Go live (requires Stripe Connect active)
+### 1g. Review — Go live (requires Stripe Connect active)
 
-1. Complete Stripe Connect onboarding for the store (out of scope for automation — manual Stripe dashboard step).
-2. Return to `/seller/stores/{storeId}/setup/review`.
-3. **Expected:** The amber payout gate is gone. A **"Start selling"** button is visible.
-4. Click **"Start selling"**.
-5. **Expected:** Celebration view appears: green checkmark, heading **"You're live!"**, QR code (180px), shareable URL, **"Copy link"** button, and **"Go to dashboard"** link.
+1. If Connect was completed in step 1e, the payout gate should already be cleared.
+2. **Expected:** A **"Start selling"** button is visible (no amber warning).
+3. Click **"Start selling"**.
+4. **Expected:** Celebration view appears: green checkmark, heading **"You're live!"**, QR code (180px), shareable URL, **"Copy link"** button, and **"Go to dashboard"** link.
 
 ---
 
@@ -432,5 +443,6 @@ These tests verify the 6 critical payment-safety fixes. Run after any change to 
 
 - **Backend returns 502:** Check Railway logs for migration failures and missing env vars.
 - **Webhook not configured:** `/v1/stripe/webhook` returns `503` until `STRIPE_WEBHOOK_SECRET` is set.
-- **Stripe PaymentElement doesn't load:** Verify `NEXT_PUBLIC_STRIPE_PK` is set in frontend env and matches the backend's `STRIPE_SECRET_KEY` (same Stripe account, test vs live mode).
+- **Stripe PaymentElement doesn't load:** Verify `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is set in frontend env and matches the backend's `STRIPE_SECRET_KEY` (same Stripe account, test vs live mode).
+- **Embedded Connect onboarding doesn't render:** Verify `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is set. The Connect account must already be created (via the onboard endpoint) before the Account Session can be fetched.
 - **Address autocomplete doesn't work:** Verify `GOOGLE_PLACES_API_KEY` is set in backend env and the Places API is enabled in Google Cloud Console.
