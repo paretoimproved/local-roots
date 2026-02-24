@@ -416,16 +416,6 @@ export default function SellerStorePage() {
           >
             Support
           </button>
-          <button
-            type="button"
-            className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-            onClick={() => {
-              session.clearToken();
-              router.replace("/seller/login");
-            }}
-          >
-            Sign out
-          </button>
         </div>
       </header>
 
