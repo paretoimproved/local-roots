@@ -36,11 +36,14 @@ export default async function StoreBoxesPage({
     null;
   let error: string | null = null;
   let reviews: ReviewsResponse | null = null;
+  let storeName: string | null = null;
+  let storeDescription: string | null = null;
 
   try {
-    const [plansResult, reviewsResult] = await Promise.allSettled([
+    const [plansResult, reviewsResult, storeResult] = await Promise.allSettled([
       api.listStoreSubscriptionPlans(storeId),
       api.listStoreReviews(storeId),
+      api.getStore(storeId),
     ]);
     if (plansResult.status === "fulfilled") {
       plans = plansResult.value;
@@ -49,6 +52,10 @@ export default async function StoreBoxesPage({
     }
     if (reviewsResult.status === "fulfilled") {
       reviews = reviewsResult.value;
+    }
+    if (storeResult.status === "fulfilled") {
+      storeName = storeResult.value.name;
+      storeDescription = storeResult.value.description;
     }
   } catch (e) {
     error = e instanceof Error ? e.message : "Unknown error";
@@ -59,11 +66,13 @@ export default async function StoreBoxesPage({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-1">
           <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
-            Seasonal boxes
+            {storeName ?? "Seasonal boxes"}
           </h1>
-          <p className="text-sm text-[color:var(--lr-muted)]">
-            Store: <span className="font-mono text-xs">{storeId}</span>
-          </p>
+          {storeDescription ? (
+            <p className="text-sm text-[color:var(--lr-muted)]">
+              {storeDescription}
+            </p>
+          ) : null}
           {reviews && reviews.review_count > 0 ? (
             <div className="mt-1">
               <ReviewSummary avgRating={reviews.avg_rating} reviewCount={reviews.review_count} />

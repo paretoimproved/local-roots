@@ -96,11 +96,6 @@ export default function SellerHome() {
     }
   }
 
-  function logout() {
-    session.clearToken();
-    router.replace("/seller/login");
-  }
-
   return (
     <div className="grid gap-8">
       <div className="flex flex-wrap items-baseline justify-between gap-4">
@@ -112,13 +107,6 @@ export default function SellerHome() {
             Manage your store, pickup windows, and offerings.
           </p>
         </div>
-        <button
-          className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-          onClick={logout}
-          type="button"
-        >
-          Log out
-        </button>
       </div>
 
       {error ? <ErrorAlert error={error} /> : null}

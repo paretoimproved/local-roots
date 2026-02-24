@@ -213,13 +213,11 @@ function StoresContent() {
         <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
           Stores
         </h1>
-        <p className="text-sm text-[color:var(--lr-muted)]">
-          {stores
-            ? hasLocation
-              ? `${stores.length} nearby`
-              : `${stores.length} active`
-            : ""}
-        </p>
+        {stores && hasLocation ? (
+          <p className="text-sm text-[color:var(--lr-muted)]">
+            {stores.length} farm{stores.length !== 1 ? "s" : ""} nearby
+          </p>
+        ) : null}
       </div>
 
       {isDemo ? (
@@ -386,46 +384,48 @@ pnpm migrate:up`}</code>
               key={s.id}
               className="lr-card lr-card-strong overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
             >
-              {s.image_url ? (
-                <div className="relative aspect-[16/9] w-full">
-                  <Image
-                    src={s.image_url}
-                    alt={s.name}
-                    fill
-                    className="object-cover"
-                    sizes="(max-width: 768px) 100vw, 700px"
-                  />
-                </div>
-              ) : null}
-              <div className="flex items-start justify-between gap-6 p-6">
-                <div>
-                  <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
-                    <Link className="hover:underline" href={`/stores/${s.id}`}>
+              <Link href={`/stores/${s.id}`} className="block cursor-pointer">
+                {s.image_url ? (
+                  <div className="relative aspect-[16/9] w-full">
+                    <Image
+                      src={s.image_url}
+                      alt={s.name}
+                      fill
+                      className="object-cover"
+                      sizes="(max-width: 768px) 100vw, 700px"
+                    />
+                  </div>
+                ) : null}
+                <div className="flex items-start justify-between gap-6 p-6">
+                  <div>
+                    <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
                       {s.name}
-                    </Link>
-                  </h2>
-                  {s.city || s.region ? (
-                    <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                      {[s.city, s.region].filter(Boolean).join(", ")}
-                    </p>
-                  ) : null}
-                  {s.description ? (
-                    <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-                      {s.description}
-                    </p>
-                  ) : null}
+                    </h2>
+                    {s.city || s.region ? (
+                      <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                        {[s.city, s.region].filter(Boolean).join(", ")}
+                      </p>
+                    ) : null}
+                    {s.description ? (
+                      <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+                        {s.description}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    {s.distance_km != null ? (
+                      <span className="lr-chip rounded-full px-3 py-1 text-xs font-medium">
+                        {formatDistance(s.distance_km)}
+                      </span>
+                    ) : null}
+                    {Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000 ? (
+                      <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">
+                        New
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  {s.distance_km != null ? (
-                    <span className="lr-chip rounded-full px-3 py-1 text-xs font-medium">
-                      {formatDistance(s.distance_km)}
-                    </span>
-                  ) : null}
-                  <span className="text-xs text-[color:var(--lr-muted)]">
-                    Added {new Date(s.created_at).toLocaleDateString("en-US")}
-                  </span>
-                </div>
-              </div>
+              </Link>
             </li>
           ))}
         </ul>

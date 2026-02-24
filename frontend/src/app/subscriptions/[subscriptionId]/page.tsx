@@ -298,8 +298,21 @@ export default function SubscriptionPage() {
 
             <div className="grid gap-2 text-right">
               <div className="text-sm text-[color:var(--lr-muted)]">Status</div>
-              <div className="text-lg font-semibold text-[color:var(--lr-ink)]">
-                {sub.status}
+              <div className="text-lg font-semibold">
+                {(() => {
+                  const colors: Record<string, string> = {
+                    active: "bg-green-50 text-green-800 ring-green-200",
+                    paused: "bg-amber-50 text-amber-800 ring-amber-200",
+                    canceled: "bg-gray-50 text-gray-600 ring-gray-200",
+                  };
+                  return (
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-medium ring-1 ${colors[sub.status] ?? "bg-gray-50 text-gray-600 ring-gray-200"}`}
+                    >
+                      {sub.status}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
           </div>

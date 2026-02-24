@@ -14,18 +14,25 @@ export function friendlyErrorMessage(e: unknown): string {
   }
 
   // requestJSON throws: `API <status>: <text>`
-  const m = msg.match(/^API\s+\d+:\s*(.*)$/);
-  if (m && m[1]) {
-    const text = m[1].trim();
+  const m = msg.match(/^API\s+(\d+):\s*(.*)$/);
+  if (m) {
+    const status = Number(m[1]);
+    const text = (m[2] ?? "").trim();
     try {
       const parsed = JSON.parse(text) as { error?: string };
       if (parsed && typeof parsed.error === "string" && parsed.error.trim()) {
         return parsed.error.trim();
       }
     } catch {
-      // ignore
+      // JSON parse failed — fall through to status code mapping
     }
-    return text || "Request failed. Please try again.";
+    if (status === 401 || status === 403) {
+      return "You don't have access. Please sign in again.";
+    }
+    if (status === 503) {
+      return "This service is temporarily unavailable. Please try again later.";
+    }
+    return "Something went wrong. Please try again.";
   }
 
   return msg;

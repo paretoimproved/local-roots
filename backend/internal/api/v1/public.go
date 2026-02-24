@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/paretoimproved/local-roots/backend/internal/auth"
@@ -27,6 +28,44 @@ type Store struct {
 	Region      *string   `json:"region,omitempty"`
 	DistanceKM  *float64  `json:"distance_km,omitempty"`
 	IsDemo      bool      `json:"is_demo"`
+}
+
+func (a PublicAPI) GetStore(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+
+	storeID := r.PathValue("storeId")
+	if storeID == "" {
+		resp.BadRequest(w, "missing storeId")
+		return
+	}
+
+	var s Store
+	err := a.DB.QueryRow(r.Context(), `
+		select s.id::text, s.name, s.description, s.image_url, s.created_at,
+			nearest.city, nearest.region, s.is_demo
+		from stores s
+		left join lateral (
+			select pl.city, pl.region
+			from pickup_locations pl
+			where pl.store_id = s.id
+			limit 1
+		) nearest on true
+		where s.id = $1::uuid
+			and s.is_active = true
+	`, storeID).Scan(&s.ID, &s.Name, &s.Description, &s.ImageURL, &s.CreatedAt, &s.City, &s.Region, &s.IsDemo)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "store not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, s)
 }
 
 func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {

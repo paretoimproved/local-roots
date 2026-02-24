@@ -144,4 +144,9 @@ export const api = {
       method: "GET",
       next: { revalidate: 60 },
     }),
+  getStore: (storeId: string) =>
+    requestJSON<Store>(`/v1/stores/${storeId}`, {
+      method: "GET",
+      next: { revalidate: 30 },
+    }),
 };

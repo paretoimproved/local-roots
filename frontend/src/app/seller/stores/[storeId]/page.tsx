@@ -194,7 +194,15 @@ export default function SellerStorePage() {
   useEffect(() => {
     if (!token) return;
     setError(null);
-    refreshAll(token).catch((e: unknown) => setError(friendlyErrorMessage(e)));
+    refreshAll(token).catch((e: unknown) => {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (/API\s+403\b/.test(msg)) {
+        showToast({ kind: "error", message: "You don't have access to this store." });
+        router.replace("/seller");
+        return;
+      }
+      setError(friendlyErrorMessage(e));
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [token, storeId]);
 

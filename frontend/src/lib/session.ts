@@ -1,6 +1,22 @@
 const TOKEN_KEY = "localroots_token";
 const LEGACY_BUYER_TOKEN_KEY = "localroots_buyer_token";
 
+const listeners = new Set<() => void>();
+function notify() { listeners.forEach((fn) => fn()); }
+
+export function subscribe(fn: () => void) {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key === TOKEN_KEY || e.key === LEGACY_BUYER_TOKEN_KEY) {
+      notify();
+    }
+  });
+}
+
 export const session = {
   getToken(): string | null {
     if (typeof window === "undefined") return null;
@@ -11,11 +27,13 @@ export const session = {
     window.localStorage.setItem(TOKEN_KEY, token);
     // Remove legacy buyer key so there's only one source of truth.
     window.localStorage.removeItem(LEGACY_BUYER_TOKEN_KEY);
+    notify();
   },
   clearToken() {
     if (typeof window === "undefined") return;
     window.localStorage.removeItem(TOKEN_KEY);
     window.localStorage.removeItem(LEGACY_BUYER_TOKEN_KEY);
+    notify();
   },
 };
 

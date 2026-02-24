@@ -36,6 +36,7 @@ func NewHandler(deps Deps) http.Handler {
 
 	public := v1.PublicAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("GET /v1/stores", public.ListStores)
+	mux.HandleFunc("GET /v1/stores/{storeId}", public.GetStore)
 	mux.HandleFunc("GET /v1/stores/{storeId}/pickup-windows", public.ListStorePickupWindows)
 	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}/offerings", public.ListPickupWindowOfferings)
 	mux.HandleFunc("GET /v1/stores/{storeId}/reviews", public.ListStoreReviews)

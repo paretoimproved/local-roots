@@ -3,9 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
-import { session } from "@/lib/session";
-
-const emptySubscribe = () => () => {};
+import { session, subscribe } from "@/lib/session";
 
 function getSnapshot() {
   return session.getToken() !== null;
@@ -16,7 +14,7 @@ function getServerSnapshot() {
 }
 
 export function SellerNavLink() {
-  const loggedIn = useSyncExternalStore(emptySubscribe, getSnapshot, getServerSnapshot);
+  const loggedIn = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const router = useRouter();
 
   if (loggedIn) {

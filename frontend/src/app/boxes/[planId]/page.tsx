@@ -62,22 +62,14 @@ export default async function BoxPlanPage({
             {plan ? `${cadenceLabel(plan.cadence)} · ${formatMoney(plan.price_cents)} per box` : ""}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {plan ? (
-            <Link
-              className="lr-btn px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-              href={`/stores/${plan.store_id}/boxes`}
-            >
-              Back to boxes
-            </Link>
-          ) : null}
+        {plan ? (
           <Link
-            className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
-            href="/stores"
+            className="text-sm font-medium text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)] hover:underline"
+            href={`/stores/${plan.store_id}/boxes`}
           >
-            Browse stores
+            &larr; Back to boxes
           </Link>
-        </div>
+        ) : null}
       </div>
 
       {error ? (
@@ -135,7 +127,7 @@ export default async function BoxPlanPage({
                   Policies
                 </div>
                 <div className="mt-1">
-                  Skip before cutoff. Seller cancels: full refund (card billing coming next phase).
+                  Skip before cutoff. Seller cancels: full refund.
                 </div>
               </div>
             </div>

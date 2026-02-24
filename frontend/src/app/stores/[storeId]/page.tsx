@@ -19,7 +19,14 @@ function formatWindowLabel(pw: Awaited<ReturnType<typeof api.listStorePickupWind
     minute: "2-digit",
   });
 
-  return `${day} ${time.format(start)} to ${time.format(end)} (${tz})`;
+  const tzAbbr = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    timeZoneName: "short",
+  })
+    .formatToParts(start)
+    .find((p) => p.type === "timeZoneName")?.value ?? tz;
+
+  return `${day} ${time.format(start)} to ${time.format(end)} (${tzAbbr})`;
 }
 
 export default async function StorePickupWindowsPage({
@@ -32,9 +39,23 @@ export default async function StorePickupWindowsPage({
   let windows: Awaited<ReturnType<typeof api.listStorePickupWindows>> | null =
     null;
   let error: string | null = null;
+  let storeName: string | null = null;
+  let storeDescription: string | null = null;
 
   try {
-    windows = await api.listStorePickupWindows(storeId);
+    const [windowsResult, storeResult] = await Promise.allSettled([
+      api.listStorePickupWindows(storeId),
+      api.getStore(storeId),
+    ]);
+    if (windowsResult.status === "fulfilled") {
+      windows = windowsResult.value;
+    } else {
+      error = windowsResult.reason instanceof Error ? windowsResult.reason.message : "Unknown error";
+    }
+    if (storeResult.status === "fulfilled") {
+      storeName = storeResult.value.name;
+      storeDescription = storeResult.value.description;
+    }
   } catch (e) {
     error = e instanceof Error ? e.message : "Unknown error";
   }
@@ -44,11 +65,13 @@ export default async function StorePickupWindowsPage({
       <div className="flex items-baseline justify-between">
         <div className="grid gap-1">
           <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
-            Pickup windows
+            {storeName ?? "Pickup windows"}
           </h1>
-          <p className="text-sm text-[color:var(--lr-muted)]">
-            Store: <span className="font-mono text-xs">{storeId}</span>
-          </p>
+          {storeDescription ? (
+            <p className="text-sm text-[color:var(--lr-muted)]">
+              {storeDescription}
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Link

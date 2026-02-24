@@ -194,7 +194,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
           </div>
         </div>
         <div className="text-xs text-[color:var(--lr-muted)]">
-          Capacity: {plan.subscriber_limit}
+          {plan.subscriber_limit} spots
         </div>
       </div>
 
@@ -288,7 +288,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
 
         <button
           type="button"
-          className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50"
+          className={`lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50${checkout ? " cursor-not-allowed" : ""}`}
           disabled={submitting || !email.trim() || !plan.is_live || !paymentsReady || !!checkout}
           onClick={startCheckout}
         >
@@ -297,7 +297,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             : !paymentsReady
               ? "Payments unavailable"
               : checkout
-                ? "Continue below\u2026"
+                ? "Complete payment below"
                 : submitting
                   ? "Starting\u2026"
                   : "Start subscription"}
