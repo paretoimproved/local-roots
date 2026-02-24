@@ -12,7 +12,7 @@ import {
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
-import { formatMoney } from "@/lib/ui";
+import { formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
 
 function cadenceLabel(c: string) {
   if (c === "weekly") return "Weekly";
@@ -67,10 +67,8 @@ export default function BuyerDashboardPage() {
       setOrders(ords);
       setSubscriptions(subs);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "";
-      // Redirect on auth errors (API 401/403). Show a toast so the user
-      // understands why they are being sent back to login.
-      if (/API\s+(401|403)\b/.test(msg)) {
+      const apiErr = parseApiError(err);
+      if (apiErr && (apiErr.status === 401 || apiErr.status === 403)) {
         session.clearToken();
         showToast({
           kind: "error",
@@ -79,7 +77,7 @@ export default function BuyerDashboardPage() {
         router.replace("/buyer/login");
         return;
       }
-      setError(msg || "Failed to load. Please try again.");
+      setError(friendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }

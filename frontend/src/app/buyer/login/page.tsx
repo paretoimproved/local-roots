@@ -65,8 +65,7 @@ export default function BuyerLoginPage() {
       setSent(true);
       startCooldown();
     } catch (err: unknown) {
-      const msg = friendlyErrorMessage(err);
-      setError(/429|rate|too many/i.test(msg) ? "Too many requests. Please wait a moment before trying again." : msg);
+      setError(friendlyErrorMessage(err));
     } finally {
       setSubmitting(false);
     }

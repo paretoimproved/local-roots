@@ -17,7 +17,7 @@ import { session } from "@/lib/session";
 import { QrScannerModal } from "@/components/qr-scanner-modal";
 import { QrCode } from "@/components/qr-code";
 import { useToast } from "@/components/toast";
-import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
+import { formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
 import { StatusPill, PaymentPill } from "@/components/seller/status-pills";
 import { ConfirmDialog } from "@/components/confirm-dialog";
 
@@ -195,9 +195,14 @@ export default function SellerStorePage() {
     if (!token) return;
     setError(null);
     refreshAll(token).catch((e: unknown) => {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (/API\s+403\b/.test(msg)) {
-        showToast({ kind: "error", message: "You don't have access to this store." });
+      const apiErr = parseApiError(e);
+      if (apiErr && apiErr.status === 403) {
+        showToast({ kind: "error", message: "You don\u2019t have access to that store." });
+        router.replace("/seller");
+        return;
+      }
+      if (apiErr && apiErr.status === 404) {
+        showToast({ kind: "error", message: "Store not found." });
         router.replace("/seller");
         return;
       }
