@@ -92,6 +92,7 @@ type Order struct {
 	ID             string      `json:"id"`
 	StoreID        string      `json:"store_id"`
 	PickupWindowID string      `json:"pickup_window_id"`
+	SubscriptionID *string     `json:"subscription_id"`
 	BuyerToken     string      `json:"buyer_token"`
 	PickupCode     string      `json:"pickup_code"`
 	BuyerEmail     string      `json:"buyer_email"`

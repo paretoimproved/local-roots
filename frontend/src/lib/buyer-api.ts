@@ -37,6 +37,7 @@ export type Order = {
   id: string;
   store_id: string;
   pickup_window_id: string;
+  subscription_id: string | null;
   buyer_token: string;
   pickup_code: string;
   buyer_email: string;

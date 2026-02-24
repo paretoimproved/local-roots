@@ -311,6 +311,17 @@ export default function OrderPage() {
         </>
       ) : null}
 
+      {data?.order.subscription_id ? (
+        <div>
+          <Link
+            className="lr-btn lr-chip inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+            href={`/subscriptions/${data.order.subscription_id}`}
+          >
+            Manage subscription
+          </Link>
+        </div>
+      ) : null}
+
       <details className="text-xs text-[color:var(--lr-muted)]">
         <summary className="cursor-pointer hover:text-[color:var(--lr-ink)]">Order details</summary>
         <p className="mt-1 font-mono break-all">{orderId}</p>
