@@ -1,6 +1,6 @@
 # CODEX.md (repo guidance)
 
-This file provides guidance to Codex when working in this repository.
+This file provides guidance to Codex and Claude Code when working in this repository.
 The filename remains `CLAUDE.md` for compatibility with existing tooling.
 
 ## Overview
