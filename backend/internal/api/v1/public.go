@@ -221,13 +221,16 @@ type PickupWindow struct {
 	CutoffAt       time.Time `json:"cutoff_at"`
 	Status         string    `json:"status"`
 	PickupLocation struct {
-		ID       string  `json:"id"`
-		Label    *string `json:"label"`
-		Address1 string  `json:"address1"`
-		City     string  `json:"city"`
-		Region   string  `json:"region"`
-		Postal   string  `json:"postal_code"`
-		Timezone string  `json:"timezone"`
+		ID           string   `json:"id"`
+		Label        *string  `json:"label"`
+		Address1     string   `json:"address1"`
+		City         string   `json:"city"`
+		Region       string   `json:"region"`
+		Postal       string   `json:"postal_code"`
+		Timezone     string   `json:"timezone"`
+		Lat          *float64 `json:"lat"`
+		Lng          *float64 `json:"lng"`
+		Instructions *string  `json:"instructions"`
 	} `json:"pickup_location"`
 }
 
@@ -271,7 +274,10 @@ func (a PublicAPI) ListStorePickupWindows(w http.ResponseWriter, r *http.Request
 			pl.city,
 			pl.region,
 			pl.postal_code,
-			pl.timezone
+			pl.timezone,
+			pl.lat,
+			pl.lng,
+			pl.instructions
 		from pickup_windows pw
 		join pickup_locations pl on pl.id = pw.pickup_location_id
 		where pw.store_id = $1::uuid
@@ -302,6 +308,9 @@ func (a PublicAPI) ListStorePickupWindows(w http.ResponseWriter, r *http.Request
 			&pw.PickupLocation.Region,
 			&pw.PickupLocation.Postal,
 			&pw.PickupLocation.Timezone,
+			&pw.PickupLocation.Lat,
+			&pw.PickupLocation.Lng,
+			&pw.PickupLocation.Instructions,
 		); err != nil {
 			resp.Internal(w, err)
 			return
@@ -314,6 +323,78 @@ func (a PublicAPI) ListStorePickupWindows(w http.ResponseWriter, r *http.Request
 	}
 
 	resp.OK(w, out)
+}
+
+type PickupWindowDetail struct {
+	ID        string    `json:"id"`
+	StoreID   string    `json:"store_id"`
+	StoreName string    `json:"store_name"`
+	StartAt   time.Time `json:"start_at"`
+	EndAt     time.Time `json:"end_at"`
+	Status    string    `json:"status"`
+	PickupLocation struct {
+		Label    *string `json:"label"`
+		Address1 string  `json:"address1"`
+		City     string  `json:"city"`
+		Region   string  `json:"region"`
+		Timezone string  `json:"timezone"`
+	} `json:"pickup_location"`
+}
+
+func (a PublicAPI) GetPickupWindow(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+
+	windowID := r.PathValue("pickupWindowId")
+	if windowID == "" {
+		resp.BadRequest(w, "missing pickupWindowId")
+		return
+	}
+
+	var pw PickupWindowDetail
+	err := a.DB.QueryRow(r.Context(), `
+		select
+			pw.id::text,
+			pw.store_id::text,
+			s.name,
+			pw.start_at,
+			pw.end_at,
+			pw.status,
+			pl.label,
+			pl.address1,
+			pl.city,
+			pl.region,
+			pl.timezone
+		from pickup_windows pw
+		join pickup_locations pl on pl.id = pw.pickup_location_id
+		join stores s on s.id = pw.store_id
+		where pw.id = $1::uuid
+		limit 1
+	`, windowID).Scan(
+		&pw.ID,
+		&pw.StoreID,
+		&pw.StoreName,
+		&pw.StartAt,
+		&pw.EndAt,
+		&pw.Status,
+		&pw.PickupLocation.Label,
+		&pw.PickupLocation.Address1,
+		&pw.PickupLocation.City,
+		&pw.PickupLocation.Region,
+		&pw.PickupLocation.Timezone,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "pickup window not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, pw)
 }
 
 type Offering struct {

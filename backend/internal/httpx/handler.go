@@ -38,6 +38,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/stores", public.ListStores)
 	mux.HandleFunc("GET /v1/stores/{storeId}", public.GetStore)
 	mux.HandleFunc("GET /v1/stores/{storeId}/pickup-windows", public.ListStorePickupWindows)
+	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}", public.GetPickupWindow)
 	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}/offerings", public.ListPickupWindowOfferings)
 	mux.HandleFunc("GET /v1/stores/{storeId}/reviews", public.ListStoreReviews)
 

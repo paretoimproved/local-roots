@@ -20,6 +20,25 @@ export type PickupLocation = {
   region: string;
   postal_code: string;
   timezone: string;
+  lat?: number | null;
+  lng?: number | null;
+  instructions?: string | null;
+};
+
+export type PickupWindowDetail = {
+  id: string;
+  store_id: string;
+  store_name: string;
+  start_at: string;
+  end_at: string;
+  status: string;
+  pickup_location: {
+    label: string | null;
+    address1: string;
+    city: string;
+    region: string;
+    timezone: string;
+  };
 };
 
 export type PickupWindow = {
@@ -146,6 +165,11 @@ export const api = {
     }),
   getStore: (storeId: string) =>
     requestJSON<Store>(`/v1/stores/${storeId}`, {
+      method: "GET",
+      next: { revalidate: 30 },
+    }),
+  getPickupWindow: (pickupWindowId: string) =>
+    requestJSON<PickupWindowDetail>(`/v1/pickup-windows/${pickupWindowId}`, {
       method: "GET",
       next: { revalidate: 30 },
     }),
