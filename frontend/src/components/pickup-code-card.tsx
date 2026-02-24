@@ -82,7 +82,7 @@ export function PickupCodeCard({
   const completed = status === "picked_up";
 
   return (
-    <section className="lr-card lr-card-strong p-6">
+    <section className="lr-card lr-card-strong border-l-4 border-green-600 p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
