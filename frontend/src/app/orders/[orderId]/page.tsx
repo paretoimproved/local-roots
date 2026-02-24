@@ -96,11 +96,18 @@ export default function OrderPage() {
     <div className="grid gap-6">
       <div className="grid gap-1">
         <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
-          Order
+          {data ? (data.order.items[0]?.product_title || "Order") : "Order"}
         </h1>
-        <p className="text-sm text-[color:var(--lr-muted)]">
-          <span className="break-all font-mono text-xs">{orderId}</span>
-        </p>
+        {data ? (
+          <p className="text-sm text-[color:var(--lr-muted)]">
+            {new Intl.DateTimeFormat("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }).format(new Date(data.order.created_at))}
+          </p>
+        ) : null}
       </div>
 
       {error ? <ErrorAlert error={error} onRetry={load} /> : null}
@@ -303,6 +310,11 @@ export default function OrderPage() {
           ) : null}
         </>
       ) : null}
+
+      <details className="text-xs text-[color:var(--lr-muted)]">
+        <summary className="cursor-pointer hover:text-[color:var(--lr-ink)]">Order details</summary>
+        <p className="mt-1 font-mono break-all">{orderId}</p>
+      </details>
 
       <div>
         <Link className="text-sm text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]" href="/stores">

@@ -3,6 +3,7 @@ import { Fraunces, Geist_Mono, Spline_Sans } from "next/font/google";
 import Link from "next/link";
 import { BuyerNavLink } from "@/components/buyer-nav-link";
 import { SellerNavLink } from "@/components/seller-nav-link";
+import { Footer } from "@/components/footer";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 
@@ -60,6 +61,10 @@ export default function RootLayout({
             </header>
 
             <main className="mt-10">{children}</main>
+          </div>
+
+          <div className="mt-16">
+            <Footer />
           </div>
         </Providers>
       </body>

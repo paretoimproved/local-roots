@@ -14,7 +14,7 @@ const RADIUS_OPTIONS = [
   { label: "100 mi", km: 161 },
 ] as const;
 
-const DEFAULT_RADIUS_KM = 80;
+const DEFAULT_RADIUS_KM = 40;
 
 function formatDistance(km: number): string {
   const miles = km * 0.621371;
@@ -211,7 +211,7 @@ function StoresContent() {
     <div className="grid gap-6">
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
-          Stores
+          Farms
         </h1>
         {stores && hasLocation ? (
           <p className="text-sm text-[color:var(--lr-muted)]">
@@ -251,7 +251,7 @@ function StoresContent() {
             <input
               id="location-search"
               type="text"
-              placeholder="e.g. Austin, TX or 78701"
+              placeholder="Your city or zip code"
               value={searchQuery}
               onChange={(e) => handleInputChange(e.target.value)}
               onFocus={() => {

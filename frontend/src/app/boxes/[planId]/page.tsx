@@ -43,7 +43,14 @@ export default async function BoxPlanPage({
     error = e instanceof Error ? e.message : "Unknown error";
   }
 
+  let storeName = "Store";
   if (plan) {
+    try {
+      const store = await api.getStore(plan.store_id);
+      storeName = store.name;
+    } catch {
+      // Fall back to "Store" if fetch fails
+    }
     try {
       reviews = await api.listStoreReviews(plan.store_id);
     } catch {
@@ -53,23 +60,22 @@ export default async function BoxPlanPage({
 
   return (
     <div className="grid gap-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div className="grid gap-1">
-          <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
-            {plan ? plan.title : "Box"}
-          </h1>
-          <p className="text-sm text-[color:var(--lr-muted)]">
-            {plan ? `${cadenceLabel(plan.cadence)} · ${formatMoney(plan.price_cents)} per box` : ""}
-          </p>
-        </div>
-        {plan ? (
-          <Link
-            className="text-sm font-medium text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)] hover:underline"
-            href={`/stores/${plan.store_id}/boxes`}
-          >
-            &larr; Back to boxes
+      {plan ? (
+        <nav className="text-sm text-[color:var(--lr-muted)]">
+          <Link href={`/stores/${plan.store_id}`} className="hover:text-[color:var(--lr-ink)] hover:underline">
+            {storeName}
           </Link>
-        ) : null}
+          <span className="mx-1">&rarr;</span>
+          <span className="text-[color:var(--lr-ink)] font-medium">{plan.title}</span>
+        </nav>
+      ) : null}
+      <div className="grid gap-1">
+        <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
+          {plan ? plan.title : "Box"}
+        </h1>
+        <p className="text-sm text-[color:var(--lr-muted)]">
+          {plan ? `${cadenceLabel(plan.cadence)} · ${formatMoney(plan.price_cents)} per box` : ""}
+        </p>
       </div>
 
       {error ? (

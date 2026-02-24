@@ -131,12 +131,11 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
     return (
       <div className="grid gap-4">
         <section className="lr-card lr-card-strong p-6">
-          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
-            Subscription started
+          <h2 className="text-xl font-semibold text-[color:var(--lr-ink)]">
+            You&apos;re in!
           </h2>
-          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-            Subscription ID:{" "}
-            <span className="font-mono text-xs">{done.subscription.id}</span>
+          <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+            Welcome to {plan.title}
           </p>
           <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
             First order is ready to manage:
@@ -166,12 +165,14 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
           </div>
         </section>
 
-        <PickupCodeCard
-          storeId={order.store_id}
-          orderId={order.id}
-          pickupCode={order.pickup_code}
-          status={order.status}
-        />
+        <div className="rounded-2xl bg-green-50/50 p-4 ring-1 ring-green-200/50">
+          <PickupCodeCard
+            storeId={order.store_id}
+            orderId={order.id}
+            pickupCode={order.pickup_code}
+            status={order.status}
+          />
+        </div>
       </div>
     );
   }
@@ -192,9 +193,6 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
               {nextLabel}
             </span>
           </div>
-        </div>
-        <div className="text-xs text-[color:var(--lr-muted)]">
-          {plan.subscriber_limit} spots
         </div>
       </div>
 
