@@ -28,18 +28,12 @@ export function CheckoutForm({
   const [error, setError] = useState<string | null>(null);
   const [order, setOrder] = useState<Order | null>(null);
   const [copied, setCopied] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<"pay_at_pickup" | "card">(
-    "pay_at_pickup",
-  );
   const [checkout, setCheckout] = useState<OrderCheckoutResponse | null>(null);
   // Snapshot of items at checkout time — ensures the order matches the authorized amount
   const [checkoutItems, setCheckoutItems] = useState<
     { offering_id: string; quantity: number }[] | null
   >(null);
   const startingCheckoutRef = useRef(false);
-  const paymentsReady = Boolean(
-    process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
-  );
   const formLocked = !!checkout;
 
   const items = useMemo(() => {
@@ -51,31 +45,6 @@ export function CheckoutForm({
   const total = useMemo(() => {
     return items.reduce((sum, it) => sum + it.offering.price_cents * it.quantity, 0);
   }, [items]);
-
-  async function placeOrder() {
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await buyerApi.placeOrder(pickupWindowId, {
-        buyer: {
-          email: buyerEmail,
-          name: buyerName || null,
-          phone: buyerPhone || null,
-        },
-        items: items.map((it) => ({
-          offering_id: it.offering_id,
-          quantity: it.quantity,
-        })),
-      });
-      orderToken.set(res.id, res.buyer_token);
-      setOrder(res);
-      showToast({ kind: "success", message: "Order placed." });
-    } catch (e: unknown) {
-      setError(friendlyErrorMessage(e));
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   async function startCardCheckout() {
     if (startingCheckoutRef.current) return;
@@ -121,7 +90,6 @@ export function CheckoutForm({
         },
         // Use the snapshot from checkout time — matches the authorized amount
         items: checkoutItems,
-        payment_method: "card",
         stripe_payment_intent_id: checkout.payment_intent_id,
       });
       orderToken.set(res.id, res.buyer_token);
@@ -139,13 +107,6 @@ export function CheckoutForm({
       // overwriting our detailed error message.
       throw new Error("__handled__");
     }
-  }
-
-  function handlePaymentMethodChange(method: "pay_at_pickup" | "card") {
-    // Don't allow switching away from card once a PaymentIntent has been created —
-    // switching would orphan the intent (money authorized but never captured/canceled).
-    if (checkout) return;
-    setPaymentMethod(method);
   }
 
   async function copyAccessLink() {
@@ -206,11 +167,9 @@ export function CheckoutForm({
           </div>
 
           <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
-            Payment method:{" "}
+            Payment:{" "}
             <span className="font-medium">
-              {order.payment_method === "card"
-                ? "Card (authorized, captured on pickup)"
-                : "Pay at pickup"}
+              Card authorized — captured on pickup
             </span>
           </div>
         </section>
@@ -322,50 +281,7 @@ export function CheckoutForm({
           </label>
         </div>
 
-        {paymentsReady ? (
-          <fieldset className="mt-2 grid gap-1">
-            <legend className="text-xs font-medium text-[color:var(--lr-muted)]">
-              Payment method
-            </legend>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
-              <label className="flex items-center gap-2 text-sm text-[color:var(--lr-ink)]">
-                <input
-                  type="radio"
-                  name="payment_method"
-                  value="pay_at_pickup"
-                  checked={paymentMethod === "pay_at_pickup"}
-                  onChange={() => handlePaymentMethodChange("pay_at_pickup")}
-                  className="accent-[color:var(--lr-primary)]"
-                  disabled={formLocked}
-                />
-                Pay at pickup
-              </label>
-              <label className="flex items-center gap-2 text-sm text-[color:var(--lr-ink)]">
-                <input
-                  type="radio"
-                  name="payment_method"
-                  value="card"
-                  checked={paymentMethod === "card"}
-                  onChange={() => handlePaymentMethodChange("card")}
-                  className="accent-[color:var(--lr-primary)]"
-                  disabled={formLocked}
-                />
-                Pay with card
-              </label>
-            </div>
-          </fieldset>
-        ) : null}
-
-        {paymentMethod === "pay_at_pickup" ? (
-          <button
-            className="lr-btn lr-btn-primary mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50"
-            disabled={submitting || items.length === 0 || !buyerEmail.trim()}
-            onClick={placeOrder}
-            type="button"
-          >
-            {submitting ? "Placing order\u2026" : "Place order"}
-          </button>
-        ) : checkout ? (
+        {checkout ? (
           <AuthorizeCard
             clientSecret={checkout.client_secret}
             submitting={submitting}

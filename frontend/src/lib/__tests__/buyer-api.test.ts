@@ -73,6 +73,7 @@ describe("buyerApi.placeOrder", () => {
     const input = {
       buyer: { email: "a@b.com", name: "Alice" },
       items: [{ offering_id: "off-1", quantity: 2 }],
+      stripe_payment_intent_id: "pi_abc123",
     };
     await buyerApi.placeOrder("pw-1", input);
 
@@ -85,11 +86,10 @@ describe("buyerApi.placeOrder", () => {
     );
   });
 
-  it("includes card payment fields when provided", async () => {
+  it("includes stripe_payment_intent_id in the request body", async () => {
     const input = {
       buyer: { email: "a@b.com", name: "Alice" },
       items: [{ offering_id: "off-1", quantity: 2 }],
-      payment_method: "card",
       stripe_payment_intent_id: "pi_abc123",
     };
     await buyerApi.placeOrder("pw-1", input);
@@ -98,22 +98,9 @@ describe("buyerApi.placeOrder", () => {
     expect(path).toBe("/v1/pickup-windows/pw-1/orders");
     expect(init.method).toBe("POST");
     const body = JSON.parse(init.body);
-    expect(body.payment_method).toBe("card");
     expect(body.stripe_payment_intent_id).toBe("pi_abc123");
     expect(body.buyer.email).toBe("a@b.com");
     expect(body.items).toEqual([{ offering_id: "off-1", quantity: 2 }]);
-  });
-
-  it("omits card fields when not provided (cash payment)", async () => {
-    const input = {
-      buyer: { email: "a@b.com" },
-      items: [{ offering_id: "off-1", quantity: 1 }],
-    };
-    await buyerApi.placeOrder("pw-1", input);
-
-    const body = JSON.parse(mockRequestJSON.mock.calls[0][1].body);
-    expect(body.payment_method).toBeUndefined();
-    expect(body.stripe_payment_intent_id).toBeUndefined();
   });
 });
 

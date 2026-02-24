@@ -300,7 +300,7 @@ export async function placeOrderViaApi(
   pickupWindowId: string,
   email: string,
   items: { offering_id: string; quantity: number }[],
-  paymentMethod = "pay_at_pickup",
+  paymentMethod = "card",
 ): Promise<PlaceOrderResponse> {
   return apiRequest<PlaceOrderResponse>(
     "POST",

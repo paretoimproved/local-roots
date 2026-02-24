@@ -37,11 +37,10 @@ test.describe("Edge cases", () => {
 
     // Fill email but don't select any items (quantities stay at 0)
     await buyerPage.getByLabel("Email").fill(uniqueEmail("no-items"));
-    await buyerPage.getByLabel("Pay at pickup").check();
 
-    // The Place order button should be disabled when no items are selected
-    const placeOrderBtn = buyerPage.getByRole("button", { name: "Place order" });
-    await expect(placeOrderBtn).toBeDisabled();
+    // The checkout button should be disabled when no items are selected
+    const checkoutBtn = buyerPage.getByRole("button", { name: "Continue to payment" });
+    await expect(checkoutBtn).toBeDisabled();
   });
 
   test("checkout requires email", async ({ buyerPage, liveMarketContext }) => {
@@ -50,11 +49,10 @@ test.describe("Edge cases", () => {
     // Select an item but don't fill email
     const qtyInput = buyerPage.getByRole("spinbutton").first();
     await qtyInput.fill("1");
-    await buyerPage.getByLabel("Pay at pickup").check();
 
-    // The Place order button should be disabled without email
-    const placeOrderBtn = buyerPage.getByRole("button", { name: "Place order" });
-    await expect(placeOrderBtn).toBeDisabled();
+    // The checkout button should be disabled without email
+    const checkoutBtn = buyerPage.getByRole("button", { name: "Continue to payment" });
+    await expect(checkoutBtn).toBeDisabled();
   });
 
   test("subscribe button disabled when plan not live", async ({

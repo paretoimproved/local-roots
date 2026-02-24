@@ -82,6 +82,11 @@ Frontend (`frontend/`):
 - Vercel is configured with `rootDirectory = frontend` (see `.vercel/project.json`).
 - The Go backend can be built via the repo root `Dockerfile` or `backend/Dockerfile`.
 
+## Migrations
+
+- Uses [goose](https://github.com/pressly/goose). Files live in `backend/migrations/`.
+- Annotations **must** be `-- +goose Up` / `-- +goose Down` (case-sensitive). Do **not** use `-- +migrate up/down`.
+
 ## Testing / Verification
 
 - Frontend: `pnpm lint` and `pnpm typecheck`

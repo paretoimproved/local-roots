@@ -29,13 +29,8 @@ Current implementation (Go backend + Postgres) uses:
 
 Notes:
 
-- `payment_method` is currently `pay_at_pickup`.
-- `payment_status` exists (`unpaid`/`paid`/`refunded`) but is currently not driven by Stripe.
-
-Planned payments mapping (Phase 3):
-
-- Keep fulfillment-oriented `status` values (`placed`/`ready`/`picked_up`/etc).
-- Drive online payments via `payment_method = stripe` and `payment_status` transitions (webhook-driven).
+- `payment_method` is `card` (all orders require card payment).
+- `payment_status` tracks payment lifecycle (`unpaid`/`authorized`/`paid`/`refunded`), driven by Stripe.
 
 Rules:
 

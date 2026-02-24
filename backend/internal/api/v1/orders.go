@@ -264,37 +264,36 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 	total := subtotal + buyerFee
 
-	// Determine payment method and validate card payments.
-	paymentMethod := "pay_at_pickup"
-	paymentStatus := "unpaid"
-	var stripePI *string
-	if strings.TrimSpace(in.PaymentMethod) == "card" {
-		piID := strings.TrimSpace(in.StripePaymentIntentID)
-		if piID == "" {
-			resp.BadRequest(w, "stripe_payment_intent_id is required for card payments")
-			return
-		}
-		if a.Stripe == nil || !a.Stripe.Enabled() {
-			resp.ServiceUnavailable(w, "payments not configured")
-			return
-		}
-		pi, err := a.Stripe.RetrievePaymentIntent(ctx, piID)
-		if err != nil {
-			resp.BadRequest(w, "invalid payment intent")
-			return
-		}
-		if pi.Status != stripe.PaymentIntentStatusRequiresCapture {
-			resp.BadRequest(w, "payment not authorized")
-			return
-		}
-		if int(pi.Amount) != total {
-			resp.BadRequest(w, "payment amount mismatch")
-			return
-		}
-		paymentMethod = "card"
-		paymentStatus = "authorized"
-		stripePI = &piID
+	// Validate payment — card is the only accepted method.
+	if strings.TrimSpace(in.PaymentMethod) != "card" {
+		resp.BadRequest(w, "payment_method must be 'card'")
+		return
 	}
+	piID := strings.TrimSpace(in.StripePaymentIntentID)
+	if piID == "" {
+		resp.BadRequest(w, "stripe_payment_intent_id is required")
+		return
+	}
+	if a.Stripe == nil || !a.Stripe.Enabled() {
+		resp.ServiceUnavailable(w, "payments not configured")
+		return
+	}
+	pi, err := a.Stripe.RetrievePaymentIntent(ctx, piID)
+	if err != nil {
+		resp.BadRequest(w, "invalid payment intent")
+		return
+	}
+	if pi.Status != stripe.PaymentIntentStatusRequiresCapture {
+		resp.BadRequest(w, "payment not authorized")
+		return
+	}
+	if int(pi.Amount) != total {
+		resp.BadRequest(w, "payment amount mismatch")
+		return
+	}
+	paymentMethod := "card"
+	paymentStatus := "authorized"
+	stripePI := &piID
 
 	var out Order
 	out.BuyerEmail = buyerEmail

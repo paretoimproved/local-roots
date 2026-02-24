@@ -164,7 +164,7 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 
 1. On the seller dashboard, select a pickup window with a **"ready"** order.
 2. Click **"No show (charge fee)"** on the order.
-3. **Expected:** Order status changes to **"no_show"**. A captured fee amount appears on the order card (e.g. `$X.XX` no-show fee).
+3. **Expected:** Order status changes to **"no_show"**. The no-show fee is charged to the buyer's card on file. A captured fee amount appears on the order card (e.g. `$X.XX` no-show fee).
 
 ### 5b. Buyer sees no-show status
 
@@ -264,15 +264,16 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 ### 9a. Buyer checks out with card
 
 1. Go to `FRONTEND/pickup-windows/{pickupWindowId}` (a window with active offerings).
-2. Verify offerings are listed with product title, price, unit, and availability count.
-3. Set quantity for at least one item (e.g. `2`).
-4. Fill **Email** → a fresh buyer email.
-5. Under **"Payment method"**, select **"Pay with card"**.
-6. Click **"Continue to payment"**.
-7. **Expected:** Stripe PaymentElement iframe loads.
-8. Fill card details: `4242 4242 4242 4242`, `12/30`, `123`.
-9. Click **"Authorize"**.
-10. **Expected (within 30s):** Confirmation view: heading **"Order placed"**, order ID, total, **"View order"** link, and **"Copy access link"** button. Payment method shows **"Card (authorized, captured on pickup)"**.
+2. Verify a breadcrumb is visible: **Farms → {store name} → {date} pickup**.
+3. Verify the heading shows the **store name** (not a raw UUID) with the pickup date/time below.
+4. Verify offerings are listed with product title, price, unit, and availability count.
+5. Set quantity for at least one item (e.g. `2`).
+6. Fill **Email** → a fresh buyer email.
+7. Click **"Continue to payment"** (card is the only payment method — no payment method toggle).
+8. **Expected:** Stripe PaymentElement iframe loads.
+9. Fill card details: `4242 4242 4242 4242`, `12/30`, `123`.
+10. Click **"Authorize"**.
+11. **Expected (within 30s):** Confirmation view: heading **"Order placed"**, order ID, total, **"View order"** link, and **"Copy access link"** button. Payment method shows **"Card (authorized, captured on pickup)"**.
 
 ### 9b. Total includes buyer fee
 
@@ -282,37 +283,9 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 
 ---
 
-## 10. Pay at Pickup
+## 10. Edge Cases
 
-### 10a. Buyer places pay-at-pickup order
-
-1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
-2. Set quantity for at least one item.
-3. Fill **Email**.
-4. Under **"Payment method"**, select **"Pay at pickup"** (should be the default).
-5. Click **"Place order"**.
-6. **Expected:** Confirmation view: heading **"Order placed"**, order ID, total.
-
-### 10b. Confirmation details
-
-1. On the confirmation view, verify:
-   - Payment method shows **"Pay at pickup"**.
-   - **"View order"** link is present.
-   - **"Copy access link"** button is present.
-   - **"Save your access link"** message is visible.
-
-### 10c. Copy access link
-
-1. Click **"Copy access link"**.
-2. **Expected:** Button text changes to **"Copied"**.
-3. Paste clipboard contents into browser address bar.
-4. **Expected:** Opens the order detail page (`/orders/{orderId}?t={token}`) showing full order details.
-
----
-
-## 11. Edge Cases
-
-### 11a. Registration — password too short
+### 10a. Registration — password too short
 
 1. Go to `FRONTEND/seller/register`.
 2. Fill **Display name** → `Test`.
@@ -321,7 +294,7 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 5. Click **"Create account"**.
 6. **Expected:** Browser validation prevents submission (HTML5 `minLength=8` on the password field). No redirect occurs.
 
-### 11b. Login — wrong credentials
+### 10b. Login — wrong credentials
 
 1. Go to `FRONTEND/seller/login`.
 2. Fill **Email** → any email.
@@ -329,20 +302,19 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 4. Click **"Sign in"**.
 5. **Expected:** A rose/pink error banner appears (`.bg-rose-50`) with an error message (e.g. "Invalid email or password"). No redirect occurs.
 
-### 11c. Checkout — no items selected
+### 10c. Checkout — no items selected
 
 1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
 2. Fill **Email** but leave all item quantities at `0`.
-3. Select **"Pay at pickup"**.
-4. **Expected:** The **"Place order"** button is **disabled** (grayed out, `opacity-50`). Cannot submit.
+3. **Expected:** The **"Continue to payment"** button is **disabled** (grayed out, `opacity-50`). Cannot submit.
 
-### 11d. Checkout — no email
+### 10d. Checkout — no email
 
 1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
 2. Set quantity for an item to `1` but leave **Email** empty.
-3. **Expected:** The **"Place order"** button is **disabled**. Cannot submit.
+3. **Expected:** The **"Continue to payment"** button is **disabled**. Cannot submit.
 
-### 11e. Subscribe — plan not live
+### 10e. Subscribe — plan not live
 
 1. Go to `FRONTEND/boxes/{planId}` where the plan has NOT had a cycle generated (i.e. `is_live = false`).
 2. **Expected:**
@@ -352,68 +324,66 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 
 ---
 
-## 12. P0 Money-Safety Verification
+## 11. P0 Money-Safety Verification
 
 These tests verify the 6 critical payment-safety fixes. Run after any change to checkout-form, subscribe-form, or stripe-card-auth.
 
 **Prerequisite:** A live store with Stripe Connect active, at least one subscription plan with a generated cycle, and offerings in a pickup window.
 
-### 12a. Double-click prevention — one-time checkout
+### 11a. Double-click prevention — one-time checkout
 
 1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
-2. Set quantity for an item, fill **Email**, select **"Pay with card"**.
+2. Set quantity for an item, fill **Email**.
 3. **Rapidly double-click** the **"Continue to payment"** button.
 4. **Expected:** Only ONE Stripe PaymentElement iframe appears. No duplicate intents. Check the Stripe Dashboard → Payments — only one `requires_capture` PaymentIntent should exist for this amount.
 
-### 12b. Double-click prevention — subscription
+### 11b. Double-click prevention — subscription
 
 1. Go to `FRONTEND/boxes/{planId}` (live plan).
 2. Fill **Email**, then **rapidly double-click** **"Start subscription"**.
 3. **Expected:** Only ONE Stripe element loads. Stripe Dashboard shows only one intent.
 
-### 12c. Form locking after checkout — one-time
+### 11c. Form locking after checkout — one-time
 
 1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
-2. Set quantity `2` for an item, fill **Email**, select **"Pay with card"**.
+2. Set quantity `2` for an item, fill **Email**.
 3. Click **"Continue to payment"**.
 4. **Expected:** After Stripe element loads:
    - Quantity input is **disabled** (cannot change).
    - Email, Name, Phone fields are **disabled**.
-   - Payment method radio buttons are **disabled** (cannot switch to "Pay at pickup").
-5. Attempt to click the "Pay at pickup" radio — it should NOT switch.
 
-### 12d. Form locking after checkout — subscription
+### 11d. Form locking after checkout — subscription
 
 1. Go to `FRONTEND/boxes/{planId}`, fill **Email**, click **"Start subscription"**.
 2. **Expected:** After Stripe element loads:
    - Email, Name, Phone fields are **disabled**.
    - **"Start subscription"** button is **disabled** and reads **"Continue below…"**.
 
-### 12e. Snapshot prevents quantity mismatch (one-time checkout)
+### 11e. Snapshot prevents quantity mismatch (one-time checkout)
 
 1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
-2. Set quantity `3` for an item, fill **Email**, select **"Pay with card"**.
+2. Set quantity `3` for an item, fill **Email**.
 3. Click **"Continue to payment"** — Stripe element loads.
 4. Open browser DevTools → Console, run: `document.querySelector('input[type="number"]').removeAttribute('disabled')`
 5. Change the quantity field to `5` manually.
 6. Fill card `4242 4242 4242 4242`, `12/30`, `123`, click **"Authorize card"**.
 7. **Expected:** Order is placed with quantity **3** (the snapshotted value), NOT 5. Verify on the order page or Stripe Dashboard that the captured amount matches 3× the item price.
 
-### 12f. Ad-blocker guard — Stripe unavailable
+### 11f. Ad-blocker guard — Stripe unavailable
 
 1. Install an ad-blocker extension (e.g. uBlock Origin) and add `js.stripe.com` to the block list, OR set `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` to an empty string.
 2. Reload `FRONTEND/pickup-windows/{pickupWindowId}`.
-3. Set quantity, fill **Email**, select **"Pay with card"**.
+3. Set quantity, fill **Email**.
 4. Click **"Continue to payment"**.
 5. **Expected:** A rose/pink error banner appears: **"Payment system could not load. Please disable ad blockers and refresh."** No network request to create a PaymentIntent was made.
 6. Repeat on `FRONTEND/boxes/{planId}` → click **"Start subscription"**.
 7. **Expected:** Same error message. No intent created.
 8. **Cleanup:** Remove the ad-blocker rule / restore the env var.
 
-### 12g. Error message preserved on backend failure
+### 11g. Error message preserved on backend failure
 
 1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
-2. Set quantity, fill **Email**, select **"Pay with card"**, click **"Continue to payment"**.
+2. Set quantity, fill **Email**, click **"Continue to payment"**.
 3. Fill card `4242 4242 4242 4242`, `12/30`, `123`.
 4. **Before clicking "Authorize card"**, stop the backend (kill the Go server or block the API URL).
 5. Click **"Authorize card"**.
@@ -422,20 +392,13 @@ These tests verify the 6 critical payment-safety fixes. Run after any change to 
 8. **Restart the backend**, then click **"Authorize card"** again.
 9. **Expected:** Order is placed successfully (retry works with same authorization).
 
-### 12h. Retry after backend failure — subscription
+### 11h. Retry after backend failure — subscription
 
 1. Go to `FRONTEND/boxes/{planId}`, fill **Email**, click **"Start subscription"**.
 2. Fill card details, stop backend, click **"Authorize card"**.
 3. **Expected:** Detailed error: **"Your card was authorized, but we couldn't create your subscription. Please tap "Authorize card" again to retry…"**
 4. Restart backend, click **"Authorize card"** again.
 5. **Expected:** Subscription created successfully.
-
-### 12i. Cannot switch payment method after intent
-
-1. Go to `FRONTEND/pickup-windows/{pickupWindowId}`.
-2. Set quantity, fill **Email**, select **"Pay with card"**, click **"Continue to payment"**.
-3. Stripe element loads. Try clicking the **"Pay at pickup"** radio button.
-4. **Expected:** Radio does NOT switch. Payment method stays on "Card". The already-created PaymentIntent is not orphaned.
 
 ---
 

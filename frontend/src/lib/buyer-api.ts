@@ -11,8 +11,7 @@ export type CreateOrderInput = {
     offering_id: string;
     quantity: number;
   }>;
-  payment_method?: string;
-  stripe_payment_intent_id?: string;
+  stripe_payment_intent_id: string;
 };
 
 export type OrderCheckoutResponse = {

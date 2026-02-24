@@ -19,10 +19,7 @@ test.describe("Card checkout", () => {
     const email = uniqueEmail("card-checkout");
     await buyerPage.getByLabel("Email").fill(email);
 
-    // Select card payment
-    await buyerPage.getByLabel("Pay with card").check();
-
-    // Continue to payment
+    // Continue to payment (card is the only payment method)
     await buyerPage.getByRole("button", { name: "Continue to payment" }).click();
 
     // Wait for Stripe PaymentElement
@@ -41,6 +38,31 @@ test.describe("Card checkout", () => {
 
     // Wait for order confirmation
     await expect(buyerPage.getByText("Order placed")).toBeVisible({ timeout: 30_000 });
+  });
+
+  test("card is required — no pay-at-pickup option", async ({
+    buyerPage,
+    liveMarketContext,
+  }) => {
+    await buyerPage.goto(`/pickup-windows/${liveMarketContext.pickupWindowId}`);
+
+    // Pay at pickup radio should not exist
+    await expect(buyerPage.getByLabel("Pay at pickup")).toHaveCount(0);
+
+    // Select quantity and fill email to reach payment step
+    const qtyInput = buyerPage.getByRole("spinbutton").first();
+    await qtyInput.fill("1");
+    await buyerPage.getByLabel("Email").fill(uniqueEmail("card-required"));
+
+    // The only action should be "Continue to payment" (card flow)
+    await expect(
+      buyerPage.getByRole("button", { name: "Continue to payment" }),
+    ).toBeVisible();
+
+    // "Place order" button (used by pay-at-pickup) should not exist
+    await expect(
+      buyerPage.getByRole("button", { name: "Place order" }),
+    ).toHaveCount(0);
   });
 
   test("correct total shown including buyer fee", async ({

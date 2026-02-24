@@ -1687,11 +1687,11 @@ func createOrderForOffering(ctx context.Context, tx pgx.Tx, in createOrderForOff
 
 	paymentMethod := strings.TrimSpace(in.paymentMethod)
 	if paymentMethod == "" {
-		paymentMethod = "pay_at_pickup"
+		paymentMethod = "card"
 	}
 	paymentStatus := strings.TrimSpace(in.paymentStatus)
 	if paymentStatus == "" {
-		paymentStatus = "unpaid"
+		paymentStatus = "pending"
 	}
 
 	var subID any = nil
