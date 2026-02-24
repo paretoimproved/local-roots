@@ -250,6 +250,7 @@ type BuyerSubscriptionSummary struct {
 	StoreID    string    `json:"store_id"`
 	Status     string    `json:"status"`
 	PlanTitle  string    `json:"plan_title"`
+	StoreName  string    `json:"store_name"`
 	Cadence    string    `json:"cadence"`
 	PriceCents int       `json:"price_cents"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -264,11 +265,13 @@ func (a BuyerAuthAPI) ListSubscriptions(w http.ResponseWriter, r *http.Request, 
 			s.store_id::text,
 			s.status,
 			sp.title,
+			st.name,
 			sp.cadence,
 			sp.price_cents,
 			s.created_at
 		from subscriptions s
 		join subscription_plans sp on sp.id = s.plan_id
+		join stores st on st.id = s.store_id
 		where s.buyer_user_id = $1::uuid
 		order by s.created_at desc
 		limit 50
@@ -282,7 +285,7 @@ func (a BuyerAuthAPI) ListSubscriptions(w http.ResponseWriter, r *http.Request, 
 	out := []BuyerSubscriptionSummary{}
 	for rows.Next() {
 		var s BuyerSubscriptionSummary
-		if err := rows.Scan(&s.ID, &s.PlanID, &s.StoreID, &s.Status, &s.PlanTitle, &s.Cadence, &s.PriceCents, &s.CreatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.PlanID, &s.StoreID, &s.Status, &s.PlanTitle, &s.StoreName, &s.Cadence, &s.PriceCents, &s.CreatedAt); err != nil {
 			resp.Internal(w, err)
 			return
 		}

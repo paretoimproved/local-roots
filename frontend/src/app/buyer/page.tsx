@@ -123,7 +123,7 @@ export default function BuyerDashboardPage() {
   const pastOrders = orders.filter(
     (o) => !["placed", "ready"].includes(o.status),
   );
-  const activeSubs = subscriptions.filter((s) => s.status === "active");
+  const activeSubs = subscriptions.filter((s) => s.status !== "canceled");
 
   return (
     <div className="grid gap-6">
@@ -147,11 +147,11 @@ export default function BuyerDashboardPage() {
         </div>
       </section>
 
-      {activeSubs.length > 0 ? (
-        <section className="lr-card p-6">
-          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
-            Active subscriptions
-          </h2>
+      <section className="lr-card p-6">
+        <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+          Active Subscriptions
+        </h2>
+        {activeSubs.length > 0 ? (
           <div className="mt-3 grid gap-2">
             {activeSubs.map((s) => (
               <Link
@@ -164,21 +164,29 @@ export default function BuyerDashboardPage() {
                     {s.plan_title}
                   </div>
                   <div className="text-xs text-[color:var(--lr-muted)]">
-                    {cadenceLabel(s.cadence)} &middot; {formatMoney(s.price_cents)}
+                    {s.store_name ? `${s.store_name} · ` : ""}
+                    {cadenceLabel(s.cadence)} · {formatMoney(s.price_cents)}
                   </div>
                 </div>
                 {statusBadge(s.status)}
               </Link>
             ))}
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <p className="mt-3 text-sm text-[color:var(--lr-muted)]">
+            No active subscriptions yet.{" "}
+            <Link className="underline" href="/stores">
+              Browse farms
+            </Link>
+          </p>
+        )}
+      </section>
 
-      {upcomingOrders.length > 0 ? (
-        <section className="lr-card p-6">
-          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
-            Upcoming pickups
-          </h2>
+      <section className="lr-card p-6">
+        <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+          Upcoming Pickups
+        </h2>
+        {upcomingOrders.length > 0 ? (
           <div className="mt-3 grid gap-2">
             {upcomingOrders.map((o) => (
               <div
@@ -211,23 +219,21 @@ export default function BuyerDashboardPage() {
               </div>
             ))}
           </div>
-        </section>
-      ) : (
-        <section className="lr-card p-6 text-center">
-          <p className="text-sm text-[color:var(--lr-muted)]">
+        ) : (
+          <p className="mt-3 text-sm text-[color:var(--lr-muted)]">
             No upcoming pickups.{" "}
             <Link className="underline" href="/stores">
               Browse boxes
             </Link>
           </p>
-        </section>
-      )}
+        )}
+      </section>
 
-      {pastOrders.length > 0 ? (
-        <section className="lr-card p-6">
-          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
-            Past orders
-          </h2>
+      <section className="lr-card p-6">
+        <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+          Past Orders
+        </h2>
+        {pastOrders.length > 0 ? (
           <div className="mt-3 grid gap-2">
             {pastOrders.slice(0, 10).map((o) => (
               <div
@@ -255,8 +261,12 @@ export default function BuyerDashboardPage() {
               </div>
             ))}
           </div>
-        </section>
-      ) : null}
+        ) : (
+          <p className="mt-3 text-sm text-[color:var(--lr-muted)]">
+            No past orders.
+          </p>
+        )}
+      </section>
     </div>
   );
 }

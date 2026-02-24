@@ -261,6 +261,7 @@ export type BuyerSubscriptionSummary = {
   store_id: string;
   status: string;
   plan_title: string;
+  store_name: string;
   cadence: string;
   price_cents: number;
   created_at: string;
