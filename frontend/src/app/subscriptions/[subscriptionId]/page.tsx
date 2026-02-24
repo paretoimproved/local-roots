@@ -168,11 +168,15 @@ export default function SubscriptionPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await buyerApi.updateSubscriptionStatus(subscriptionId, { token, status });
-      const note = (res.note ?? "").trim();
+      await buyerApi.updateSubscriptionStatus(subscriptionId, { token, status });
+      const labels: Record<string, string> = {
+        paused: "Subscription paused",
+        active: "Subscription resumed",
+        canceled: "Subscription canceled",
+      };
       showToast({
         kind: "success",
-        message: note || `Subscription ${status}.`,
+        message: labels[status] ?? `Subscription ${status}.`,
       });
       await load();
     } catch (e: unknown) {
@@ -207,7 +211,7 @@ export default function SubscriptionPage() {
         setup_intent_id: setupIntentId,
       });
       setSetupSecret(null);
-      showToast({ kind: "success", message: "Card updated." });
+      showToast({ kind: "success", message: "Payment method updated" });
       await load();
     } catch (e: unknown) {
       setError(friendlyErrorMessage(e));

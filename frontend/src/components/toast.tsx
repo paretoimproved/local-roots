@@ -42,7 +42,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const id = Date.now();
       const next: ToastState = { id, ...t };
       setToast(next);
-      const ms = typeof t.durationMs === "number" ? t.durationMs : 3200;
+      const ms = typeof t.durationMs === "number" ? t.durationMs : 4000;
       const tid = window.setTimeout(() => {
         setToast((cur) => (cur?.id === id ? null : cur));
         setTimerId(null);
@@ -103,7 +103,7 @@ function ToastViewport({
           };
 
   return (
-    <div className="pointer-events-none fixed bottom-4 right-4 z-[60] w-[min(22rem,calc(100vw-2rem))]">
+    <div className="pointer-events-none fixed top-4 right-4 z-[60] w-[min(22rem,calc(100vw-2rem))]">
       <div
         role="status"
         aria-live="polite"
