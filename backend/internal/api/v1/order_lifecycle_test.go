@@ -7,11 +7,12 @@ import "testing"
 //
 // Valid lifecycle paths:
 //   placed → ready → picked_up (via ConfirmPickup with pickup code)
+//   placed → picked_up (via ConfirmPickup — walkup farmstand scan)
 //   placed → ready → no_show (via UpdateOrderStatus)
 //   placed → canceled (via UpdateOrderStatus)
 //
 // Invalid:
-//   placed → picked_up (must go through ready first)
+//   placed → picked_up via UpdateOrderStatus (must use ConfirmPickup)
 //   ready → canceled (can only cancel from placed)
 //   any terminal state → anything
 func TestOrderLifecycle(t *testing.T) {
@@ -21,6 +22,7 @@ func TestOrderLifecycle(t *testing.T) {
 		steps []string
 	}{
 		{"happy path: placed→ready→picked_up", []string{"placed", "ready", "picked_up"}},
+		{"walkup scan: placed→picked_up", []string{"placed", "picked_up"}},
 		{"no-show: placed→ready→no_show", []string{"placed", "ready", "no_show"}},
 		{"early cancel: placed→canceled", []string{"placed", "canceled"}},
 	}
@@ -31,9 +33,9 @@ func TestOrderLifecycle(t *testing.T) {
 				from, to := tc.steps[i], tc.steps[i+1]
 				// picked_up is only via ConfirmPickup, not isAllowedTransition
 				if to == "picked_up" {
-					// ConfirmPickup requires status == "ready"
-					if from != "ready" {
-						t.Errorf("ConfirmPickup requires from=ready, got %q", from)
+					// ConfirmPickup accepts from="placed" or from="ready"
+					if from != "placed" && from != "ready" {
+						t.Errorf("ConfirmPickup requires from=placed or from=ready, got %q", from)
 					}
 					continue
 				}
@@ -44,10 +46,11 @@ func TestOrderLifecycle(t *testing.T) {
 		})
 	}
 
-	// Test that direct placed→picked_up is blocked (must use ConfirmPickup via ready).
-	t.Run("placed→picked_up blocked", func(t *testing.T) {
+	// Test that direct placed→picked_up via UpdateOrderStatus is blocked
+	// (must use ConfirmPickup with pickup code).
+	t.Run("placed→picked_up blocked via UpdateOrderStatus", func(t *testing.T) {
 		if isAllowedTransition("placed", "picked_up") {
-			t.Error("placed→picked_up should be blocked (requires ConfirmPickup handshake)")
+			t.Error("placed→picked_up should be blocked via UpdateOrderStatus (requires ConfirmPickup)")
 		}
 	})
 

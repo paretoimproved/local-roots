@@ -380,6 +380,55 @@ export default function SellerStorePage() {
     }
   }
 
+  async function scanAndConfirmPickup(parsed: {
+    store_id: string;
+    order_id: string;
+    pickup_code: string;
+  }) {
+    if (!token || !selectedWindowId) return;
+    if (parsed.store_id !== storeId) {
+      showToast({ kind: "error", message: "That QR is for a different store." });
+      return;
+    }
+    const order = (orders ?? []).find((o) => o.id === parsed.order_id);
+    if (!order) {
+      showToast({ kind: "error", message: "Order not found in this window." });
+      return;
+    }
+    if (order.status !== "placed" && order.status !== "ready") {
+      showToast({
+        kind: "error",
+        message: `Order is already ${order.status.replace("_", " ")}.`,
+      });
+      return;
+    }
+    setBusyOrderId(parsed.order_id);
+    setError(null);
+    try {
+      await sellerApi.confirmPickup(
+        token,
+        storeId,
+        parsed.order_id,
+        parsed.pickup_code,
+      );
+      const [os, ofs] = await Promise.all([
+        sellerApi.listOrders(token, storeId, selectedWindowId),
+        sellerApi.listOfferings(token, storeId, selectedWindowId),
+      ]);
+      setOrders(os);
+      setOfferings(ofs);
+      showToast({
+        kind: "success",
+        message: `Pickup confirmed for ${order.buyer_name || order.buyer_email} · ${formatMoney(order.total_cents)}`,
+      });
+    } catch (e: unknown) {
+      setError(friendlyErrorMessage(e));
+    } finally {
+      setBusyOrderId(null);
+      setScanOrderId(null);
+    }
+  }
+
   return (
     <div className="grid gap-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -689,12 +738,21 @@ export default function SellerStorePage() {
 
       <section className="lr-card lr-animate grid gap-4 p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold">Orders</h2>
-            <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-              Mark orders ready, then confirm pickup. Reviews unlock for buyers
-              after pickup.
-            </p>
+          <div className="flex flex-wrap items-center gap-3">
+            <div>
+              <h2 className="text-base font-semibold">Orders</h2>
+              <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                Mark orders ready, then confirm pickup. Reviews unlock for buyers
+                after pickup.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
+              onClick={() => setScanOrderId("__global__")}
+            >
+              Scan pickup
+            </button>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -836,6 +894,14 @@ export default function SellerStorePage() {
                         </button>
                         <button
                           type="button"
+                          className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+                          onClick={() => setScanOrderId(o.id)}
+                          disabled={busyOrderId === o.id}
+                        >
+                          Scan QR
+                        </button>
+                        <button
+                          type="button"
                           className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-rose-900 disabled:opacity-50"
                           onClick={() => setOrderStatus(o.id, "canceled")}
                           disabled={busyOrderId === o.id}
@@ -937,23 +1003,23 @@ export default function SellerStorePage() {
         onScan={(res) => {
           const parsed = res.parsed;
           if (parsed) {
-            // If the QR includes a different order_id, fill that order instead.
-            const targetOrderId = parsed.order_id;
-            setPickupCodeByOrderId((prev) => ({
-              ...prev,
-              [targetOrderId]: parsed.pickup_code,
-            }));
+            setScanOrderId(null);
+            scanAndConfirmPickup(parsed);
             return;
           }
-          // If a generic QR was scanned, try to extract a 6-digit code.
+          // Non-LR QR: try to extract a 6-digit code and fill the input.
           const m = res.raw.match(/\b([0-9]{6})\b/);
           if (!m) {
-            setError("Scanned QR did not contain a valid pickup code.");
+            showToast({ kind: "error", message: "QR did not contain a valid pickup code." });
             return;
           }
           const target = scanOrderId;
-          if (!target) return;
+          if (!target || target === "__global__") {
+            showToast({ kind: "error", message: "Scan a Local Roots QR code, or open a specific order to enter a code manually." });
+            return;
+          }
           setPickupCodeByOrderId((prev) => ({ ...prev, [target]: m[1] ?? "" }));
+          setScanOrderId(null);
         }}
       />
       <ConfirmDialog

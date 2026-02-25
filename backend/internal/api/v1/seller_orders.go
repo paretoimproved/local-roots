@@ -457,8 +457,8 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 		return
 	}
 
-	if currentStatus != "ready" {
-		resp.BadRequest(w, "order is not ready for pickup")
+	if currentStatus != "placed" && currentStatus != "ready" {
+		resp.BadRequest(w, "order must be placed or ready for pickup")
 		return
 	}
 	if pickupCode != in.PickupCode {

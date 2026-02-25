@@ -156,6 +156,30 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 1. Open the buyer's order page: `FRONTEND/orders/{orderId}?t={token}`.
 2. **Expected:** Status shows **"picked up"**. A **"Leave a review"** section appears with Rating dropdown and Comment textarea.
 
+### 4d. One-step scan pickup (placed → picked_up)
+
+1. On the seller dashboard, verify a **"Scan pickup"** button is visible next to the **"Orders"** heading.
+2. Find an order with status **"placed"** — verify a **"Scan QR"** button appears between **"Mark ready"** and **"Cancel"**.
+3. Click **"Scan QR"** on the placed order (or the top-level **"Scan pickup"** button).
+4. Scan the buyer's Local Roots QR code.
+5. **Expected:** Order status jumps directly from **"placed"** to **"picked_up"**. Payment status changes to **"paid"**. A success toast shows the buyer name/email and total.
+
+### 4e. Top-level scan pickup (no order pre-selected)
+
+1. Click the top-level **"Scan pickup"** button next to the "Orders" heading.
+2. Scan a buyer's Local Roots QR code.
+3. **Expected:** The scanner identifies the order from the QR payload and confirms pickup immediately — same result as 4d.
+
+### 4f. Scan QR — wrong store
+
+1. Scan a QR code that belongs to a different store.
+2. **Expected:** An error toast: **"That QR is for a different store."**
+
+### 4g. Scan QR — terminal order
+
+1. Scan a QR for an order that is already picked up, canceled, or no-show.
+2. **Expected:** An error toast: **"Order is already picked up."** (or the relevant terminal status).
+
 ---
 
 ## 5. No-Show
