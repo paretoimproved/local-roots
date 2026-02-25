@@ -454,6 +454,10 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 		resp.ServiceUnavailable(w, "payments not configured")
 		return
 	}
+	if stripePI == nil || strings.TrimSpace(*stripePI) == "" {
+		resp.BadRequest(w, "order has no payment intent")
+		return
+	}
 	trimPI := strings.TrimSpace(*stripePI)
 
 	if err := adjustOfferingsForOrder(ctx, tx, orderID, "finalize"); err != nil {
