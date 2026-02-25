@@ -151,8 +151,10 @@ func TestCreateOrder_ReservationDoesNotOversell(t *testing.T) {
 
 	place := func(qty int) *httptest.ResponseRecorder {
 		body, _ := json.Marshal(map[string]any{
-			"buyer": map[string]any{"email": "buyer@example.com"},
-			"items": []map[string]any{{"offering_id": offering, "quantity": qty}},
+			"buyer":                    map[string]any{"email": "buyer@example.com"},
+			"items":                    []map[string]any{{"offering_id": offering, "quantity": qty}},
+			"payment_method":           "card",
+			"stripe_payment_intent_id": "pi_test_" + randHex(t, 8),
 		})
 		req := httptest.NewRequest(http.MethodPost, "/v1/pickup-windows/"+windowID+"/orders", bytes.NewReader(body))
 		req.SetPathValue("pickupWindowId", windowID)

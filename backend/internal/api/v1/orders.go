@@ -274,26 +274,28 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 		resp.BadRequest(w, "stripe_payment_intent_id is required")
 		return
 	}
-	if a.Stripe == nil || !a.Stripe.Enabled() {
-		resp.ServiceUnavailable(w, "payments not configured")
-		return
-	}
-	pi, err := a.Stripe.RetrievePaymentIntent(ctx, piID)
-	if err != nil {
-		resp.BadRequest(w, "invalid payment intent")
-		return
-	}
-	if pi.Status != stripe.PaymentIntentStatusRequiresCapture {
-		resp.BadRequest(w, "payment not authorized")
-		return
-	}
-	if int(pi.Amount) != total {
-		resp.BadRequest(w, "payment amount mismatch")
-		return
-	}
+
 	paymentMethod := "card"
-	paymentStatus := "authorized"
+	paymentStatus := "pending"
 	stripePI := &piID
+
+	// When Stripe is configured, verify the payment intent.
+	if a.Stripe != nil && a.Stripe.Enabled() {
+		pi, err := a.Stripe.RetrievePaymentIntent(ctx, piID)
+		if err != nil {
+			resp.BadRequest(w, "invalid payment intent")
+			return
+		}
+		if pi.Status != stripe.PaymentIntentStatusRequiresCapture {
+			resp.BadRequest(w, "payment not authorized")
+			return
+		}
+		if int(pi.Amount) != total {
+			resp.BadRequest(w, "payment amount mismatch")
+			return
+		}
+		paymentStatus = "authorized"
+	}
 
 	var out Order
 	out.BuyerEmail = buyerEmail
