@@ -5,6 +5,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { buyerApi, type GetOrderResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
+import { session } from "@/lib/session";
 import { PickupCodeCard } from "@/components/pickup-code-card";
 import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
@@ -32,7 +33,7 @@ export default function OrderPage() {
 
   useEffect(() => {
     const saved = orderToken.get(orderId);
-    const effective = tokenFromQuery || saved || "";
+    const effective = tokenFromQuery || saved || session.getToken() || "";
     if (effective) {
       setToken(effective);
       if (tokenFromQuery) orderToken.set(orderId, tokenFromQuery);
@@ -222,26 +223,17 @@ export default function OrderPage() {
 
             <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
               Payment:{" "}
-              {data.order.payment_method === "card" ? (
-                <span className="font-medium">
-                  {data.order.status === "no_show" && data.order.captured_cents > 0
-                    ? `No-show fee charged: ${formatMoney(data.order.captured_cents)}.`
-                    : data.order.payment_status === "paid"
-                      ? `Card paid${data.order.captured_cents ? `: ${formatMoney(data.order.captured_cents)} captured.` : "."}`
-                      : `Card ${data.order.payment_status} (captured on pickup confirmation).`}
-                </span>
-              ) : (
-                <span className="font-medium">Pay at pickup</span>
-              )}
-              .
-              {data.order.payment_method === "card" ? (
-                <span>
-                  {" "}
-                  <Link className="underline" href="/policies">
-                    Policies
-                  </Link>
-                </span>
-              ) : null}
+              <span className="font-medium">
+                {data.order.status === "no_show" && data.order.captured_cents > 0
+                  ? `No-show fee charged: ${formatMoney(data.order.captured_cents)}.`
+                  : data.order.payment_status === "paid"
+                    ? `Card paid${data.order.captured_cents ? `: ${formatMoney(data.order.captured_cents)} captured.` : "."}`
+                    : `Card ${data.order.payment_status} (captured on pickup confirmation).`}
+              </span>
+              {" "}
+              <Link className="underline" href="/policies">
+                Policies
+              </Link>
             </div>
           </section>
 

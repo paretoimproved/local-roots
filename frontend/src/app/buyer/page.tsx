@@ -11,6 +11,7 @@ import {
 } from "@/lib/buyer-api";
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
+import { PickupCodeCard } from "@/components/pickup-code-card";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
 
@@ -117,9 +118,13 @@ export default function BuyerDashboardPage() {
 
   if (!user) return null;
 
-  const upcomingOrders = orders.filter((o) =>
-    ["placed", "ready"].includes(o.status),
-  );
+  const upcomingOrders = orders
+    .filter((o) => ["placed", "ready"].includes(o.status))
+    .sort(
+      (a, b) =>
+        new Date(a.pickup_start_at).getTime() -
+        new Date(b.pickup_start_at).getTime(),
+    );
   const pastOrders = orders.filter(
     (o) => !["placed", "ready"].includes(o.status),
   );
@@ -187,11 +192,22 @@ export default function BuyerDashboardPage() {
           Upcoming Pickups
         </h2>
         {upcomingOrders.length > 0 ? (
-          <div className="mt-3 grid gap-2">
+          <div className="mt-3 grid gap-3">
+            {upcomingOrders[0] && (
+              <Link href={`/orders/${upcomingOrders[0].id}`} className="block">
+                <PickupCodeCard
+                  storeId={upcomingOrders[0].store_id}
+                  orderId={upcomingOrders[0].id}
+                  pickupCode={upcomingOrders[0].pickup_code}
+                  status={upcomingOrders[0].status}
+                />
+              </Link>
+            )}
             {upcomingOrders.map((o) => (
-              <div
+              <Link
                 key={o.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 p-3 ring-1 ring-[color:var(--lr-border)]"
+                href={`/orders/${o.id}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 p-3 ring-1 ring-[color:var(--lr-border)] transition-colors hover:bg-white/80"
               >
                 <div>
                   <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
@@ -216,7 +232,7 @@ export default function BuyerDashboardPage() {
                     {formatMoney(o.total_cents)}
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (
@@ -236,9 +252,10 @@ export default function BuyerDashboardPage() {
         {pastOrders.length > 0 ? (
           <div className="mt-3 grid gap-2">
             {pastOrders.slice(0, 10).map((o) => (
-              <div
+              <Link
                 key={o.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 p-3 ring-1 ring-[color:var(--lr-border)]"
+                href={`/orders/${o.id}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 p-3 ring-1 ring-[color:var(--lr-border)] transition-colors hover:bg-white/80"
               >
                 <div>
                   <div className="text-sm font-medium text-[color:var(--lr-ink)]">
@@ -258,7 +275,7 @@ export default function BuyerDashboardPage() {
                     {formatMoney(o.total_cents)}
                   </span>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (
