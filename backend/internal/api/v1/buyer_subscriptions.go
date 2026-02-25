@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -9,14 +10,17 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/paretoimproved/local-roots/backend/internal/email"
 	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
 
 type BuyerSubscriptionsAPI struct {
-	DB        *pgxpool.Pool
-	Stripe    *stripepay.Client
-	JWTSecret string
+	DB          *pgxpool.Pool
+	Stripe      *stripepay.Client
+	JWTSecret   string
+	Email       *email.Client
+	FrontendURL string
 }
 
 type BuyerSubscription struct {
@@ -319,6 +323,26 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 		}
 		resp.Internal(w, err)
 		return
+	}
+
+	// Send cancellation confirmation email (fire-and-forget).
+	if status == "canceled" && a.Email != nil && a.Email.Enabled() {
+		go func() {
+			var buyerEmail, planTitle, storeName string
+			err := a.DB.QueryRow(r.Context(), `
+				SELECT s.buyer_email, sp.title, st.name
+				FROM subscriptions s
+				JOIN subscription_plans sp ON sp.id = s.plan_id
+				JOIN stores st ON st.id = s.store_id
+				WHERE s.id = $1::uuid
+			`, subID).Scan(&buyerEmail, &planTitle, &storeName)
+			if err != nil {
+				log.Printf("email: could not fetch subscription info for %s: %v", subID, err)
+				return
+			}
+			subj, body := email.SubscriptionCanceled(planTitle, storeName)
+			a.Email.SendAsync(buyerEmail, subj, body)
+		}()
 	}
 
 	out := map[string]any{"ok": true, "status": status}

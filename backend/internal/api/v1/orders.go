@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"fmt"
+	"log"
 	"net/http"
 	"regexp"
 	"strings"
@@ -11,6 +13,7 @@ import (
 	stripe "github.com/stripe/stripe-go/v78"
 
 	"github.com/paretoimproved/local-roots/backend/internal/auth"
+	"github.com/paretoimproved/local-roots/backend/internal/email"
 	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
@@ -62,6 +65,8 @@ type OrdersAPI struct {
 	Stripe          *stripepay.Client
 	BuyerFeeBps     int
 	BuyerFeeFlatCts int
+	Email           *email.Client
+	FrontendURL     string
 }
 
 type CreateOrderRequest struct {
@@ -351,6 +356,34 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	if err := tx.Commit(ctx); err != nil {
 		resp.Internal(w, err)
 		return
+	}
+
+	// Send order confirmation email to buyer + new order notification to seller (fire-and-forget).
+	if a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
+		boxTitle := "Order"
+		if len(items) > 0 {
+			boxTitle = items[0].productTitle
+		}
+		baseURL := strings.TrimRight(a.FrontendURL, "/")
+		orderURL := fmt.Sprintf("%s/orders/%s?t=%s", baseURL, out.ID, out.BuyerToken)
+		subj, body := email.OneTimeOrderConfirmed(boxTitle, out.PickupCode, orderURL)
+		a.Email.SendAsync(buyerEmail, subj, body)
+
+		// Notify seller of the new order.
+		go func() {
+			var sellerEmail, storeName string
+			err := a.DB.QueryRow(ctx, `
+				SELECT u.email, s.name
+				FROM stores s JOIN users u ON u.id = s.owner_user_id
+				WHERE s.id = $1::uuid
+			`, storeID).Scan(&sellerEmail, &storeName)
+			if err != nil {
+				log.Printf("email: could not fetch seller for store %s: %v", storeID, err)
+				return
+			}
+			subj, body := email.NewOrderNotification(buyerEmail, boxTitle, storeName)
+			a.Email.SendAsync(sellerEmail, subj, body)
+		}()
 	}
 
 	resp.OK(w, out)

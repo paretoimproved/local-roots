@@ -793,6 +793,22 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 		nextPickupStr := nextStart.In(loc).Format("Mon Jan 2 at 3:04 PM")
 		subj, body := email.SubscriptionConfirmed(planTitle, nextPickupStr, locationStr, manageURL)
 		a.Email.SendAsync(buyerEmail, subj, body)
+
+		// Notify seller of the new subscriber.
+		go func() {
+			var sellerEmail, storeName string
+			err := a.DB.QueryRow(ctx, `
+				SELECT u.email, s.name
+				FROM stores s JOIN users u ON u.id = s.owner_user_id
+				WHERE s.id = $1::uuid
+			`, storeID).Scan(&sellerEmail, &storeName)
+			if err != nil {
+				log.Printf("email: could not fetch seller for store %s: %v", storeID, err)
+				return
+			}
+			nsubj, nbody := email.NewSubscriberNotification(buyerEmail, planTitle, storeName)
+			a.Email.SendAsync(sellerEmail, nsubj, nbody)
+		}()
 	}
 
 	resp.OK(w, SubscribeResponse{Subscription: sub, FirstOrder: order})

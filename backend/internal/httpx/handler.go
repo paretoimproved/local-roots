@@ -60,6 +60,8 @@ func NewHandler(deps Deps) http.Handler {
 		Stripe:          stripeClient,
 		BuyerFeeBps:     deps.Config.BuyerFeeBps,
 		BuyerFeeFlatCts: deps.Config.BuyerFeeFlatCents,
+		Email:           emailClient,
+		FrontendURL:     deps.Config.FrontendURL,
 	}
 	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/orders", orders.CreateOrder)
 
@@ -75,7 +77,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/orders/{orderId}", buyerOrders.GetOrder)
 	mux.HandleFunc("POST /v1/orders/{orderId}/review", buyerOrders.CreateReview)
 
-	buyerSubs := v1.BuyerSubscriptionsAPI{DB: deps.DB, Stripe: stripeClient, JWTSecret: deps.Config.JWTSecret}
+	buyerSubs := v1.BuyerSubscriptionsAPI{DB: deps.DB, Stripe: stripeClient, JWTSecret: deps.Config.JWTSecret, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
 	mux.HandleFunc("GET /v1/subscriptions/{subscriptionId}", buyerSubs.GetSubscription)
 	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/status", buyerSubs.UpdateStatus)
 	mux.HandleFunc("POST /v1/subscriptions/{subscriptionId}/payment-method/setup", buyerSubs.SetupPaymentMethod)

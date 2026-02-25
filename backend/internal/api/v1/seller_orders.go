@@ -357,12 +357,28 @@ func (a SellerOrdersAPI) UpdateOrderStatus(w http.ResponseWriter, r *http.Reques
 		}
 	}
 
-	// Send "order ready" email when transitioning to ready.
-	if in.Status == "ready" && a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
+	// Send status-change emails (fire-and-forget).
+	if a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
 		if info, ok := fetchOrderEmailInfo(ctx, a.DB, orderID); ok {
 			orderURL := strings.TrimRight(a.FrontendURL, "/") + "/orders/" + orderID + "?t=" + info.buyerToken
-			subj, body := email.OrderReady(info.boxTitle, info.pickupCode, orderURL)
-			a.Email.SendAsync(info.buyerEmail, subj, body)
+
+			switch in.Status {
+			case "ready":
+				subj, body := email.OrderReady(info.boxTitle, info.pickupCode, orderURL)
+				a.Email.SendAsync(info.buyerEmail, subj, body)
+			case "canceled":
+				subj, body := email.OrderCanceled(info.boxTitle, orderURL)
+				a.Email.SendAsync(info.buyerEmail, subj, body)
+			case "no_show":
+				if in.WaiveFee || capturedCentsDelta <= 0 {
+					subj, body := email.NoShowWaived(info.boxTitle, orderURL)
+					a.Email.SendAsync(info.buyerEmail, subj, body)
+				} else {
+					feeStr := fmt.Sprintf("$%.2f", float64(capturedCentsDelta)/100.0)
+					subj, body := email.NoShowNotification(info.boxTitle, feeStr, orderURL)
+					a.Email.SendAsync(info.buyerEmail, subj, body)
+				}
+			}
 		}
 	}
 
