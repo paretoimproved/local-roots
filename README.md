@@ -42,3 +42,4 @@ pnpm dev:backend
 - Schema + order state machine (pickup-window centric)
 - Stripe Connect (Express) onboarding + checkout + webhook idempotency
 - Seller fulfillment UI + post-fulfillment reviews
+
