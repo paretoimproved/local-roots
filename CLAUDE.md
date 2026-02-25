@@ -91,4 +91,77 @@ Frontend (`frontend/`):
 
 - Frontend: `pnpm lint` and `pnpm typecheck`
 - Backend: `cd backend && go test ./...`
+- Always run frontend verification (`pnpm typecheck && pnpm lint`) after any frontend change
+- Always run `go test ./...` after any backend change
+- New features require tests. Bug fixes require a regression test that would have caught the bug.
+- Tests mock all external services (Stripe, Resend, Google APIs). Never make real API calls in tests.
+
+---
+
+## Session Protocol
+
+### Start of Session
+1. Check `git status` and `git log --oneline -5` — know what changed recently
+2. If backend changed recently, run `cd backend && go test ./...` — confirm baseline is green
+3. If frontend changed recently, run `pnpm typecheck && pnpm lint`
+
+### End of Session
+1. Run `pnpm typecheck && pnpm lint` (frontend) and/or `cd backend && go test ./...` (backend) — verify nothing is broken
+2. Commit or stash any in-progress work — never leave a dirty working tree
+3. If corrections were made by the user, add to Common Mistakes table below
+
+---
+
+## Common Mistakes
+
+> **Living document**: After ANY correction from the user, add the mistake here to prevent recurrence.
+
+| Date | Mistake | Fix |
+|------|---------|-----|
+| 2026-02 | Used `-- +migrate up/down` in migration | Must be `-- +goose Up` / `-- +goose Down` (case-sensitive) |
+| 2026-02 | Forgot `await params` in Next.js server components | Next.js 15+ requires `await params` in server components |
+
+---
+
+## Constraints — Things to Never Do
+
+- **Never hardcode API keys or secrets** — all via environment variables
+- **Never modify the database schema** without creating a goose migration
+- **Never use `-- +migrate`** — goose requires `-- +goose Up` / `-- +goose Down`
+- **Never add a dependency without checking** if an existing one already handles it
+- **Never commit `.env`** — it's gitignored for a reason
+- **Never add seller fees** — zero-cost-to-farmer is the core differentiator
+- **Never skip verification** — run typecheck + lint (frontend) and go test (backend) before marking work complete
+
+---
+
+## Key Conventions
+
+- **Seller pages**: use `useParams()` (client components)
+- **Buyer browse pages**: use `await params` (server components)
+- **Error handling**: use `parseApiError` / `mapApiError` from `lib/ui.ts`
+- **Toast notifications**: use `useToast()` hook (top-right, 4s dismiss)
+- **Payments**: Stripe card-only — no pay-at-pickup
+- **Auth**: JWT — seller (email/password + Google OAuth), buyer (magic link + Google OAuth)
+
+---
+
+## Workflow
+
+### Plan First
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan — don't keep pushing
+
+### Verification Before Done
+- Never mark a task complete without proving it works
+- Run tests, check types, demonstrate correctness
+
+### Autonomous Bug Fixing
+- When given a bug report: investigate and fix it. Don't ask for hand-holding.
+- Point at logs, errors, failing tests — then resolve them
+
+### When Stuck
+- Don't brute force. If an approach isn't working after 2 attempts, step back and reconsider.
+- Read the actual error message. Read the actual code. Don't guess.
+- If blocked by something outside your control, say so clearly and suggest alternatives.
 
