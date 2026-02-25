@@ -122,7 +122,7 @@ func (a BuyerAuthAPI) Verify(w http.ResponseWriter, r *http.Request) {
 	var userID string
 	err = a.DB.QueryRow(r.Context(), `
 		select id::text from users
-		where lower(email) = $1 and role = 'buyer'
+		where lower(email) = $1
 		limit 1
 	`, emailAddr).Scan(&userID)
 	if err != nil && err != pgx.ErrNoRows {
@@ -139,7 +139,7 @@ func (a BuyerAuthAPI) Verify(w http.ResponseWriter, r *http.Request) {
 			// Race condition: another request created the user concurrently.
 			err2 := a.DB.QueryRow(r.Context(), `
 				select id::text from users
-				where lower(email) = $1 and role = 'buyer'
+				where lower(email) = $1
 				limit 1
 			`, emailAddr).Scan(&userID)
 			if err2 != nil {
