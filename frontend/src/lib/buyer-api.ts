@@ -12,6 +12,7 @@ export type CreateOrderInput = {
     quantity: number;
   }>;
   stripe_payment_intent_id: string;
+  payment_method: string;
 };
 
 export type OrderCheckoutResponse = {
@@ -19,6 +20,8 @@ export type OrderCheckoutResponse = {
   client_secret: string;
   subtotal_cents: number;
   buyer_fee_cents: number;
+  buyer_fee_bps: number;
+  buyer_fee_flat_cents: number;
   total_cents: number;
 };
 

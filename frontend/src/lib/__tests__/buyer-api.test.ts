@@ -74,6 +74,7 @@ describe("buyerApi.placeOrder", () => {
       buyer: { email: "a@b.com", name: "Alice" },
       items: [{ offering_id: "off-1", quantity: 2 }],
       stripe_payment_intent_id: "pi_abc123",
+      payment_method: "card",
     };
     await buyerApi.placeOrder("pw-1", input);
 
@@ -91,6 +92,7 @@ describe("buyerApi.placeOrder", () => {
       buyer: { email: "a@b.com", name: "Alice" },
       items: [{ offering_id: "off-1", quantity: 2 }],
       stripe_payment_intent_id: "pi_abc123",
+      payment_method: "card",
     };
     await buyerApi.placeOrder("pw-1", input);
 

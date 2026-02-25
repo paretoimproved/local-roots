@@ -31,11 +31,13 @@ type OrderCheckoutRequest struct {
 }
 
 type OrderCheckoutResponse struct {
-	PaymentIntentID string `json:"payment_intent_id"`
-	ClientSecret    string `json:"client_secret"`
-	SubtotalCents   int    `json:"subtotal_cents"`
-	BuyerFeeCents   int    `json:"buyer_fee_cents"`
-	TotalCents      int    `json:"total_cents"`
+	PaymentIntentID    string `json:"payment_intent_id"`
+	ClientSecret       string `json:"client_secret"`
+	SubtotalCents      int    `json:"subtotal_cents"`
+	BuyerFeeCents      int    `json:"buyer_fee_cents"`
+	BuyerFeeBps        int    `json:"buyer_fee_bps"`
+	BuyerFeeFlatCents  int    `json:"buyer_fee_flat_cents"`
+	TotalCents         int    `json:"total_cents"`
 }
 
 func (a OrderCheckoutAPI) Checkout(w http.ResponseWriter, r *http.Request) {
@@ -146,10 +148,12 @@ func (a OrderCheckoutAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp.OK(w, OrderCheckoutResponse{
-		PaymentIntentID: piID,
-		ClientSecret:    clientSecret,
-		SubtotalCents:   subtotal,
-		BuyerFeeCents:   buyerFee,
-		TotalCents:      total,
+		PaymentIntentID:   piID,
+		ClientSecret:      clientSecret,
+		SubtotalCents:     subtotal,
+		BuyerFeeCents:     buyerFee,
+		BuyerFeeBps:       a.BuyerFeeBps,
+		BuyerFeeFlatCents: a.BuyerFeeFlatCts,
+		TotalCents:        total,
 	})
 }

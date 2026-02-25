@@ -119,21 +119,16 @@ export default async function PickupWindowOfferingsPage({
                 key={o.id}
                 className="lr-card lr-card-strong p-6 transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
               >
-                <div className="flex items-start justify-between gap-6">
-                  <div>
-                    <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
-                      {o.product.title}
-                    </h2>
-                    <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-                      {formatMoney(o.price_cents)} · {o.product.unit}
-                      {o.product.description
-                        ? ` · ${o.product.description}`
-                        : ""}
-                    </p>
-                  </div>
-                  <div className="text-right text-xs text-[color:var(--lr-muted)]">
-                    <div>{o.quantity_remaining} available</div>
-                  </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
+                    {o.product.title}
+                  </h2>
+                  <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+                    {formatMoney(o.price_cents)} · {o.product.unit}
+                    {o.product.description
+                      ? ` · ${o.product.description}`
+                      : ""}
+                  </p>
                 </div>
               </li>
             ))}

@@ -193,44 +193,41 @@ export default function BuyerDashboardPage() {
         </h2>
         {upcomingOrders.length > 0 ? (
           <div className="mt-3 grid gap-3">
-            {upcomingOrders[0] && (
-              <Link href={`/orders/${upcomingOrders[0].id}`} className="block">
-                <PickupCodeCard
-                  storeId={upcomingOrders[0].store_id}
-                  orderId={upcomingOrders[0].id}
-                  pickupCode={upcomingOrders[0].pickup_code}
-                  status={upcomingOrders[0].status}
-                />
-              </Link>
-            )}
             {upcomingOrders.map((o) => (
               <Link
                 key={o.id}
-                href={`/orders/${o.id}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 p-3 ring-1 ring-[color:var(--lr-border)] transition-colors hover:bg-white/80"
+                href={`/orders/${o.id}?t=${encodeURIComponent(session.getToken() ?? "")}`}
+                className="block rounded-xl bg-white/60 ring-1 ring-[color:var(--lr-border)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
               >
-                <div>
-                  <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
-                    {o.product_title || "Order"}
+                <div className="flex flex-wrap items-center justify-between gap-2 p-3">
+                  <div>
+                    <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
+                      {o.product_title || "Order"}
+                    </div>
+                    <div className="text-xs text-[color:var(--lr-muted)]">
+                      {new Date(o.pickup_start_at).toLocaleDateString("en-US", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })}
+                    </div>
                   </div>
-                  <div className="text-xs text-[color:var(--lr-muted)]">
-                    {new Date(o.pickup_start_at).toLocaleDateString("en-US", {
-                      weekday: "short",
-                      month: "short",
-                      day: "numeric",
-                      hour: "numeric",
-                      minute: "2-digit",
-                    })}
-                  </div>
-                  <div className="mt-1 font-mono text-xs text-[color:var(--lr-muted)]">
-                    Code: {o.pickup_code}
+                  <div className="flex items-center gap-2">
+                    {statusBadge(o.status)}
+                    <span className="text-sm font-semibold text-[color:var(--lr-ink)]">
+                      {formatMoney(o.total_cents)}
+                    </span>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {statusBadge(o.status)}
-                  <span className="text-sm font-semibold text-[color:var(--lr-ink)]">
-                    {formatMoney(o.total_cents)}
-                  </span>
+                <div className="border-t border-[color:var(--lr-border)]/70 px-3 pb-3 pt-2">
+                  <PickupCodeCard
+                    storeId={o.store_id}
+                    orderId={o.id}
+                    pickupCode={o.pickup_code}
+                    status={o.status}
+                  />
                 </div>
               </Link>
             ))}
@@ -254,8 +251,8 @@ export default function BuyerDashboardPage() {
             {pastOrders.slice(0, 10).map((o) => (
               <Link
                 key={o.id}
-                href={`/orders/${o.id}`}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 p-3 ring-1 ring-[color:var(--lr-border)] transition-colors hover:bg-white/80"
+                href={`/orders/${o.id}?t=${encodeURIComponent(session.getToken() ?? "")}`}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/60 p-3 ring-1 ring-[color:var(--lr-border)] transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
               >
                 <div>
                   <div className="text-sm font-medium text-[color:var(--lr-ink)]">

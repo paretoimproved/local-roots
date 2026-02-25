@@ -46,6 +46,18 @@ export function CheckoutForm({
     return items.reduce((sum, it) => sum + it.offering.price_cents * it.quantity, 0);
   }, [items]);
 
+  const priceSubtotal = checkout?.subtotal_cents ?? total;
+  const priceFee = checkout?.buyer_fee_cents ?? 0;
+  const priceTotal = checkout?.total_cents ?? total;
+  const feeBps = checkout?.buyer_fee_bps ?? null;
+  const feeFlat = checkout?.buyer_fee_flat_cents ?? null;
+  const feeLabel =
+    feeBps !== null && feeBps > 0
+      ? `${(feeBps / 100).toFixed(2)}%`
+      : feeFlat !== null && feeFlat > 0
+        ? `${formatMoney(feeFlat)}`
+        : null;
+
   async function startCardCheckout() {
     if (startingCheckoutRef.current) return;
     if (!isStripeAvailable()) {
@@ -91,6 +103,7 @@ export function CheckoutForm({
         // Use the snapshot from checkout time — matches the authorized amount
         items: checkoutItems,
         stripe_payment_intent_id: checkout.payment_intent_id,
+        payment_method: "card",
       });
       orderToken.set(res.id, res.buyer_token);
       setOrder(res);
@@ -232,12 +245,27 @@ export function CheckoutForm({
       </div>
 
       <div className="mt-4 grid gap-2 rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
-        <div className="flex items-baseline justify-between">
-          <div className="text-sm font-medium text-[color:var(--lr-muted)]">
-            Total
+        <div className="grid gap-2">
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="text-sm font-medium text-[color:var(--lr-muted)]">Subtotal</span>
+            <span className="text-sm font-semibold text-[color:var(--lr-ink)]">
+              {formatMoney(priceSubtotal)}
+            </span>
           </div>
-          <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
-            {formatMoney(checkout?.total_cents ?? total)}
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+              Service fee{feeLabel ? ` (${feeLabel})` : ""}
+            </span>
+            <span className="text-sm font-semibold text-[color:var(--lr-ink)]">
+              {checkout ? formatMoney(priceFee) : "Calculated at checkout"}
+            </span>
+          </div>
+          <div className="h-px bg-[color:var(--lr-border)]/70" />
+          <div className="flex items-baseline justify-between gap-4">
+            <span className="text-sm font-semibold text-[color:var(--lr-ink)]">Total</span>
+            <span className="text-sm font-semibold text-[color:var(--lr-ink)]">
+              {checkout ? formatMoney(priceTotal) : `${formatMoney(priceTotal)} + fee`}
+            </span>
           </div>
         </div>
 
@@ -281,6 +309,18 @@ export function CheckoutForm({
           </label>
         </div>
 
+        <button
+          type="button"
+          className={`lr-btn lr-btn-primary mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50${checkout ? " cursor-not-allowed" : ""}`}
+          disabled={submitting || items.length === 0 || !buyerEmail.trim() || !!checkout}
+          onClick={startCardCheckout}
+        >
+          {checkout
+            ? "Complete payment below"
+            : submitting
+              ? "Starting\u2026"
+              : "Continue to payment"}
+        </button>
         {checkout ? (
           <AuthorizeCard
             clientSecret={checkout.client_secret}
@@ -290,16 +330,7 @@ export function CheckoutForm({
             onAuthorized={completeCardOrder}
             mode="payment_intent"
           />
-        ) : (
-          <button
-            className="lr-btn lr-btn-primary mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50"
-            disabled={submitting || items.length === 0 || !buyerEmail.trim()}
-            onClick={startCardCheckout}
-            type="button"
-          >
-            {submitting ? "Starting\u2026" : "Continue to payment"}
-          </button>
-        )}
+        ) : null}
       </div>
     </section>
   );
