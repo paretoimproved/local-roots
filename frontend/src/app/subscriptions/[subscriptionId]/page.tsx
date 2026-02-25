@@ -2,10 +2,9 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buyerApi, type BuyerSubscription } from "@/lib/buyer-api";
 import { subscriptionToken } from "@/lib/subscription-token";
-import { ConfirmDialog } from "@/components/confirm-dialog";
 import { ErrorAlert } from "@/components/error-alert";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
@@ -94,6 +93,143 @@ function UpdateCard({
   );
 }
 
+const CANCEL_REASONS = [
+  "Too expensive",
+  "Too much food",
+  "Moving / can\u2019t pick up",
+  "Quality issues",
+  "Other",
+] as const;
+
+function CancelFlow({
+  open,
+  submitting,
+  onPause,
+  onCancel,
+  onClose,
+}: {
+  open: boolean;
+  submitting: boolean;
+  onPause: () => void;
+  onCancel: () => void;
+  onClose: () => void;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [reason, setReason] = useState<string>(CANCEL_REASONS[0]);
+  const [prevOpen, setPrevOpen] = useState(false);
+
+  // Reset to step 1 whenever the dialog opens (React-recommended prop→state pattern)
+  if (open && !prevOpen) {
+    setPrevOpen(true);
+    setStep(1);
+    setReason(CANCEL_REASONS[0]);
+  } else if (!open && prevOpen) {
+    setPrevOpen(false);
+  }
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    if (!open && el.open) el.close();
+  }, [open]);
+
+  const handleDialogCancel = useCallback(
+    (e: React.SyntheticEvent) => {
+      e.preventDefault();
+      onClose();
+    },
+    [onClose],
+  );
+
+  if (!open) return null;
+
+  return (
+    <dialog
+      ref={ref}
+      onCancel={handleDialogCancel}
+      className="fixed inset-0 z-50 m-auto max-w-sm rounded-2xl border-0 bg-white p-6 shadow-xl backdrop:bg-black/30"
+    >
+      {step === 1 ? (
+        <>
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            Before you go&hellip;
+          </h2>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Would you like to pause your subscription instead? You can resume
+            anytime from your dashboard.
+          </p>
+          <div className="mt-5 grid gap-3">
+            <button
+              type="button"
+              className="lr-btn lr-btn-primary w-full px-4 py-2 text-sm font-semibold disabled:opacity-50"
+              disabled={submitting}
+              onClick={onPause}
+            >
+              {submitting ? "Pausing\u2026" : "Pause subscription"}
+            </button>
+            <button
+              type="button"
+              className="text-sm text-[color:var(--lr-muted)] underline"
+              onClick={() => setStep(2)}
+            >
+              No, cancel my subscription
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            We&rsquo;re sorry to see you go
+          </h2>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Help us improve &mdash; why are you canceling?
+          </p>
+          <fieldset className="mt-4 grid gap-2">
+            {CANCEL_REASONS.map((r) => (
+              <label
+                key={r}
+                className="flex items-center gap-2 text-sm text-[color:var(--lr-ink)]"
+              >
+                <input
+                  type="radio"
+                  name="cancel-reason"
+                  value={r}
+                  checked={reason === r}
+                  onChange={() => setReason(r)}
+                  className="accent-[color:var(--lr-primary)]"
+                />
+                {r}
+              </label>
+            ))}
+          </fieldset>
+          <div className="mt-5 grid gap-3">
+            <button
+              type="button"
+              className="w-full rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:opacity-50"
+              disabled={submitting}
+              onClick={() => {
+                console.log("[CancelFlow] reason:", reason);
+                onCancel();
+              }}
+            >
+              {submitting ? "Canceling\u2026" : "Cancel subscription"}
+            </button>
+            <button
+              type="button"
+              className="text-sm text-[color:var(--lr-muted)] underline"
+              onClick={() => setStep(1)}
+            >
+              Go back
+            </button>
+          </div>
+        </>
+      )}
+    </dialog>
+  );
+}
+
 export default function SubscriptionPage() {
   const params = useParams<{ subscriptionId: string }>();
   const search = useSearchParams();
@@ -111,7 +247,7 @@ export default function SubscriptionPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [setupSecret, setSetupSecret] = useState<string | null>(null);
-  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [showCancelFlow, setShowCancelFlow] = useState(false);
 
   useEffect(() => {
     const saved = subscriptionToken.get(subscriptionId);
@@ -346,7 +482,7 @@ export default function SubscriptionPage() {
                 className="lr-btn px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)] disabled:opacity-50"
                 type="button"
                 disabled={submitting}
-                onClick={() => setShowCancelConfirm(true)}
+                onClick={() => setShowCancelFlow(true)}
               >
                 Cancel
               </button>
@@ -386,17 +522,18 @@ export default function SubscriptionPage() {
           </div>
         </section>
       ) : null}
-      <ConfirmDialog
-        open={showCancelConfirm}
-        title="Cancel subscription?"
-        message="You can re-subscribe later."
-        confirmLabel="Cancel subscription"
-        destructive
-        onConfirm={() => {
-          setShowCancelConfirm(false);
+      <CancelFlow
+        open={showCancelFlow}
+        submitting={submitting}
+        onPause={() => {
+          setShowCancelFlow(false);
+          void setStatus("paused");
+        }}
+        onCancel={() => {
+          setShowCancelFlow(false);
           void setStatus("canceled");
         }}
-        onCancel={() => setShowCancelConfirm(false)}
+        onClose={() => setShowCancelFlow(false)}
       />
     </div>
   );
