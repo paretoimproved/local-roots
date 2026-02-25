@@ -205,6 +205,15 @@ type BuyerOrderSummary struct {
 
 // ListOrders returns orders for the authenticated buyer. Gated behind RequireUser.
 func (a BuyerAuthAPI) ListOrders(w http.ResponseWriter, r *http.Request, u AuthUser) {
+	// Link any orders placed after the buyer last signed in.
+	if _, err := a.DB.Exec(r.Context(), `
+		update orders set buyer_user_id = $1::uuid
+		where lower(buyer_email) = lower($2) and buyer_user_id is null
+	`, u.ID, u.Email); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
 	rows, err := a.DB.Query(r.Context(), `
 		select
 			o.id::text,
@@ -258,6 +267,15 @@ type BuyerSubscriptionSummary struct {
 
 // ListSubscriptions returns subscriptions for the authenticated buyer.
 func (a BuyerAuthAPI) ListSubscriptions(w http.ResponseWriter, r *http.Request, u AuthUser) {
+	// Link any subscriptions created after the buyer last signed in.
+	if _, err := a.DB.Exec(r.Context(), `
+		update subscriptions set buyer_user_id = $1::uuid
+		where lower(buyer_email) = lower($2) and buyer_user_id is null
+	`, u.ID, u.Email); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
 	rows, err := a.DB.Query(r.Context(), `
 		select
 			s.id::text,
