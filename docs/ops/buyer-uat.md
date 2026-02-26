@@ -58,7 +58,7 @@ Designed for a Claude agent controlling Chrome via computer use.
    - A **description** paragraph is visible below the heading.
    - A **"Pickup locations"** section is present with at least one location card.
    - Each location card shows the **address** as a link (to Google Maps directions).
-   - If a Google Maps API key is configured, a **static map image** is visible on the location card.
+   - If the seller uploaded a pickup spot photo, it appears on the location card. Otherwise, if a Google Maps API key is configured, a **static map image** is visible.
    - **Upcoming pickups** are listed under each location with formatted dates/times (timezone abbreviated, e.g. "PST" not "America/Los_Angeles").
    - A **"What's available"** section shows subscription box cards (with image, price, cadence, next pickup) and/or walk-up items.
    - Subscription box cards have a **"Subscribe"** button and link to `/boxes/{planId}`.

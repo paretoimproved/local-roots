@@ -426,6 +426,60 @@ These tests verify the 6 critical payment-safety fixes. Run after any change to 
 
 ---
 
+## 12. Seller Photo Uploads
+
+**Prerequisite:** Supabase Storage configured (`NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set), public `images` bucket created. A store with a pickup location and subscription plan exists.
+
+### 12a. Upload store cover photo
+
+1. Go to `FRONTEND/seller/stores/{storeId}/settings`.
+2. In the **Store details** section, find the cover photo upload area above the Name field.
+3. **Expected:** A dashed-border dropzone with camera icon and text "Add a cover photo — this appears on your store page and farm listings."
+4. Click the dropzone and select a JPEG/PNG/WebP image (< 5MB).
+5. **Expected:** Spinner overlay during upload, then the image displays at 3:1 aspect ratio with a "Remove" button overlay. A toast reads **"Photo saved"**.
+6. Navigate to `FRONTEND/stores/{storeId}`.
+7. **Expected:** The uploaded image appears as the store hero image.
+8. Navigate to `FRONTEND/stores` (browse page).
+9. **Expected:** The store card shows the uploaded image.
+
+### 12b. Upload product/box photo
+
+1. On `FRONTEND/seller/stores/{storeId}/settings`, find the **Farm box** section.
+2. Below the Title field, find the product photo upload area.
+3. Click and upload a JPEG/PNG/WebP image (< 5MB).
+4. **Expected:** Image displays at 4:3 aspect ratio. Toast reads **"Photo saved"**.
+5. Navigate to `FRONTEND/stores/{storeId}`.
+6. **Expected:** The product image appears in the "What's available" section.
+7. Navigate to `FRONTEND/boxes/{planId}`.
+8. **Expected:** The product image appears as the box detail hero.
+
+### 12c. Upload pickup spot photo
+
+1. On `FRONTEND/seller/stores/{storeId}/settings`, find the **Pickup spot** section.
+2. Below the Address field, find the pickup spot photo upload area.
+3. Click and upload a JPEG/PNG/WebP image (< 5MB).
+4. **Expected:** Image displays at 4:3 aspect ratio. Toast reads **"Photo saved"**.
+5. Navigate to `FRONTEND/stores/{storeId}`.
+6. **Expected:** The uploaded photo appears in the pickup location card (replacing the static map).
+7. Navigate to `FRONTEND/boxes/{planId}`.
+8. **Expected:** A small photo thumbnail appears in the "Pickup details" card next to the address.
+
+### 12d. Remove photo
+
+1. On `FRONTEND/seller/stores/{storeId}/settings`, click **"Remove"** on any uploaded photo.
+2. **Expected:** Photo disappears, dropzone returns. Toast reads **"Photo removed"**.
+3. Navigate to the corresponding buyer page.
+4. **Expected:** The photo is gone — fallback behavior (placeholder/static map) is restored.
+
+### 12e. Upload validation
+
+1. Attempt to upload a `.gif` file.
+2. **Expected:** Error message — file type not accepted (only JPEG, PNG, WebP).
+3. Attempt to upload a file larger than 5MB.
+4. **Expected:** Error message — file too large.
+
+---
+
 ## Failure Modes
 
 - **Backend returns 502:** Check Railway logs for migration failures and missing env vars.
@@ -433,3 +487,4 @@ These tests verify the 6 critical payment-safety fixes. Run after any change to 
 - **Stripe PaymentElement doesn't load:** Verify `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is set in frontend env and matches the backend's `STRIPE_SECRET_KEY` (same Stripe account, test vs live mode).
 - **Embedded Connect onboarding doesn't render:** Verify `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is set. The Connect account must already be created (via the onboard endpoint) before the Account Session can be fetched.
 - **Address autocomplete doesn't work:** Verify `GOOGLE_PLACES_API_KEY` is set in backend env and the Places API is enabled in Google Cloud Console.
+- **Photo uploads fail:** Verify `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set in frontend env. Verify the `images` bucket exists in Supabase and is set to public.

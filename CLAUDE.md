@@ -71,6 +71,8 @@ Frontend (`frontend/`):
 
 - `NEXT_PUBLIC_API_BASE_URL`: defaults to `http://localhost:8080`
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Stripe publishable key (required for checkout + Connect onboarding)
+- `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL (required for photo uploads)
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase public anon key (required for photo uploads)
 
 ## CORS Policy
 
@@ -120,6 +122,7 @@ Frontend (`frontend/`):
 |------|---------|-----|
 | 2026-02 | Used `-- +migrate up/down` in migration | Must be `-- +goose Up` / `-- +goose Down` (case-sensitive) |
 | 2026-02 | Forgot `await params` in Next.js server components | Next.js 15+ requires `await params` in server components |
+| 2026-02 | Omitted `payment_method` from walk-up order creation | `CreateOrderInput` requires `payment_method: "card"` — backend rejects without it |
 
 ---
 
@@ -143,6 +146,11 @@ Frontend (`frontend/`):
 - **Toast notifications**: use `useToast()` hook (top-right, 4s dismiss)
 - **Payments**: Stripe card-only — no pay-at-pickup
 - **Auth**: JWT — seller (email/password + Google OAuth), buyer (magic link + Google OAuth)
+- **Order creation**: `CreateOrderInput` requires `payment_method: "card"` — backend validates this field
+- **Fee breakdown**: checkout forms (walk-up and subscription) show subtotal / service fee / total. Before Stripe loads: fee = "Calculated at checkout", total = "$X + fee". After: exact amounts. Reference: `subscribe-form.tsx`
+- **Checkout button pattern**: after checkout starts, primary button becomes disabled "Complete payment below" and `AuthorizeCard` renders below it (not instead of it)
+- **Buyer-facing order links**: include `?t=` auth token for shareability (e.g. `/orders/${id}?t=${token}`)
+- **Card hover effect**: `transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]` — standard lift for clickable cards
 
 ---
 
