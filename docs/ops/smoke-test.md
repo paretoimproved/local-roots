@@ -142,43 +142,72 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 1. On the seller dashboard, select a pickup window with placed orders.
 2. In the orders list, find an order with status **"placed"**.
 3. Click **"Mark ready"** on that order.
-4. **Expected:** Order status pill changes to **"ready"**. A **"Pickup code"** input field and **"Confirm pickup"** button appear. **"Scan QR"** and **"No show"** buttons also appear.
+4. **Expected:** Order status pill changes to **"ready"**. A **"Pickup code"** input field and **"Confirm"** button appear. **"No show"** buttons also appear.
 
-### 4b. Seller confirms pickup with code
+### 4b. Seller confirms pickup with manual code entry
 
-1. On the now-ready order, locate the **"Pickup code"** input (placeholder: `123456`).
+1. On a ready order, locate the **"Pickup code"** input (placeholder: `123456`).
 2. Enter the buyer's 6-digit pickup code (shown on the buyer's order page or confirmation email).
-3. Click **"Confirm pickup"**.
+3. Click **"Confirm"**.
 4. **Expected:** Order status changes to **"picked_up"**. Payment status changes to **"paid"**.
 
 ### 4c. Buyer sees "picked up" on order page
 
 1. Open the buyer's order page: `FRONTEND/orders/{orderId}?t={token}`.
-2. **Expected:** Status shows **"picked up"**. A **"Leave a review"** section appears with Rating dropdown and Comment textarea.
+2. **Expected:** Status shows **"Picked up"** (human-readable, not `picked_up`). A **"Leave a review"** section appears with Rating dropdown and Comment textarea.
+3. **Expected:** The PickupCodeCard shows heading **"Pickup confirmed"** with message "This order has been marked as picked up." The 6-digit code chip, copy button, QR image, and info note are **hidden**.
 
-### 4d. One-step scan pickup (placed → picked_up)
+### 4d. QR scan pickup via native camera (placed or ready → picked_up)
 
-1. On the seller dashboard, verify a **"Scan pickup"** button is visible next to the **"Orders"** heading.
-2. Find an order with status **"placed"** — verify a **"Scan QR"** button appears between **"Mark ready"** and **"Cancel"**.
-3. Click **"Scan QR"** on the placed order (or the top-level **"Scan pickup"** button).
-4. Scan the buyer's Local Roots QR code.
-5. **Expected:** Order status jumps directly from **"placed"** to **"picked_up"**. Payment status changes to **"paid"**. A success toast shows the buyer name/email and total.
+1. On the **buyer's** order page, verify the QR code encodes a **URL** (not a `LR|...` payload). Inspect it — it should be `FRONTEND/pickup/confirm?order={orderId}&code={pickupCode}`.
+2. On the **seller's** phone, open the native camera app and scan the buyer's QR code.
+3. **Expected:** The phone opens the URL in a browser → `FRONTEND/pickup/confirm?order=...&code=...`.
+4. If the seller is not logged in, they are redirected to `/seller/login?next=...`. After logging in, they return to the confirm page.
+5. **Expected:** A review screen shows:
+   - Heading **"Confirm pickup"** with the store name.
+   - Buyer name/email.
+   - Product items with quantity and price.
+   - Fee breakdown (subtotal, service fee if applicable, total).
+   - Payment status line (e.g. **"Card authorized ✓"**).
+6. Click **"Confirm & capture payment"**.
+7. **Expected:** Button shows **"Processing..."** (disabled), then a success screen appears:
+   - Green checkmark + heading **"Pickup confirmed"**.
+   - Product items with quantities.
+   - Payment captured amount and seller payout amount.
+   - Buyer name and confirmation timestamp.
+   - **"Back to orders"** link → `/seller`.
 
-### 4e. Top-level scan pickup (no order pre-selected)
+### 4e. QR scan — already picked up
 
-1. Click the top-level **"Scan pickup"** button next to the "Orders" heading.
-2. Scan a buyer's Local Roots QR code.
-3. **Expected:** The scanner identifies the order from the QR payload and confirms pickup immediately — same result as 4d.
+1. Re-open the same QR URL from step 4d (the order that was just confirmed).
+2. **Expected:** Page shows **"Already picked up"** with the timestamp when it was confirmed. A **"Back to orders"** link is present.
 
-### 4f. Scan QR — wrong store
+### 4f. QR scan — cancelled order
 
-1. Scan a QR code that belongs to a different store.
-2. **Expected:** An error toast: **"That QR is for a different store."**
+1. Cancel an order from the seller dashboard, then open its QR URL.
+2. **Expected:** Page shows **"Order cancelled"** with message "This order was cancelled." and a **"Back to seller dashboard"** link.
 
-### 4g. Scan QR — terminal order
+### 4g. QR scan — wrong store (different seller)
 
-1. Scan a QR for an order that is already picked up, canceled, or no-show.
-2. **Expected:** An error toast: **"Order is already picked up."** (or the relevant terminal status).
+1. Log in as a different seller and open a QR URL for an order belonging to another store.
+2. **Expected:** Page shows **"This order belongs to a different store."** with a link back to `/seller`.
+
+### 4h. QR scan — invalid code
+
+1. Open `FRONTEND/pickup/confirm?order={validOrderId}&code=000000` (wrong code).
+2. **Expected:** Page shows **"Invalid pickup code. Ask the buyer to show their code again."**
+
+### 4i. Manual code entry for placed orders
+
+1. On the seller dashboard, find an order with status **"placed"**.
+2. Verify a **"Pickup code"** input and **"Confirm"** button appear (same as for ready orders).
+3. Enter the buyer's 6-digit code and click **"Confirm"**.
+4. **Expected:** Order jumps directly from **"placed"** to **"picked_up"**. Payment captured.
+
+### 4j. No in-browser QR scanner
+
+1. On the seller dashboard, verify there is **NO** "Scan pickup" button and **NO** "Scan QR" buttons on individual orders.
+2. The orders heading note reads: **"Scan the buyer's QR with your phone camera, or enter the code manually."**
 
 ---
 

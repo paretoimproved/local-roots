@@ -151,6 +151,8 @@ Frontend (`frontend/`):
 - **Checkout button pattern**: after checkout starts, primary button becomes disabled "Complete payment below" and `AuthorizeCard` renders below it (not instead of it)
 - **Buyer-facing order links**: include `?t=` auth token for shareability (e.g. `/orders/${id}?t=${token}`)
 - **Card hover effect**: `transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]` — standard lift for clickable cards
+- **Pickup confirmation**: QR encodes a URL (`/pickup/confirm?order=...&code=...`) — seller scans with native phone camera, not in-browser scanner. Manual code entry available on seller dashboard for both placed and ready orders
+- **Seller login redirect**: `?next=/path` query param returns user to that path after login (sanitized to paths starting with `/`)
 
 ---
 
