@@ -14,7 +14,6 @@ import {
   type SellerSubscriptionPlan,
 } from "@/lib/seller-api";
 import { session } from "@/lib/session";
-import { QrScannerModal } from "@/components/qr-scanner-modal";
 import { QrCode } from "@/components/qr-code";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
@@ -66,7 +65,6 @@ export default function SellerStorePage() {
   const [pickupCodeByOrderId, setPickupCodeByOrderId] = useState<
     Record<string, string>
   >({});
-  const [scanOrderId, setScanOrderId] = useState<string | null>(null);
   const [generatingCycle, setGeneratingCycle] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
   const [togglingPlan, setTogglingPlan] = useState(false);
@@ -377,55 +375,6 @@ export default function SellerStorePage() {
       setError(friendlyErrorMessage(e));
     } finally {
       setBusyOrderId(null);
-    }
-  }
-
-  async function scanAndConfirmPickup(parsed: {
-    store_id: string;
-    order_id: string;
-    pickup_code: string;
-  }) {
-    if (!token || !selectedWindowId) return;
-    if (parsed.store_id !== storeId) {
-      showToast({ kind: "error", message: "That QR is for a different store." });
-      return;
-    }
-    const order = (orders ?? []).find((o) => o.id === parsed.order_id);
-    if (!order) {
-      showToast({ kind: "error", message: "Order not found in this window." });
-      return;
-    }
-    if (order.status !== "placed" && order.status !== "ready") {
-      showToast({
-        kind: "error",
-        message: `Order is already ${order.status.replace("_", " ")}.`,
-      });
-      return;
-    }
-    setBusyOrderId(parsed.order_id);
-    setError(null);
-    try {
-      await sellerApi.confirmPickup(
-        token,
-        storeId,
-        parsed.order_id,
-        parsed.pickup_code,
-      );
-      const [os, ofs] = await Promise.all([
-        sellerApi.listOrders(token, storeId, selectedWindowId),
-        sellerApi.listOfferings(token, storeId, selectedWindowId),
-      ]);
-      setOrders(os);
-      setOfferings(ofs);
-      showToast({
-        kind: "success",
-        message: `Pickup confirmed for ${order.buyer_name || order.buyer_email} · ${formatMoney(order.total_cents)}`,
-      });
-    } catch (e: unknown) {
-      setError(friendlyErrorMessage(e));
-    } finally {
-      setBusyOrderId(null);
-      setScanOrderId(null);
     }
   }
 
@@ -742,17 +691,9 @@ export default function SellerStorePage() {
             <div>
               <h2 className="text-base font-semibold">Orders</h2>
               <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                Mark orders ready, then confirm pickup. Reviews unlock for buyers
-                after pickup.
+                Scan the buyer&apos;s QR with your phone camera, or enter the code manually.
               </p>
             </div>
-            <button
-              type="button"
-              className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
-              onClick={() => setScanOrderId("__global__")}
-            >
-              Scan pickup
-            </button>
           </div>
 
           <div className="flex flex-wrap gap-2">
@@ -892,14 +833,35 @@ export default function SellerStorePage() {
                         >
                           {busyOrderId === o.id ? "Updating…" : "Mark ready"}
                         </button>
-                        <button
-                          type="button"
-                          className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-                          onClick={() => setScanOrderId(o.id)}
-                          disabled={busyOrderId === o.id}
-                        >
-                          Scan QR
-                        </button>
+                        <div className="grid gap-2">
+                          <label className="grid gap-1">
+                            <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                              Pickup code
+                            </span>
+                            <input
+                              className="lr-field w-40 px-3 py-2 text-sm font-mono tracking-widest"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              maxLength={6}
+                              placeholder="123456"
+                              value={pickupCodeByOrderId[o.id] ?? ""}
+                              onChange={(e) =>
+                                setPickupCodeByOrderId((prev) => ({
+                                  ...prev,
+                                  [o.id]: e.target.value.replace(/\D/g, "").slice(0, 6),
+                                }))
+                              }
+                            />
+                          </label>
+                          <button
+                            type="button"
+                            className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                            onClick={() => confirmPickup(o.id)}
+                            disabled={busyOrderId === o.id}
+                          >
+                            {busyOrderId === o.id ? "Confirming…" : "Confirm"}
+                          </button>
+                        </div>
                         <button
                           type="button"
                           className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-rose-900 disabled:opacity-50"
@@ -933,24 +895,14 @@ export default function SellerStorePage() {
                               }
                             />
                           </label>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
-                              onClick={() => confirmPickup(o.id)}
-                              disabled={busyOrderId === o.id}
-                            >
-                              {busyOrderId === o.id ? "Confirming…" : "Confirm pickup"}
-                            </button>
-                            <button
-                              type="button"
-                              className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-                              onClick={() => setScanOrderId(o.id)}
-                              disabled={busyOrderId === o.id}
-                            >
-                              Scan QR
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
+                            onClick={() => confirmPickup(o.id)}
+                            disabled={busyOrderId === o.id}
+                          >
+                            {busyOrderId === o.id ? "Confirming…" : "Confirm"}
+                          </button>
                         </div>
                         <div className="grid content-start gap-2">
                           <button
@@ -997,31 +949,6 @@ export default function SellerStorePage() {
       </section>
       </div>
 
-      <QrScannerModal
-        open={scanOrderId !== null}
-        onClose={() => setScanOrderId(null)}
-        onScan={(res) => {
-          const parsed = res.parsed;
-          if (parsed) {
-            setScanOrderId(null);
-            scanAndConfirmPickup(parsed);
-            return;
-          }
-          // Non-LR QR: try to extract a 6-digit code and fill the input.
-          const m = res.raw.match(/\b([0-9]{6})\b/);
-          if (!m) {
-            showToast({ kind: "error", message: "QR did not contain a valid pickup code." });
-            return;
-          }
-          const target = scanOrderId;
-          if (!target || target === "__global__") {
-            showToast({ kind: "error", message: "Scan a Local Roots QR code, or open a specific order to enter a code manually." });
-            return;
-          }
-          setPickupCodeByOrderId((prev) => ({ ...prev, [target]: m[1] ?? "" }));
-          setScanOrderId(null);
-        }}
-      />
       <ConfirmDialog
         open={confirmAction !== null}
         title={confirmAction?.title ?? ""}

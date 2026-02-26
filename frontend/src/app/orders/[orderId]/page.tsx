@@ -155,8 +155,8 @@ export default function OrderPage() {
                 <div className="text-sm text-[color:var(--lr-muted)]">
                   Status
                 </div>
-                <div className="text-lg font-semibold text-[color:var(--lr-ink)]">
-                  {data.order.status}
+                <div className="text-lg font-semibold capitalize text-[color:var(--lr-ink)]">
+                  {data.order.status.replace(/_/g, " ")}
                 </div>
               </div>
               <div className="text-right">

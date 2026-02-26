@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 import { sellerApi } from "@/lib/seller-api";
 import { session } from "@/lib/session";
@@ -12,10 +12,14 @@ import { oauthApi } from "@/lib/oauth-api";
 
 export default function SellerLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get("next");
+  const redirectTo = next && next.startsWith("/") ? next : "/seller";
+
   useEffect(() => { document.title = "Sign in — LocalRoots"; }, []);
   useEffect(() => {
-    if (session.getToken()) router.replace("/seller");
-  }, [router]);
+    if (session.getToken()) router.replace(redirectTo);
+  }, [router, redirectTo]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +32,7 @@ export default function SellerLoginPage() {
     try {
       const res = await sellerApi.login(email, password);
       session.setToken(res.token);
-      router.replace("/seller");
+      router.replace(redirectTo);
     } catch (err: unknown) {
       setError(friendlyErrorMessage(err));
     } finally {
@@ -42,7 +46,7 @@ export default function SellerLoginPage() {
     try {
       const res = await oauthApi.googleLogin(idToken, "seller");
       session.setToken(res.token);
-      router.replace("/seller");
+      router.replace(redirectTo);
     } catch (err: unknown) {
       setError(friendlyErrorMessage(err));
     } finally {

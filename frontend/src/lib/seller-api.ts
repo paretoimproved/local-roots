@@ -159,6 +159,36 @@ export type TimezoneResponse = {
   time_zone_id: string;
 };
 
+export type PickupPreviewResponse = {
+  order_id: string;
+  store_id: string;
+  store_name: string;
+  status: string;
+  buyer_name: string | null;
+  buyer_email: string;
+  items: SellerOrderItem[];
+  subtotal_cents: number;
+  buyer_fee_cents: number;
+  total_cents: number;
+  payment_status: string;
+  pickup_window_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PickupConfirmResponse = {
+  order_id: string;
+  store_id: string;
+  pickup_window_id: string;
+  status: string;
+  buyer_name: string | null;
+  buyer_email: string;
+  items: SellerOrderItem[];
+  total_cents: number;
+  subtotal_cents: number;
+  confirmed_at: string;
+};
+
 export const sellerApi = {
   registerSeller: (email: string, password: string, displayName?: string) =>
     requestJSON<AuthResponse>("/v1/auth/register", {
@@ -443,6 +473,18 @@ export const sellerApi = {
       method: "POST",
       token,
       body: JSON.stringify({ place_id: placeId, session_token: sessionToken }),
+    }),
+
+  pickupPreview: (token: string, orderId: string, code: string) =>
+    requestJSON<PickupPreviewResponse>(
+      `/v1/seller/pickup/preview?order=${encodeURIComponent(orderId)}&code=${encodeURIComponent(code)}`,
+      { token },
+    ),
+  pickupConfirm: (token: string, orderId: string, code: string) =>
+    requestJSON<PickupConfirmResponse>("/v1/seller/pickup/confirm", {
+      method: "POST",
+      token,
+      body: JSON.stringify({ order_id: orderId, pickup_code: code }),
     }),
 
   // Stripe Connect

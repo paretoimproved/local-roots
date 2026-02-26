@@ -124,6 +124,10 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.UpdateOrderStatus)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ConfirmPickup)))
 
+	pickupConfirm := v1.PickupConfirmAPI{DB: deps.DB, Stripe: stripeClient, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
+	mux.HandleFunc("GET /v1/seller/pickup/preview", authAPI.RequireUser(pickupConfirm.Preview))
+	mux.HandleFunc("POST /v1/seller/pickup/confirm", authAPI.RequireUser(pickupConfirm.Confirm))
+
 	sellerPayouts := v1.SellerPayoutsAPI{DB: deps.DB, NoShowPlatformSplitBps: deps.Config.NoShowPlatformSplitBps}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/payout-summary", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerPayouts.GetPickupWindowPayoutSummary)))
 

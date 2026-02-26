@@ -9,18 +9,12 @@ function chunk(code: string) {
   return `${c.slice(0, 3)} ${c.slice(3)}`;
 }
 
-function makePayload(input: {
-  v: 1;
-  store_id: string;
-  order_id: string;
-  pickup_code: string;
-}) {
-  // Keep it short, deterministic, and easy to parse after scanning.
-  return `LR|${input.v}|${input.store_id}|${input.order_id}|${input.pickup_code}`;
+function makePayload(orderId: string, pickupCode: string) {
+  return `${window.location.origin}/pickup/confirm?order=${orderId}&code=${pickupCode}`;
 }
 
 export function PickupCodeCard({
-  storeId,
+  storeId: _storeId,
   orderId,
   pickupCode,
   status,
@@ -30,18 +24,16 @@ export function PickupCodeCard({
   pickupCode: string;
   status: string;
 }) {
+  void _storeId; // kept for caller compatibility
   const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
   const copyTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const payload = useMemo(
-    () =>
-      makePayload({
-        v: 1,
-        store_id: storeId,
-        order_id: orderId,
-        pickup_code: pickupCode,
-      }),
-    [storeId, orderId, pickupCode],
+    () => {
+      if (typeof window === "undefined") return "";
+      return makePayload(orderId, pickupCode);
+    },
+    [orderId, pickupCode],
   );
 
   const [qr, setQr] = useState<string | null>(null);
@@ -94,56 +86,61 @@ export function PickupCodeCard({
               : "Show this code (or QR) to the seller at pickup."}
           </p>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="lr-chip rounded-full px-4 py-2 font-mono text-lg font-semibold tracking-widest text-[color:var(--lr-ink)]">
-              {chunk(pickupCode)}
-            </span>
-            <button
-              type="button"
-              className="lr-btn px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(pickupCode);
-                  setCopied(true);
-                  clearTimeout(copyTimer.current);
-                  copyTimer.current = setTimeout(() => setCopied(false), 1400);
-                  showToast({ kind: "success", message: "Pickup code copied." });
-                } catch {
-                  showToast({
-                    kind: "error",
-                    message: "Could not copy. Your browser may block clipboard access.",
-                  });
-                }
-              }}
-              title="Copy pickup code"
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
-          </div>
+          {!completed ? (
+            <>
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="lr-chip rounded-full px-4 py-2 font-mono text-lg font-semibold tracking-widest text-[color:var(--lr-ink)]">
+                  {chunk(pickupCode)}
+                </span>
+                <button
+                  type="button"
+                  className="lr-btn px-4 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(pickupCode);
+                      setCopied(true);
+                      clearTimeout(copyTimer.current);
+                      copyTimer.current = setTimeout(() => setCopied(false), 1400);
+                      showToast({ kind: "success", message: "Pickup code copied." });
+                    } catch {
+                      showToast({
+                        kind: "error",
+                        message: "Could not copy. Your browser may block clipboard access.",
+                      });
+                    }
+                  }}
+                  title="Copy pickup code"
+                >
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
 
-          <div className="mt-3 text-xs text-[color:var(--lr-muted)]">
-            If the seller asks to scan: the QR contains your order id and pickup
-            code only (no private access token).
-          </div>
-        </div>
-
-        <div className="grid justify-items-end gap-2">
-          {qr ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={qr}
-              alt="Pickup QR code"
-              className="h-32 w-32 rounded-2xl border border-[color:var(--lr-border)] bg-white/40 p-2 shadow-[0_14px_40px_rgba(38,28,10,0.14)]"
-            />
-          ) : (
-            <div className="h-32 w-32 rounded-2xl border border-[color:var(--lr-border)] bg-white/40 p-2" />
-          )}
-          {qrError ? (
-            <div className="max-w-[12rem] text-right text-xs text-[color:var(--lr-muted)]">
-              QR unavailable: {qrError}
-            </div>
+              <div className="mt-3 text-xs text-[color:var(--lr-muted)]">
+                The seller scans this with their phone camera to confirm your pickup.
+              </div>
+            </>
           ) : null}
         </div>
+
+        {!completed ? (
+          <div className="grid justify-items-end gap-2">
+            {qr ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={qr}
+                alt="Pickup QR code"
+                className="h-32 w-32 rounded-2xl border border-[color:var(--lr-border)] bg-white/40 p-2 shadow-[0_14px_40px_rgba(38,28,10,0.14)]"
+              />
+            ) : (
+              <div className="h-32 w-32 rounded-2xl border border-[color:var(--lr-border)] bg-white/40 p-2" />
+            )}
+            {qrError ? (
+              <div className="max-w-[12rem] text-right text-xs text-[color:var(--lr-muted)]">
+                QR unavailable: {qrError}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
       </div>
     </section>
   );
