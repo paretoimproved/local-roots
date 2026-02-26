@@ -162,6 +162,60 @@ Designed for a Claude agent controlling Chrome via computer use.
    - The status badge changes back to **green** with text "active".
 3. **Pass:** Both pause and resume produce toast feedback, badge color matches status.
 
+### 8c. Cancel — pause offer (step 1)
+
+1. Click **"Cancel"** on an active subscription.
+2. Verify:
+   - A dialog opens with heading **"Before you go..."**.
+   - Body text asks **"Would you like to pause your subscription instead?"**.
+   - A **"Pause subscription"** button (primary) and a **"No, cancel my subscription"** text link are visible.
+   - No red/destructive button on this step.
+3. **Pass:** Step 1 offers pause as an alternative before showing cancel.
+
+### 8d. Cancel — pause from step 1
+
+1. In the pause-offer dialog from 8c, click **"Pause subscription"**.
+2. Verify:
+   - Dialog closes.
+   - A **toast notification** appears saying **"Subscription paused"**.
+   - Status badge changes to **amber/yellow** with text "paused".
+3. **Pass:** Pause works from the cancel retention dialog.
+
+### 8e. Cancel — exit survey (step 2)
+
+1. Click **"Cancel"** on an active subscription to open the dialog.
+2. Click **"No, cancel my subscription"** to advance to step 2.
+3. Verify:
+   - Heading changes to **"We're sorry to see you go"**.
+   - Five radio options appear: Too expensive, Too much food, Moving / can't pick up, Quality issues, Other.
+   - First option (**"Too expensive"**) is pre-selected.
+   - A red **"Cancel subscription"** button is visible.
+   - A **"Go back"** text link is visible.
+4. Click **"Go back"** — verify it returns to step 1 (pause offer).
+5. **Pass:** Exit survey shows radio options and allows going back.
+
+### 8f. Cancel — confirm cancel (step 2)
+
+1. Repeat steps from 8e to reach the exit survey.
+2. Select a different reason (e.g. **"Quality issues"**).
+3. Click **"Cancel subscription"** (red button).
+4. Verify:
+   - Dialog closes.
+   - A **toast notification** appears saying **"Subscription canceled"**.
+   - Status badge shows **"canceled"**.
+   - The **"Cancel"** button no longer appears on the page.
+5. **Pass:** Cancel completes, status updates, cancel button removed.
+
+### 8g. Escape key dismisses dialog
+
+1. Click **"Cancel"** to open the dialog.
+2. Press **Escape**.
+3. Verify:
+   - Dialog closes.
+   - Status remains **"active"**.
+   - No toast notification fires.
+4. **Pass:** Escape dismisses without side effects.
+
 ---
 
 ## 9. Seller Page Checks

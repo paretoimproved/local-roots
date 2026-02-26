@@ -62,8 +62,8 @@ Backend (`backend/`):
 - `INTERNAL_CRON_SECRET`: protects internal cron endpoints (billing, reminders)
 - `BUYER_FEE_BPS`: buyer service fee in basis points (optional, default `0`)
 - `BUYER_FEE_FLAT_CENTS`: buyer flat fee in cents (optional, default `0`)
-- `NO_SHOW_FEE_CENTS`: no-show penalty in cents (optional, default `500`)
-- `NO_SHOW_PLATFORM_SPLIT_BPS`: platform share of no-show fee in bps (optional)
+- `NO_SHOW_FEE_CENTS`: no-show penalty in cents (optional, default `500` — set to `0` in prod per no-fee policy)
+- `NO_SHOW_PLATFORM_SPLIT_BPS`: platform share of no-show fee in bps (optional — unused when fee is `0`)
 - `ADDR`: listen address (default `:8080`)
 - `ENV`: `dev` (default) or `prod`
 

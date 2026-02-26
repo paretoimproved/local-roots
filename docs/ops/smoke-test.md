@@ -213,22 +213,18 @@ Local defaults: `http://localhost:3000` / `http://localhost:8080`.
 
 ## 5. No-Show
 
-### 5a. Seller marks order as no-show (charge fee)
+> **Policy (Feb 2026):** No additional no-show fee is charged. The buyer forfeits the box and the card authorization is voided. Set `NO_SHOW_FEE_CENTS=0` in production to match this policy.
+
+### 5a. Seller marks order as no-show
 
 1. On the seller dashboard, select a pickup window with a **"ready"** order.
-2. Click **"No show (charge fee)"** on the order.
-3. **Expected:** Order status changes to **"no_show"**. The no-show fee is charged to the buyer's card on file. A captured fee amount appears on the order card (e.g. `$X.XX` no-show fee).
+2. Click **"No show"** on the order.
+3. **Expected:** Order status changes to **"no_show"**. Payment status shows **"voided"** (authorization released, no fee captured).
 
 ### 5b. Buyer sees no-show status
 
 1. Open the buyer's order page: `FRONTEND/orders/{orderId}?t={token}`.
-2. **Expected:** Status shows **"no show"**. The fee amount is visible.
-
-### 5c. No-show with waive (repeat)
-
-1. Create another ready order (or use a different one).
-2. Click **"No show (waive)"** on the seller dashboard.
-3. **Expected:** Order status changes to **"no_show"**. Payment status shows **"voided"** (no fee captured).
+2. **Expected:** Status shows **"no show"**. No fee line item appears.
 
 ---
 

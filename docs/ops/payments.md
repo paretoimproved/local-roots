@@ -11,7 +11,8 @@ Local Roots uses Stripe card payments with a "capture on pickup confirmation" mo
   - Seller marks order `ready`.
   - Seller confirms pickup with a 6-digit pickup code (QR-assisted). On confirmation, we capture the authorization.
 - No-show:
-  - If seller marks an order `no_show`, we capture a small fee (default `$5`) unless the seller waives.
+  - If seller marks an order `no_show`, the card authorization is voided (no additional fee). The buyer forfeits the box.
+  - The backend supports a configurable `NO_SHOW_FEE_CENTS` (default `500`), but current policy sets this to `0`.
 
 ## Stripe Connect (Seller Payouts)
 
@@ -38,8 +39,8 @@ Key endpoints:
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET` (required to enable `/v1/stripe/webhook`)
 - `INTERNAL_CRON_SECRET` (protects the internal authorizer endpoint)
-- `NO_SHOW_FEE_CENTS` (optional, default `500`)
-- `NO_SHOW_PLATFORM_SPLIT_BPS` (platform share of no-show fee, optional)
+- `NO_SHOW_FEE_CENTS` (optional, default `500` — set to `0` per current no-fee policy)
+- `NO_SHOW_PLATFORM_SPLIT_BPS` (platform share of no-show fee, optional — unused when fee is `0`)
 - `BUYER_FEE_BPS` / `BUYER_FEE_FLAT_CENTS` (buyer service fee, optional)
 
 Frontend:
