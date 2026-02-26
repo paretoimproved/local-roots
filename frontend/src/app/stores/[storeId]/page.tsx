@@ -70,6 +70,7 @@ type LocationGroup = {
   lat: number | null;
   lng: number | null;
   instructions: string | null;
+  photo_url: string | null;
   windows: PickupWindow[];
 };
 
@@ -91,6 +92,7 @@ function groupByLocation(windows: PickupWindow[]): LocationGroup[] {
         lat: loc.lat ?? null,
         lng: loc.lng ?? null,
         instructions: loc.instructions ?? null,
+        photo_url: loc.photo_url ?? null,
         windows: [],
       };
       map.set(key, group);
@@ -226,9 +228,19 @@ export default async function StoreDetailPage({
                   className="lr-card lr-card-strong overflow-hidden"
                 >
                   <div className="grid gap-0 sm:grid-cols-[1fr_auto]">
-                    {/* Mobile: map on top */}
+                    {/* Mobile: photo or map on top */}
                     <div className="sm:hidden">
-                      {loc.lat && loc.lng && mapUrl ? (
+                      {loc.photo_url ? (
+                        <div className="relative h-[130px] w-full">
+                          <Image
+                            src={loc.photo_url}
+                            alt={loc.label ?? "Pickup spot"}
+                            fill
+                            className="object-cover"
+                            sizes="100vw"
+                          />
+                        </div>
+                      ) : loc.lat && loc.lng && mapUrl ? (
                         <a
                           href={dirUrl}
                           target="_blank"
@@ -293,9 +305,19 @@ export default async function StoreDetailPage({
                       ) : null}
                     </div>
 
-                    {/* Right side: static map (desktop only) */}
+                    {/* Right side: photo or static map (desktop only) */}
                     <div className="hidden sm:block">
-                      {loc.lat && loc.lng && mapUrl ? (
+                      {loc.photo_url ? (
+                        <div className="relative h-full w-[200px]">
+                          <Image
+                            src={loc.photo_url}
+                            alt={loc.label ?? "Pickup spot"}
+                            fill
+                            className="object-cover"
+                            sizes="200px"
+                          />
+                        </div>
+                      ) : loc.lat && loc.lng && mapUrl ? (
                         <a
                           href={dirUrl}
                           target="_blank"

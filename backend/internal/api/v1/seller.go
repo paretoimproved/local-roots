@@ -22,6 +22,7 @@ type SellerStore struct {
 	Name        string    `json:"name"`
 	Description *string   `json:"description"`
 	Phone       *string   `json:"phone"`
+	ImageURL    *string   `json:"image_url,omitempty"`
 	IsActive    bool      `json:"is_active"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
@@ -34,7 +35,7 @@ func (a SellerAPI) ListMyStores(w http.ResponseWriter, r *http.Request, u AuthUs
 	}
 
 	rows, err := a.DB.Query(r.Context(), `
-		select id::text, name, description, phone, is_active, created_at, updated_at
+		select id::text, name, description, phone, image_url, is_active, created_at, updated_at
 		from stores
 		where owner_user_id = $1::uuid
 		order by created_at desc
@@ -49,7 +50,7 @@ func (a SellerAPI) ListMyStores(w http.ResponseWriter, r *http.Request, u AuthUs
 	out := make([]SellerStore, 0)
 	for rows.Next() {
 		var s SellerStore
-		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.Phone, &s.IsActive, &s.CreatedAt, &s.UpdatedAt); err != nil {
+		if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.Phone, &s.ImageURL, &s.IsActive, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			resp.Internal(w, err)
 			return
 		}
@@ -90,9 +91,9 @@ func (a SellerAPI) CreateStore(w http.ResponseWriter, r *http.Request, u AuthUse
 	err := a.DB.QueryRow(r.Context(), `
 		insert into stores (owner_user_id, name, description, phone, is_active)
 		values ($1::uuid, $2, $3, $4, true)
-		returning id::text, name, description, phone, is_active, created_at, updated_at
+		returning id::text, name, description, phone, image_url, is_active, created_at, updated_at
 	`, u.ID, in.Name, in.Description, in.Phone).Scan(
-		&out.ID, &out.Name, &out.Description, &out.Phone, &out.IsActive, &out.CreatedAt, &out.UpdatedAt,
+		&out.ID, &out.Name, &out.Description, &out.Phone, &out.ImageURL, &out.IsActive, &out.CreatedAt, &out.UpdatedAt,
 	)
 	if err != nil {
 		// Likely unique owner_user_id violation (one store per seller in current schema).
@@ -112,6 +113,7 @@ type updateStoreRequest struct {
 	Description *string `json:"description"`
 	Phone       *string `json:"phone"`
 	IsActive    *bool   `json:"is_active"`
+	ImageURL    *string `json:"image_url"`
 }
 
 func (a SellerAPI) UpdateStore(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
@@ -129,11 +131,12 @@ func (a SellerAPI) UpdateStore(w http.ResponseWriter, r *http.Request, u AuthUse
 			description = coalesce($3, description),
 			phone = coalesce($4, phone),
 			is_active = coalesce($5, is_active),
+			image_url = CASE WHEN $6 = '' THEN NULL WHEN $6 IS NOT NULL THEN $6 ELSE image_url END,
 			updated_at = now()
 		where id = $1::uuid
-		returning id::text, name, description, phone, is_active, created_at, updated_at
-	`, sc.StoreID, in.Name, in.Description, in.Phone, in.IsActive).Scan(
-		&out.ID, &out.Name, &out.Description, &out.Phone, &out.IsActive, &out.CreatedAt, &out.UpdatedAt,
+		returning id::text, name, description, phone, image_url, is_active, created_at, updated_at
+	`, sc.StoreID, in.Name, in.Description, in.Phone, in.IsActive, in.ImageURL).Scan(
+		&out.ID, &out.Name, &out.Description, &out.Phone, &out.ImageURL, &out.IsActive, &out.CreatedAt, &out.UpdatedAt,
 	)
 	if err != nil {
 		resp.Internal(w, err)
@@ -153,11 +156,12 @@ type SellerPickupLocation struct {
 	PostalCode string  `json:"postal_code"`
 	Country    string  `json:"country"`
 	Timezone   string  `json:"timezone"`
+	PhotoURL   *string `json:"photo_url,omitempty"`
 }
 
 func (a SellerAPI) ListPickupLocations(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
 	rows, err := a.DB.Query(r.Context(), `
-		select id::text, label, address1, address2, city, region, postal_code, country, timezone
+		select id::text, label, address1, address2, city, region, postal_code, country, timezone, photo_url
 		from pickup_locations
 		where store_id = $1::uuid
 		order by created_at desc
@@ -172,7 +176,7 @@ func (a SellerAPI) ListPickupLocations(w http.ResponseWriter, r *http.Request, u
 	out := make([]SellerPickupLocation, 0)
 	for rows.Next() {
 		var pl SellerPickupLocation
-		if err := rows.Scan(&pl.ID, &pl.Label, &pl.Address1, &pl.Address2, &pl.City, &pl.Region, &pl.PostalCode, &pl.Country, &pl.Timezone); err != nil {
+		if err := rows.Scan(&pl.ID, &pl.Label, &pl.Address1, &pl.Address2, &pl.City, &pl.Region, &pl.PostalCode, &pl.Country, &pl.Timezone, &pl.PhotoURL); err != nil {
 			resp.Internal(w, err)
 			return
 		}
@@ -319,6 +323,7 @@ type updatePickupLocationRequest struct {
 	Timezone   *string  `json:"timezone"`
 	Lat        *float64 `json:"lat"`
 	Lng        *float64 `json:"lng"`
+	PhotoURL   *string  `json:"photo_url"`
 }
 
 func (a SellerAPI) UpdatePickupLocation(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
@@ -359,11 +364,12 @@ func (a SellerAPI) UpdatePickupLocation(w http.ResponseWriter, r *http.Request, 
 			timezone = coalesce($10, timezone),
 			lat = coalesce($11, lat),
 			lng = coalesce($12, lng),
+			photo_url = CASE WHEN $13 = '' THEN NULL WHEN $13 IS NOT NULL THEN $13 ELSE photo_url END,
 			updated_at = now()
 		where id = $1::uuid and store_id = $2::uuid
-		returning id::text, label, address1, address2, city, region, postal_code, country, timezone
-	`, locationID, sc.StoreID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, in.Country, normalizedTZ, in.Lat, in.Lng).Scan(
-		&out.ID, &out.Label, &out.Address1, &out.Address2, &out.City, &out.Region, &out.PostalCode, &out.Country, &out.Timezone,
+		returning id::text, label, address1, address2, city, region, postal_code, country, timezone, photo_url
+	`, locationID, sc.StoreID, in.Label, in.Address1, in.Address2, in.City, in.Region, in.PostalCode, in.Country, normalizedTZ, in.Lat, in.Lng, in.PhotoURL).Scan(
+		&out.ID, &out.Label, &out.Address1, &out.Address2, &out.City, &out.Region, &out.PostalCode, &out.Country, &out.Timezone, &out.PhotoURL,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {

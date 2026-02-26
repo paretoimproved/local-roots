@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { api } from "@/lib/api";
 import type { PickupWindowDetail, Offering } from "@/lib/api";
 import { CheckoutForm } from "@/components/checkout-form";
@@ -119,16 +120,29 @@ export default async function PickupWindowOfferingsPage({
                 key={o.id}
                 className="lr-card lr-card-strong p-6 transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
               >
-                <div>
-                  <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
-                    {o.product.title}
-                  </h2>
-                  <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-                    {formatMoney(o.price_cents)} · {o.product.unit}
-                    {o.product.description
-                      ? ` · ${o.product.description}`
-                      : ""}
-                  </p>
+                <div className="flex items-center gap-4">
+                  {o.product.image_url ? (
+                    <div className="relative h-[80px] w-[80px] flex-shrink-0 overflow-hidden rounded-lg">
+                      <Image
+                        src={o.product.image_url}
+                        alt={o.product.title}
+                        fill
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                    </div>
+                  ) : null}
+                  <div>
+                    <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
+                      {o.product.title}
+                    </h2>
+                    <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+                      {formatMoney(o.price_cents)} · {o.product.unit}
+                      {o.product.description
+                        ? ` · ${o.product.description}`
+                        : ""}
+                    </p>
+                  </div>
                 </div>
               </li>
             ))}

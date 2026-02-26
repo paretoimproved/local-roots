@@ -59,6 +59,7 @@ type SubscriptionPlanPublic struct {
 		Region   string  `json:"region"`
 		Postal   string  `json:"postal_code"`
 		Timezone string  `json:"timezone"`
+		PhotoURL *string `json:"photo_url,omitempty"`
 	} `json:"pickup_location"`
 }
 
@@ -95,7 +96,8 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 			pl.region,
 			pl.postal_code,
 			pl.timezone,
-			pi.url
+			COALESCE(sp.image_url, pi.url),
+			pl.photo_url
 		from subscription_plans sp
 		join pickup_locations pl on pl.id = sp.pickup_location_id
 		left join lateral (
@@ -143,6 +145,7 @@ func (a SubscriptionAPI) ListStorePlans(w http.ResponseWriter, r *http.Request) 
 			&sp.PickupLocation.Postal,
 			&sp.PickupLocation.Timezone,
 			&sp.ImageURL,
+			&sp.PickupLocation.PhotoURL,
 		); err != nil {
 			resp.Internal(w, err)
 			return
@@ -197,7 +200,8 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 			pl.region,
 			pl.postal_code,
 			pl.timezone,
-			pi.url
+			COALESCE(sp.image_url, pi.url),
+			pl.photo_url
 		from subscription_plans sp
 		join pickup_locations pl on pl.id = sp.pickup_location_id
 		left join lateral (
@@ -231,6 +235,7 @@ func (a SubscriptionAPI) GetPlan(w http.ResponseWriter, r *http.Request) {
 		&sp.PickupLocation.Postal,
 		&sp.PickupLocation.Timezone,
 		&sp.ImageURL,
+		&sp.PickupLocation.PhotoURL,
 	)
 	if err != nil {
 		if err == pgx.ErrNoRows {
@@ -823,6 +828,7 @@ type SubscriptionPlanSeller struct {
 	ProductID        string    `json:"product_id"`
 	Title            string    `json:"title"`
 	Description      *string   `json:"description"`
+	ImageURL         *string   `json:"image_url,omitempty"`
 	Cadence          string    `json:"cadence"`
 	PriceCents       int       `json:"price_cents"`
 	SubscriberLimit  int       `json:"subscriber_limit"`
@@ -855,6 +861,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 			sp.product_id::text,
 			sp.title,
 			sp.description,
+			sp.image_url,
 			sp.cadence,
 			sp.price_cents,
 			sp.subscriber_limit,
@@ -896,6 +903,7 @@ func (a SellerSubscriptionAPI) ListPlans(w http.ResponseWriter, r *http.Request,
 			&sp.ProductID,
 			&sp.Title,
 			&sp.Description,
+			&sp.ImageURL,
 			&sp.Cadence,
 			&sp.PriceCents,
 			&sp.SubscriberLimit,
@@ -1109,6 +1117,7 @@ func (a SellerSubscriptionAPI) CreatePlan(w http.ResponseWriter, r *http.Request
 type UpdatePlanRequest struct {
 	Title           *string `json:"title"`
 	Description     *string `json:"description"`
+	ImageURL        *string `json:"image_url"`
 	PriceCents      *int    `json:"price_cents"`
 	SubscriberLimit *int    `json:"subscriber_limit"`
 	IsActive        *bool   `json:"is_active"`
@@ -1157,15 +1166,16 @@ func (a SellerSubscriptionAPI) UpdatePlan(w http.ResponseWriter, r *http.Request
 			subscriber_limit = coalesce($6, subscriber_limit),
 			is_active = coalesce($7, is_active),
 			deposit_cents = coalesce($8, deposit_cents),
+			image_url = CASE WHEN $9 = '' THEN NULL WHEN $9 IS NOT NULL THEN $9 ELSE image_url END,
 			updated_at = now()
 		where id = $1::uuid and store_id = $2::uuid
 		returning id::text, store_id::text, pickup_location_id::text, product_id::text,
-			title, description, cadence, price_cents, subscriber_limit,
+			title, description, image_url, cadence, price_cents, subscriber_limit,
 			first_start_at, duration_minutes, cutoff_hours, is_active, is_live, deposit_cents,
 			created_at, updated_at
-	`, planID, sc.StoreID, in.Title, in.Description, in.PriceCents, in.SubscriberLimit, in.IsActive, in.DepositCents).Scan(
+	`, planID, sc.StoreID, in.Title, in.Description, in.PriceCents, in.SubscriberLimit, in.IsActive, in.DepositCents, in.ImageURL).Scan(
 		&out.ID, &out.StoreID, &out.PickupLocationID, &out.ProductID,
-		&out.Title, &out.Description, &out.Cadence, &out.PriceCents, &out.SubscriberLimit,
+		&out.Title, &out.Description, &out.ImageURL, &out.Cadence, &out.PriceCents, &out.SubscriberLimit,
 		&out.FirstStartAt, &out.DurationMin, &out.CutoffHours, &out.IsActive, &out.IsLive, &out.DepositCents,
 		&out.CreatedAt, &out.UpdatedAt,
 	)

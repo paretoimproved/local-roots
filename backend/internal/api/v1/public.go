@@ -231,6 +231,7 @@ type PickupWindow struct {
 		Lat          *float64 `json:"lat"`
 		Lng          *float64 `json:"lng"`
 		Instructions *string  `json:"instructions"`
+		PhotoURL     *string  `json:"photo_url,omitempty"`
 	} `json:"pickup_location"`
 }
 
@@ -277,7 +278,8 @@ func (a PublicAPI) ListStorePickupWindows(w http.ResponseWriter, r *http.Request
 			pl.timezone,
 			pl.lat,
 			pl.lng,
-			pl.instructions
+			pl.instructions,
+			pl.photo_url
 		from pickup_windows pw
 		join pickup_locations pl on pl.id = pw.pickup_location_id
 		where pw.store_id = $1::uuid
@@ -311,6 +313,7 @@ func (a PublicAPI) ListStorePickupWindows(w http.ResponseWriter, r *http.Request
 			&pw.PickupLocation.Lat,
 			&pw.PickupLocation.Lng,
 			&pw.PickupLocation.Instructions,
+			&pw.PickupLocation.PhotoURL,
 		); err != nil {
 			resp.Internal(w, err)
 			return
@@ -412,6 +415,7 @@ type Product struct {
 	Title       string  `json:"title"`
 	Unit        string  `json:"unit"`
 	Description *string `json:"description"`
+	ImageURL    *string `json:"image_url,omitempty"`
 }
 
 func (a PublicAPI) ListPickupWindowOfferings(w http.ResponseWriter, r *http.Request) {
@@ -436,9 +440,17 @@ func (a PublicAPI) ListPickupWindowOfferings(w http.ResponseWriter, r *http.Requ
 			p.id::text,
 			p.title,
 			p.unit,
-			p.description
+			p.description,
+			pi.url
 		from offerings o
 		join products p on p.id = o.product_id
+		left join lateral (
+			select pimg.url
+			from product_images pimg
+			where pimg.product_id = p.id
+			order by pimg.sort_order asc
+			limit 1
+		) pi on true
 		where o.pickup_window_id = $1::uuid
 			and o.status = 'active'
 		order by p.title asc
@@ -463,6 +475,7 @@ func (a PublicAPI) ListPickupWindowOfferings(w http.ResponseWriter, r *http.Requ
 			&o.Product.Title,
 			&o.Product.Unit,
 			&o.Product.Description,
+			&o.Product.ImageURL,
 		); err != nil {
 			resp.Internal(w, err)
 			return

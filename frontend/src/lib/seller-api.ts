@@ -17,6 +17,7 @@ export type SellerStore = {
   name: string;
   description: string | null;
   phone: string | null;
+  image_url?: string | null;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -32,6 +33,7 @@ export type SellerPickupLocation = {
   postal_code: string;
   country: string;
   timezone: string;
+  photo_url?: string | null;
 };
 
 export type SellerPickupWindow = {
@@ -53,6 +55,7 @@ export type SellerSubscriptionPlan = {
   product_id: string;
   title: string;
   description: string | null;
+  image_url?: string | null;
   cadence: string;
   price_cents: number;
   subscriber_limit: number;
@@ -192,7 +195,7 @@ export const sellerApi = {
   updateStore: (
     token: string,
     storeId: string,
-    input: { name?: string; description?: string | null; phone?: string | null },
+    input: { name?: string; description?: string | null; phone?: string | null; image_url?: string | null },
   ) =>
     requestJSON<SellerStore>(`/v1/seller/stores/${storeId}`, {
       method: "PATCH",
@@ -260,6 +263,7 @@ export const sellerApi = {
       timezone?: string;
       lat?: number | null;
       lng?: number | null;
+      photo_url?: string | null;
     },
   ) =>
     requestJSON<SellerPickupLocation>(
@@ -408,6 +412,7 @@ export const sellerApi = {
       subscriber_limit?: number;
       is_active?: boolean;
       deposit_cents?: number;
+      image_url?: string | null;
     },
   ) =>
     requestJSON<SellerSubscriptionPlan>(

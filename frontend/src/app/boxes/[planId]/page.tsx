@@ -109,11 +109,24 @@ export default async function BoxPlanPage({
             <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
               Pickup details
             </h2>
-            <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
-              {plan.pickup_location.label ? `${plan.pickup_location.label} · ` : ""}
-              {plan.pickup_location.address1}, {plan.pickup_location.city},{" "}
-              {plan.pickup_location.region} {plan.pickup_location.postal_code}
-            </p>
+            <div className="mt-2 flex items-start gap-4">
+              <p className="flex-1 text-sm text-[color:var(--lr-muted)]">
+                {plan.pickup_location.label ? `${plan.pickup_location.label} · ` : ""}
+                {plan.pickup_location.address1}, {plan.pickup_location.city},{" "}
+                {plan.pickup_location.region} {plan.pickup_location.postal_code}
+              </p>
+              {plan.pickup_location.photo_url ? (
+                <div className="relative h-[70px] w-[100px] flex-shrink-0 overflow-hidden rounded-lg">
+                  <Image
+                    src={plan.pickup_location.photo_url}
+                    alt={plan.pickup_location.label ?? "Pickup spot"}
+                    fill
+                    className="object-cover"
+                    sizes="100px"
+                  />
+                </div>
+              ) : null}
+            </div>
             {reviews && reviews.review_count > 0 ? (
               <div className="mt-3">
                 <ReviewSummary avgRating={reviews.avg_rating} reviewCount={reviews.review_count} />

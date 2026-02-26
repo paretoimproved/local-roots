@@ -16,6 +16,7 @@ import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { AddressAutocomplete } from "@/components/seller/address-autocomplete";
+import { ImageUpload } from "@/components/seller/image-upload";
 import { TimezoneCombobox } from "@/components/seller/timezone-combobox";
 
 function toIso(dtLocal: string): string {
@@ -503,6 +504,23 @@ export default function SettingsPage() {
             </div>
 
             <div className="grid gap-3">
+              <ImageUpload
+                currentUrl={store?.image_url ?? null}
+                storagePath={`stores/${storeId}/cover`}
+                onUploaded={async (url) => {
+                  await sellerApi.updateStore(token!, storeId, { image_url: url });
+                  showToast({ kind: "success", message: "Photo saved." });
+                  await refreshAll(token!);
+                }}
+                onRemoved={async () => {
+                  await sellerApi.updateStore(token!, storeId, { image_url: "" });
+                  showToast({ kind: "success", message: "Photo removed." });
+                  await refreshAll(token!);
+                }}
+                placeholderText="Add a cover photo — this appears on your store page and farm listings."
+                aspectRatio="3/1"
+              />
+
               <label className="grid gap-1">
                 <span className="text-sm font-medium text-[color:var(--lr-muted)]">
                   Name
@@ -606,6 +624,23 @@ export default function SettingsPage() {
                   </div>
                 </div>
 
+                <ImageUpload
+                  currentUrl={primaryLocation?.photo_url ?? null}
+                  storagePath={`stores/${storeId}/pickup-spots/${primaryLocation?.id}`}
+                  onUploaded={async (url) => {
+                    await sellerApi.updatePickupLocation(token!, storeId, primaryLocation!.id, { photo_url: url });
+                    showToast({ kind: "success", message: "Photo saved." });
+                    await refreshAll(token!);
+                  }}
+                  onRemoved={async () => {
+                    await sellerApi.updatePickupLocation(token!, storeId, primaryLocation!.id, { photo_url: "" });
+                    showToast({ kind: "success", message: "Photo removed." });
+                    await refreshAll(token!);
+                  }}
+                  placeholderText="Add a photo of the pickup spot — helps buyers know what to look for when they arrive."
+                  aspectRatio="4/3"
+                />
+
                 <label className="grid gap-1">
                   <span className="text-sm font-medium text-[color:var(--lr-muted)]">
                     Timezone
@@ -683,6 +718,23 @@ export default function SettingsPage() {
                     placeholder="e.g. Weekly Farm Box"
                   />
                 </label>
+
+                <ImageUpload
+                  currentUrl={primaryPlan?.image_url ?? null}
+                  storagePath={`stores/${storeId}/products/${primaryPlan?.product_id}`}
+                  onUploaded={async (url) => {
+                    await sellerApi.updateSubscriptionPlan(token!, storeId, primaryPlan!.id, { image_url: url });
+                    showToast({ kind: "success", message: "Photo saved." });
+                    await refreshAll(token!);
+                  }}
+                  onRemoved={async () => {
+                    await sellerApi.updateSubscriptionPlan(token!, storeId, primaryPlan!.id, { image_url: "" });
+                    showToast({ kind: "success", message: "Photo removed." });
+                    await refreshAll(token!);
+                  }}
+                  placeholderText="Add a photo of this box — buyers will see this on your store page."
+                  aspectRatio="4/3"
+                />
 
                 <label className="grid gap-1">
                   <span className="text-sm font-medium text-[color:var(--lr-muted)]">

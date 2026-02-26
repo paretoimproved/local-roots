@@ -60,11 +60,11 @@ export function ConfirmDialog({
         </button>
         <button
           type="button"
-          className={`lr-btn px-4 py-2 text-sm font-semibold ${
+          className={
             destructive
-              ? "bg-rose-600 text-white hover:bg-rose-700"
-              : "lr-btn-primary"
-          }`}
+              ? "rounded-full px-4 py-2 text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors"
+              : "lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
+          }
           onClick={onConfirm}
           autoFocus
         >

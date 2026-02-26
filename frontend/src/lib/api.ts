@@ -23,6 +23,7 @@ export type PickupLocation = {
   lat?: number | null;
   lng?: number | null;
   instructions?: string | null;
+  photo_url?: string | null;
 };
 
 export type PickupWindowDetail = {
@@ -55,6 +56,7 @@ export type Product = {
   title: string;
   unit: string;
   description: string | null;
+  image_url?: string | null;
 };
 
 export type Offering = {
