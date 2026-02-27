@@ -7,7 +7,10 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"time"
 )
+
+var httpClient = &http.Client{Timeout: 10 * time.Second}
 
 type Client struct {
 	apiKey string
@@ -53,7 +56,7 @@ func (c *Client) Send(to string, subject string, body string) error {
 	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}

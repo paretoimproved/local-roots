@@ -801,8 +801,10 @@ func (a SubscriptionAPI) Subscribe(w http.ResponseWriter, r *http.Request) {
 
 		// Notify seller of the new subscriber.
 		go func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 			var sellerEmail, storeName string
-			err := a.DB.QueryRow(ctx, `
+			err := a.DB.QueryRow(bgCtx, `
 				SELECT u.email, s.name
 				FROM stores s JOIN users u ON u.id = s.owner_user_id
 				WHERE s.id = $1::uuid

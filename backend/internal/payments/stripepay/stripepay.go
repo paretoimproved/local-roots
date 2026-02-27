@@ -30,12 +30,12 @@ func (c *Client) FindOrCreateCustomer(ctx context.Context, email string, name *s
 	if !c.Enabled() {
 		return "", ErrNotConfigured
 	}
-	// Search for existing customer by email.
-	searchParams := &stripe.CustomerSearchParams{}
-	searchParams.Context = ctx
-	searchParams.Query = fmt.Sprintf("email:'%s'", email)
-	searchParams.Single = true
-	iter := c.api.Customers.Search(searchParams)
+	// List customers by exact email match (avoids query injection via Search API).
+	listParams := &stripe.CustomerListParams{}
+	listParams.Context = ctx
+	listParams.Filters.AddFilter("email", "", email)
+	listParams.Filters.AddFilter("limit", "", "1")
+	iter := c.api.Customers.List(listParams)
 	if iter.Next() {
 		return iter.Customer().ID, nil
 	}

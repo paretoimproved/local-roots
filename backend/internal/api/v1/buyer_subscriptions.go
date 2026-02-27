@@ -328,8 +328,10 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	// Send cancellation confirmation email (fire-and-forget).
 	if status == "canceled" && a.Email != nil && a.Email.Enabled() {
 		go func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 			var buyerEmail, planTitle, storeName string
-			err := a.DB.QueryRow(r.Context(), `
+			err := a.DB.QueryRow(bgCtx, `
 				SELECT s.buyer_email, sp.title, st.name
 				FROM subscriptions s
 				JOIN subscription_plans sp ON sp.id = s.plan_id

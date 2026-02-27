@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -371,8 +372,10 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 
 		// Notify seller of the new order.
 		go func() {
+			bgCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
 			var sellerEmail, storeName string
-			err := a.DB.QueryRow(ctx, `
+			err := a.DB.QueryRow(bgCtx, `
 				SELECT u.email, s.name
 				FROM stores s JOIN users u ON u.id = s.owner_user_id
 				WHERE s.id = $1::uuid

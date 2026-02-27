@@ -353,17 +353,24 @@ function StoresContent() {
       {error ? (
         <div className="lr-card lr-card-strong p-6">
           <p className="text-sm font-medium text-[color:var(--lr-ink)]">
-            Could not load stores
+            We&apos;re having trouble loading farms right now
           </p>
-          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">{error}</p>
-          <p className="mt-3 text-sm text-[color:var(--lr-muted)]">
-            If you have not set up Postgres yet, start it and run migrations:
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Please try again in a few minutes. If the problem persists, contact support.
           </p>
-          <pre className="mt-2 overflow-x-auto rounded-2xl border border-[color:var(--lr-border)] bg-[color:var(--lr-ink)] p-4 text-xs text-[color:var(--lr-bg)] shadow-[0_18px_45px_rgba(38,28,10,0.18)]">
-            <code>{`docker compose up -d
+          {process.env.NODE_ENV === "development" && (
+            <>
+              <p className="mt-3 text-sm text-[color:var(--lr-muted)]">{error}</p>
+              <p className="mt-3 text-sm text-[color:var(--lr-muted)]">
+                If you have not set up Postgres yet, start it and run migrations:
+              </p>
+              <pre className="mt-2 overflow-x-auto rounded-2xl border border-[color:var(--lr-border)] bg-[color:var(--lr-ink)] p-4 text-xs text-[color:var(--lr-bg)] shadow-[0_18px_45px_rgba(38,28,10,0.18)]">
+                <code>{`docker compose up -d
 export DATABASE_URL="postgres://localroots:localroots@localhost:5432/localroots?sslmode=disable"
 pnpm migrate:up`}</code>
-          </pre>
+              </pre>
+            </>
+          )}
         </div>
       ) : null}
 
