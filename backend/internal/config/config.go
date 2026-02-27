@@ -52,13 +52,13 @@ func FromEnv() Config {
 			noShowFeeCents = n
 		}
 	}
-	buyerFeeBps := 0
+	buyerFeeBps := 700
 	if v := os.Getenv("BUYER_FEE_BPS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			buyerFeeBps = n
 		}
 	}
-	buyerFeeFlatCents := 0
+	buyerFeeFlatCents := 35
 	if v := os.Getenv("BUYER_FEE_FLAT_CENTS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			buyerFeeFlatCents = n

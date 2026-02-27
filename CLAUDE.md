@@ -60,8 +60,8 @@ Backend (`backend/`):
 - `RESEND_API_KEY`: required for transactional email (magic links, reminders)
 - `EMAIL_FROM`: sender address for transactional email
 - `INTERNAL_CRON_SECRET`: protects internal cron HTTP endpoints (billing, reminders) — optional, only needed for manual HTTP triggers; cron jobs run in-process in prod
-- `BUYER_FEE_BPS`: buyer service fee in basis points (optional, default `0`)
-- `BUYER_FEE_FLAT_CENTS`: buyer flat fee in cents (optional, default `0`)
+- `BUYER_FEE_BPS`: buyer service fee in basis points (optional, default `700` = 7%)
+- `BUYER_FEE_FLAT_CENTS`: buyer flat fee in cents (optional, default `35` = $0.35)
 - `NO_SHOW_FEE_CENTS`: no-show penalty in cents (optional, default `500` — set to `0` in prod per no-fee policy)
 - `NO_SHOW_PLATFORM_SPLIT_BPS`: platform share of no-show fee in bps (optional — unused when fee is `0`)
 - `ADDR`: listen address (default `:8080`)

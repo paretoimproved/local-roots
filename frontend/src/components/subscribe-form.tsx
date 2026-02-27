@@ -38,12 +38,12 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   const depositCents = checkout?.deposit_cents ?? plan.deposit_cents ?? 0;
   const feeBps = checkout?.buyer_fee_bps ?? null;
   const feeFlat = checkout?.buyer_fee_flat_cents ?? null;
-  const feeLabel =
-    feeBps !== null
-      ? `${(feeBps / 100).toFixed(2)}%`
-      : feeFlat !== null && feeFlat > 0
-        ? `${formatMoney(feeFlat)}`
-        : null;
+  const feeLabel = (() => {
+    const parts: string[] = [];
+    if (feeBps !== null && feeBps > 0) parts.push(`${(feeBps / 100).toFixed(0)}%`);
+    if (feeFlat !== null && feeFlat > 0) parts.push(formatMoney(feeFlat));
+    return parts.length > 0 ? parts.join(" + ") : null;
+  })();
 
   const nextLabel = useMemo(() => {
     const tz = plan.pickup_location.timezone || "UTC";

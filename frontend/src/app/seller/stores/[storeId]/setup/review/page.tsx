@@ -270,7 +270,7 @@ export default function ReviewPage() {
               First pickup: {friendlyDate(plan.first_start_at, location.timezone)}
             </p>
             <p className="mt-1.5 text-xs text-[color:var(--lr-muted)]">
-              Buyers will pay a 5% service fee on top of your box price.
+              Buyers will pay a small service fee on top of your box price.
             </p>
           </div>
           <button

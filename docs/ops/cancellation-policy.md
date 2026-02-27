@@ -62,13 +62,13 @@ Last updated: February 2026
 | Fee type | Buyer pays | Seller pays | Platform pays |
 |----------|-----------|-------------|---------------|
 | Box price | Yes (at checkout) | — | — |
-| 5% service fee | Yes (added to total) | **Nothing** | Receives this |
-| Stripe processing (~2.9% + $0.30) | — | Deducted from payout | — |
+| 7% + $0.35 service fee | Yes (added to total) | **Nothing** | Receives this |
+| Stripe processing (~2.9% + $0.30) | — | — | Deducted from platform revenue |
 | Stripe refund fee (~$0.25) | — | — | Yes (on seller-initiated cancel) |
 | Chargeback fee ($15) | — | — | Yes |
 | No-show penalty | None (box forfeited) | Keeps payout | Nothing |
 
-**Key principle:** Sellers never pay platform fees. The 5% buyer service fee and Stripe processing (deducted from the Stripe transfer, not invoiced to seller) are the only revenue lines.
+**Key principle:** Sellers never pay platform fees. The buyer service fee (7% + $0.35) is the sole revenue line. Stripe processing is absorbed by the platform out of that fee — seller receives full subtotal via Stripe transfer.
 
 ---
 

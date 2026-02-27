@@ -70,8 +70,8 @@ export default function PoliciesPage() {
           </h2>
           <ul className="mt-2 grid gap-2 text-sm text-[color:var(--lr-muted)]">
             <li>
-              A 5% buyer service fee is added to each order. This fee supports
-              the platform &mdash; sellers pay nothing.
+              A 7% + $0.35 buyer service fee is added to each order. This fee
+              supports the platform &mdash; sellers pay nothing.
             </li>
             <li>
               Card authorizations are placed within 7 days of the pickup

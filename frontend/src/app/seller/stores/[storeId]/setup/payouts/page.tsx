@@ -207,7 +207,7 @@ export default function PayoutsPage() {
           </button>
 
           <p className="text-xs text-[color:var(--lr-muted)]">
-            Zero fees to you. Buyers pay a 5% service fee at checkout.
+            Zero fees to you. Buyers pay a small service fee at checkout.
           </p>
 
           <p className="text-xs text-[color:var(--lr-muted)]">
