@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -29,24 +30,29 @@ type authorizeCandidate struct {
 	paymentMethod string
 }
 
-func (a InternalBillingAPI) AuthorizePending(w http.ResponseWriter, r *http.Request) {
-	if a.DB == nil {
-		resp.ServiceUnavailable(w, "database not configured")
-		return
+// BillingResult holds the outcome of a billing authorization run.
+type BillingResult struct {
+	Candidates int
+	Authorized int
+	Failed     int
+	Until      time.Time
+}
+
+// RunBillingAuthorization finds pending subscription orders with upcoming pickups
+// and creates off-session Stripe payment authorizations. Safe to call from both
+// the HTTP handler and the in-process scheduler.
+func RunBillingAuthorization(ctx context.Context, db *pgxpool.Pool, stripeClient *stripepay.Client) (BillingResult, error) {
+	if db == nil {
+		return BillingResult{}, fmt.Errorf("database not configured")
 	}
-	if a.Stripe == nil || !a.Stripe.Enabled() {
-		resp.ServiceUnavailable(w, "payments not configured")
-		return
-	}
-	if !a.requireSecret(w, r) {
-		return
+	if stripeClient == nil || !stripeClient.Enabled() {
+		return BillingResult{}, fmt.Errorf("payments not configured")
 	}
 
-	ctx := r.Context()
 	now := time.Now().UTC()
 	until := now.Add(7 * 24 * time.Hour)
 
-	rows, err := a.DB.Query(ctx, `
+	rows, err := db.Query(ctx, `
 		select
 			o.id::text,
 			o.store_id::text,
@@ -67,8 +73,7 @@ func (a InternalBillingAPI) AuthorizePending(w http.ResponseWriter, r *http.Requ
 		limit 1000
 	`, until)
 	if err != nil {
-		resp.Internal(w, err)
-		return
+		return BillingResult{}, err
 	}
 	defer rows.Close()
 
@@ -76,16 +81,15 @@ func (a InternalBillingAPI) AuthorizePending(w http.ResponseWriter, r *http.Requ
 	for rows.Next() {
 		var c authorizeCandidate
 		if err := rows.Scan(&c.orderID, &c.storeID, &c.windowID, &c.subID, &c.total, &c.customer, &c.paymentMethod); err != nil {
-			resp.Internal(w, err)
-			return
+			return BillingResult{}, err
 		}
 		cands = append(cands, c)
 	}
 	if rows.Err() != nil {
-		resp.Internal(w, rows.Err())
-		return
+		return BillingResult{}, rows.Err()
 	}
 
+	a := InternalBillingAPI{DB: db, Stripe: stripeClient}
 	authorized := 0
 	failed := 0
 
@@ -101,11 +105,38 @@ func (a InternalBillingAPI) AuthorizePending(w http.ResponseWriter, r *http.Requ
 		}
 	}
 
+	return BillingResult{
+		Candidates: len(cands),
+		Authorized: authorized,
+		Failed:     failed,
+		Until:      until,
+	}, nil
+}
+
+func (a InternalBillingAPI) AuthorizePending(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if a.Stripe == nil || !a.Stripe.Enabled() {
+		resp.ServiceUnavailable(w, "payments not configured")
+		return
+	}
+	if !a.requireSecret(w, r) {
+		return
+	}
+
+	result, err := RunBillingAuthorization(r.Context(), a.DB, a.Stripe)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
 	resp.OK(w, map[string]any{
-		"candidates": len(cands),
-		"authorized": authorized,
-		"failed":     failed,
-		"until":      until.Format(time.RFC3339),
+		"candidates": result.Candidates,
+		"authorized": result.Authorized,
+		"failed":     result.Failed,
+		"until":      result.Until.Format(time.RFC3339),
 	})
 }
 

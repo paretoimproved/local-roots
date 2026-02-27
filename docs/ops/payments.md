@@ -38,13 +38,21 @@ Key endpoints:
 
 - `STRIPE_SECRET_KEY`
 - `STRIPE_WEBHOOK_SECRET` (required to enable `/v1/stripe/webhook`)
-- `INTERNAL_CRON_SECRET` (protects the internal authorizer endpoint)
+- `INTERNAL_CRON_SECRET` (protects internal HTTP endpoints for manual triggers — optional, billing runs in-process in prod)
 - `NO_SHOW_FEE_CENTS` (optional, default `500` — set to `0` per current no-fee policy)
 - `NO_SHOW_PLATFORM_SPLIT_BPS` (platform share of no-show fee, optional — unused when fee is `0`)
 - `BUYER_FEE_BPS` / `BUYER_FEE_FLAT_CENTS` (buyer service fee, optional)
 
 Frontend:
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (required for Stripe Elements + Connect.js)
+
+## Billing Authorization (In-Process Cron)
+
+Billing authorization runs as an in-process goroutine inside the Go API (`internal/scheduler`).
+In production (`ENV=prod`), the scheduler starts automatically and runs billing every 30 minutes.
+
+The HTTP endpoint (`POST /v1/internal/billing/authorize-pending`) remains available for manual
+triggers and debugging, gated behind `INTERNAL_CRON_SECRET`.
 
 ## Webhook
 

@@ -14,6 +14,8 @@ import (
 type Deps struct {
 	Config config.Config
 	DB     *pgxpool.Pool
+	Stripe *stripepay.Client
+	Email  *email.Client
 }
 
 func NewHandler(deps Deps) http.Handler {
@@ -27,12 +29,8 @@ func NewHandler(deps Deps) http.Handler {
 		_, _ = w.Write([]byte(`{"name":"local-roots","env":"` + deps.Config.Env + `"}`))
 	})
 
-	var stripeClient *stripepay.Client
-	if c, err := stripepay.New(deps.Config.StripeSecretKey); err == nil {
-		stripeClient = c
-	}
-
-	emailClient := email.New(deps.Config.ResendAPIKey, deps.Config.EmailFrom)
+	stripeClient := deps.Stripe
+	emailClient := deps.Email
 
 	public := v1.PublicAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("GET /v1/stores", public.ListStores)

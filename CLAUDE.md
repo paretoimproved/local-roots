@@ -59,7 +59,7 @@ Backend (`backend/`):
 - `STRIPE_WEBHOOK_SECRET`: required for `/v1/stripe/webhook`
 - `RESEND_API_KEY`: required for transactional email (magic links, reminders)
 - `EMAIL_FROM`: sender address for transactional email
-- `INTERNAL_CRON_SECRET`: protects internal cron endpoints (billing, reminders)
+- `INTERNAL_CRON_SECRET`: protects internal cron HTTP endpoints (billing, reminders) — optional, only needed for manual HTTP triggers; cron jobs run in-process in prod
 - `BUYER_FEE_BPS`: buyer service fee in basis points (optional, default `0`)
 - `BUYER_FEE_FLAT_CENTS`: buyer flat fee in cents (optional, default `0`)
 - `NO_SHOW_FEE_CENTS`: no-show penalty in cents (optional, default `500` — set to `0` in prod per no-fee policy)

@@ -1,6 +1,8 @@
 package v1
 
 import (
+	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -18,27 +20,28 @@ type InternalEmailAPI struct {
 	FrontendURL string
 }
 
-// SendPickupReminders sends reminder emails for orders with pickups 23-25 hours from now.
-// Gated behind INTERNAL_CRON_SECRET. Idempotent: only sends once per order (reminder_sent_at).
-func (a InternalEmailAPI) SendPickupReminders(w http.ResponseWriter, r *http.Request) {
-	if a.DB == nil {
-		resp.ServiceUnavailable(w, "database not configured")
-		return
+// ReminderResult holds the outcome of a pickup reminder run.
+type ReminderResult struct {
+	Candidates int
+	Sent       int
+}
+
+// RunPickupReminders sends reminder emails for orders with pickups 23-25 hours from now.
+// Idempotent: only sends once per order (reminder_sent_at). Safe to call from both
+// the HTTP handler and the in-process scheduler.
+func RunPickupReminders(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL string) (ReminderResult, error) {
+	if db == nil {
+		return ReminderResult{}, fmt.Errorf("database not configured")
 	}
-	if a.Email == nil || !a.Email.Enabled() {
-		resp.ServiceUnavailable(w, "email not configured")
-		return
-	}
-	if !a.requireSecret(w, r) {
-		return
+	if emailClient == nil || !emailClient.Enabled() {
+		return ReminderResult{}, fmt.Errorf("email not configured")
 	}
 
-	ctx := r.Context()
 	now := time.Now().UTC()
 	windowStart := now.Add(23 * time.Hour)
 	windowEnd := now.Add(25 * time.Hour)
 
-	rows, err := a.DB.Query(ctx, `
+	rows, err := db.Query(ctx, `
 		select
 			o.id::text,
 			o.buyer_email,
@@ -61,8 +64,7 @@ func (a InternalEmailAPI) SendPickupReminders(w http.ResponseWriter, r *http.Req
 		limit 500
 	`, windowStart, windowEnd)
 	if err != nil {
-		resp.Internal(w, err)
-		return
+		return ReminderResult{}, err
 	}
 	defer rows.Close()
 
@@ -86,18 +88,16 @@ func (a InternalEmailAPI) SendPickupReminders(w http.ResponseWriter, r *http.Req
 			&rem.orderID, &rem.buyerEmail, &rem.pickupCode, &rem.buyerToken,
 			&rem.boxTitle, &rem.startAt, &rem.locLabel, &rem.addr, &rem.city, &rem.timezone,
 		); err != nil {
-			resp.Internal(w, err)
-			return
+			return ReminderResult{}, err
 		}
 		reminders = append(reminders, rem)
 	}
 	if rows.Err() != nil {
-		resp.Internal(w, rows.Err())
-		return
+		return ReminderResult{}, rows.Err()
 	}
 
 	sent := 0
-	baseURL := strings.TrimRight(a.FrontendURL, "/")
+	baseURL := strings.TrimRight(frontendURL, "/")
 
 	for _, rem := range reminders {
 		loc, err := time.LoadLocation(rem.timezone)
@@ -109,19 +109,46 @@ func (a InternalEmailAPI) SendPickupReminders(w http.ResponseWriter, r *http.Req
 		orderURL := baseURL + "/orders/" + rem.orderID + "?t=" + rem.buyerToken
 
 		subj, body := email.PickupReminder(rem.boxTitle, pickupTime, location, rem.pickupCode, orderURL)
-		if err := a.Email.Send(rem.buyerEmail, subj, body); err != nil {
+		if err := emailClient.Send(rem.buyerEmail, subj, body); err != nil {
 			continue
 		}
 
-		_, _ = a.DB.Exec(ctx, `
+		_, _ = db.Exec(ctx, `
 			update orders set reminder_sent_at = now() where id = $1::uuid
 		`, rem.orderID)
 		sent++
 	}
 
+	return ReminderResult{
+		Candidates: len(reminders),
+		Sent:       sent,
+	}, nil
+}
+
+// SendPickupReminders is the HTTP handler for pickup reminders.
+// Gated behind INTERNAL_CRON_SECRET. Delegates to RunPickupReminders.
+func (a InternalEmailAPI) SendPickupReminders(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if a.Email == nil || !a.Email.Enabled() {
+		resp.ServiceUnavailable(w, "email not configured")
+		return
+	}
+	if !a.requireSecret(w, r) {
+		return
+	}
+
+	result, err := RunPickupReminders(r.Context(), a.DB, a.Email, a.FrontendURL)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
 	resp.OK(w, map[string]any{
-		"candidates": len(reminders),
-		"sent":       sent,
+		"candidates": result.Candidates,
+		"sent":       result.Sent,
 	})
 }
 

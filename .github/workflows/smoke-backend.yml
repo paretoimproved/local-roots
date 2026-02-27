@@ -9,9 +9,6 @@ on:
       - "backend/Dockerfile"
       - ".github/workflows/smoke-backend.yml"
   workflow_dispatch:
-  schedule:
-    # Hourly smoke to catch Railway regressions.
-    - cron: "23 * * * *"
 
 jobs:
   smoke:
