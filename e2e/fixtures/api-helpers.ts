@@ -240,6 +240,10 @@ export async function createPlanViaApi(
   nextSat.setDate(nextSat.getDate() + ((6 - nextSat.getDay() + 7) % 7 || 7));
   nextSat.setHours(10, 0, 0, 0);
 
+  // Format as local datetime string (YYYY-MM-DDTHH:MM) — backend expects first_start_at_local
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const firstStartLocal = `${nextSat.getFullYear()}-${pad(nextSat.getMonth() + 1)}-${pad(nextSat.getDate())}T${pad(nextSat.getHours())}:${pad(nextSat.getMinutes())}`;
+
   return apiRequest<SubscriptionPlan>(
     "POST",
     `/v1/seller/stores/${storeId}/subscription-plans`,
@@ -249,7 +253,7 @@ export async function createPlanViaApi(
       price_cents: 2500,
       subscriber_limit: 10,
       pickup_location_id: locationId,
-      first_start_at: nextSat.toISOString(),
+      first_start_at_local: firstStartLocal,
       ...overrides,
     },
     token,

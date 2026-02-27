@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getSupabase } from "@/lib/supabase";
 
 interface ImageUploadProps {
   currentUrl: string | null;
@@ -53,6 +53,7 @@ export function ImageUpload({
 
       setUploading(true);
       try {
+        const supabase = getSupabase();
         const ext = extFromType(file.type);
         const path = `${fullPath}.${ext}`;
 
@@ -73,7 +74,11 @@ export function ImageUpload({
         onUploaded(publicUrl);
       } catch (err) {
         console.error("Upload error:", err);
-        setError("Upload failed. Please try again.");
+        setError(
+          err instanceof Error && err.message.includes("not configured")
+            ? err.message
+            : "Upload failed. Please try again.",
+        );
       } finally {
         setUploading(false);
       }
@@ -85,13 +90,18 @@ export function ImageUpload({
     setError(null);
     setUploading(true);
     try {
+      const supabase = getSupabase();
       // Try removing all possible extensions
       const paths = ["jpg", "png", "webp"].map((ext) => `${fullPath}.${ext}`);
       await supabase.storage.from("images").remove(paths);
       onRemoved();
     } catch (err) {
       console.error("Remove error:", err);
-      setError("Failed to remove image.");
+      setError(
+        err instanceof Error && err.message.includes("not configured")
+          ? err.message
+          : "Failed to remove image.",
+      );
     } finally {
       setUploading(false);
     }

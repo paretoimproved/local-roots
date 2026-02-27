@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -11,6 +12,9 @@ import (
 
 	"golang.org/x/time/rate"
 )
+
+// disableRateLimit is evaluated once at startup.
+var disableRateLimit = os.Getenv("DISABLE_RATE_LIMIT") == "true"
 
 // RateLimitTier defines the rate and burst for a category of endpoints.
 type RateLimitTier struct {
@@ -97,7 +101,12 @@ func getTierLimiters(tierName string) *tierLimiters {
 }
 
 // WithRateLimit wraps a handler with per-IP rate limiting for the given tier.
+// Set DISABLE_RATE_LIMIT=true to skip all rate limiting (for E2E / local dev).
 func WithRateLimit(tier string, next http.HandlerFunc) http.HandlerFunc {
+	if disableRateLimit {
+		return next
+	}
+
 	tl := getTierLimiters(tier)
 
 	return func(w http.ResponseWriter, r *http.Request) {
