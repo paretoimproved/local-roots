@@ -1,0 +1,64 @@
+<teammate-message teammate_id="team-lead">
+You are the Quick Backend Fixes agent. Implement items #36, #37, #38 from the P3 audit.
+
+Project root: "/Users/brandonqueener/Cursor Projects/Local-Roots"
+
+## YOUR EXCLUSIVE FILES
+- `backend/internal/api/v1/validate.go` (new)
+- `backend/internal/api/v1/orders.go` (remove validUUID/extractBuyerToken)
+- `backend/cmd/api/main.go` (HTTP timeouts only — do NOT change the JWT_SECRET check)
+- `backend/internal/api/v1/pickup_execute.go` (log capture error only)
+
+DO NOT TOUCH any other files.
+
+## Item #36 — Extract validUUID / extractBuyerToken to validate.go
+
+### 1. Read `backend/internal/api/v1/orders.go`
+Find `validUUID` (line 24) and `extractBuyerToken` (line 28). These are package-wide utilities.
+
+### 2. Create `backend/internal/api/v1/validate.go`
+Move both functions there. Same package (`package v1`), same signatures, same logic.
+
+### 3. Delete them from `orders.go`
+Remove the function definitions. Make sure any imports they need are in validate.go.
+
+### 4. Check for other callers
+Search the `backend/internal/api/v1/` package for all calls to `validUUID` and `extractBuyerToken` — since they stay in the same package, no import changes needed.
+
+## Item #37 — Add HTTP Server Timeouts
+
+### 1. Read `backend/cmd/api/main.go`
+Find where `http.Server` or `http.ListenAndServe` is called (around lines 42-46).
+
+### 2. Add timeouts
+If it's using `http.ListenAndServe`, switch to creating an `http.Server` struct with:
+```go
+srv := &http.Server{
+    Addr:         cfg.Addr,
+    Handler:      handler,
+    ReadTimeout:  30 * time.Second,
+    WriteTimeout: 60 * time.Second,
+    IdleTimeout:  120 * time.Second,
+}
+log.Fatal(srv.ListenAndServe())
+```
+If it's already using `http.Server`, just add the timeout fields.
+
+## Item #38 — Log Stripe CaptureAuthorization Errors
+
+### 1. Read `backend/internal/api/v1/pickup_execute.go`
+Find where `CaptureAuthorization` is called (the return value is currently discarded with `_`). Change to log the error:
+```go
+if err := stripe.CaptureAuthorization(ctx, trimPI, "capture-"+orderID); err != nil {
+    log.Printf("WARN: capture authorization failed for order %s: %v (webhook will reconcile)", orderID, err)
+}
+```
+Add `"log"` to imports if needed.
+
+Note: The capture error in `pickup_execute.go` is the ONLY place to fix — both `seller_orders.go` and `pickup_confirm.go` now call `ExecutePickupConfirm` so there's only one call site.
+
+## Verification
+After changes: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots/backend" && go build ./... && go test ./...`
+
+When done, mark task #1 as completed using TaskUpdate.
+</teammate-message>
