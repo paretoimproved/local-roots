@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "b0bbf88b6117",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/internal/httpx/handler.go",
+    "frontend/src/app/seller/stores/[storeId]/analytics/page.tsx",
+    "frontend/src/lib/seller-api.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b0/bbf88b6117/0/metadata.json",
+      "transcript": "/b0/bbf88b6117/0/full.jsonl",
+      "context": "",
+      "content_hash": "/b0/bbf88b6117/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 57343,
+    "cache_read_tokens": 1707617,
+    "output_tokens": 10806,
+    "api_call_count": 25
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "b0bbf88b6117",
+  "session_id": "b2250eec-f49c-4aa6-93a5-e4285ef25f9a",
+  "strategy": "auto-commit",
+  "created_at": "2026-02-28T17:51:15.744944Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/internal/httpx/handler.go",
+    "frontend/src/app/seller/stores/[storeId]/analytics/page.tsx",
+    "frontend/src/lib/seller-api.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a05e1eb9d266",
+  "checkpoint_transcript_start": 23,
+  "transcript_lines_at_start": 23,
+  "token_usage": {
+    "input_tokens": 31,
+    "cache_creation_tokens": 57343,
+    "cache_read_tokens": 1707617,
+    "output_tokens": 10806,
+    "api_call_count": 25,
+    "subagent_tokens": {
+      "input_tokens": 43,
+      "cache_creation_tokens": 32096,
+      "cache_read_tokens": 230462,
+      "output_tokens": 4008,
+      "api_call_count": 8
+    }
+  }
+}
