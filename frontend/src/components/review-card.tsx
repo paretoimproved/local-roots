@@ -9,6 +9,7 @@ export function StarRating({ rating }: { rating: number }) {
       {[1, 2, 3, 4, 5].map((i) => (
         <svg
           key={i}
+          aria-hidden="true"
           className={`h-4 w-4 ${i <= rating ? "text-amber-400" : "text-gray-200"}`}
           fill="currentColor"
           viewBox="0 0 20 20"

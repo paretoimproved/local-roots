@@ -58,6 +58,10 @@ h3 {
   animation: lr-fade-up 650ms cubic-bezier(0.2, 0.9, 0.2, 1) both;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .lr-animate { animation: none; }
+}
+
 .lr-card {
   background: var(--lr-card);
   border: 1px solid var(--lr-border);

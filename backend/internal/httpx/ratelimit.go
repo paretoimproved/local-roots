@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"net/http"
@@ -42,12 +43,12 @@ type tierLimiters struct {
 	tier     RateLimitTier
 }
 
-func newTierLimiters(tier RateLimitTier) *tierLimiters {
+func newTierLimiters(ctx context.Context, tier RateLimitTier) *tierLimiters {
 	tl := &tierLimiters{
 		limiters: make(map[string]*ipLimiter),
 		tier:     tier,
 	}
-	go tl.cleanup()
+	go tl.cleanup(ctx)
 	return tl
 }
 
@@ -66,18 +67,23 @@ func (tl *tierLimiters) get(ip string) *rate.Limiter {
 	return entry.limiter
 }
 
-func (tl *tierLimiters) cleanup() {
+func (tl *tierLimiters) cleanup(ctx context.Context) {
 	ticker := time.NewTicker(5 * time.Minute)
 	defer ticker.Stop()
-	for range ticker.C {
-		tl.mu.Lock()
-		cutoff := time.Now().Add(-5 * time.Minute)
-		for ip, entry := range tl.limiters {
-			if entry.lastSeen.Before(cutoff) {
-				delete(tl.limiters, ip)
+	for {
+		select {
+		case <-ticker.C:
+			tl.mu.Lock()
+			cutoff := time.Now().Add(-5 * time.Minute)
+			for ip, entry := range tl.limiters {
+				if entry.lastSeen.Before(cutoff) {
+					delete(tl.limiters, ip)
+				}
 			}
+			tl.mu.Unlock()
+		case <-ctx.Done():
+			return
 		}
-		tl.mu.Unlock()
 	}
 }
 
@@ -96,7 +102,7 @@ func getTierLimiters(tierName string) *tierLimiters {
 		if !exists {
 			tier = tiers["default"]
 		}
-		tl = newTierLimiters(tier)
+		tl = newTierLimiters(context.Background(), tier)
 		tierInstances[tierName] = tl
 	}
 	return tl

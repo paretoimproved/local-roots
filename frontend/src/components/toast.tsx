@@ -26,6 +26,8 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
+let nextId = 0;
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [timerId, setTimerId] = useState<number | null>(null);
@@ -39,7 +41,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const showToast = useCallback(
     (t: ToastInput) => {
       if (timerId) window.clearTimeout(timerId);
-      const id = Date.now();
+      const id = ++nextId;
       const next: ToastState = { id, ...t };
       setToast(next);
       const ms = typeof t.durationMs === "number" ? t.durationMs : 4000;

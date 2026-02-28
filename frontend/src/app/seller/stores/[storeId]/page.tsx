@@ -6,11 +6,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   sellerApi,
   type SellerOrder,
-  type SellerOffering,
   type SellerPayoutSummary,
-  type SellerPickupLocation,
   type SellerPickupWindow,
-  type SellerProduct,
   type SellerSubscriptionPlan,
 } from "@/lib/seller-api";
 import { session } from "@/lib/session";
@@ -30,10 +27,7 @@ export default function SellerStorePage() {
   const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [, setLocations] = useState<SellerPickupLocation[] | null>(null);
   const [windows, setWindows] = useState<SellerPickupWindow[] | null>(null);
-  const [, setProducts] = useState<SellerProduct[] | null>(null);
-  const [, setOfferings] = useState<SellerOffering[] | null>(null);
   const [orders, setOrders] = useState<SellerOrder[] | null>(null);
   const [payoutSummary, setPayoutSummary] = useState<SellerPayoutSummary | null>(
     null,
@@ -132,15 +126,13 @@ export default function SellerStorePage() {
   }, [supportOpen]);
 
   async function refreshAll(t: string) {
-    const [ls, ws, ps, sps] = await Promise.all([
+    const [, ws, , sps] = await Promise.all([
       sellerApi.listPickupLocations(t, storeId),
       sellerApi.listPickupWindows(t, storeId),
       sellerApi.listProducts(t, storeId),
       sellerApi.listSubscriptionPlans(t, storeId),
     ]);
-    setLocations(ls);
     setWindows(ws);
-    setProducts(ps);
     setPlans(sps);
     setSelectedWindowId((prev) => {
       if (prev && ws.some((w) => w.id === prev)) return prev;
@@ -173,7 +165,6 @@ export default function SellerStorePage() {
     setError(null);
     sellerApi
       .listOfferings(token, storeId, selectedWindowId)
-      .then(setOfferings)
       .catch((e: unknown) => setError(friendlyErrorMessage(e)));
   }, [token, storeId, selectedWindowId]);
 
@@ -287,12 +278,11 @@ export default function SellerStorePage() {
     try {
       await sellerApi.updateOrderStatus(token, storeId, orderId, status, opts);
       // Refresh both orders and offerings since inventory may have changed.
-      const [os, ofs] = await Promise.all([
+      const [os] = await Promise.all([
         sellerApi.listOrders(token, storeId, selectedWindowId),
         sellerApi.listOfferings(token, storeId, selectedWindowId),
       ]);
       setOrders(os);
-      setOfferings(ofs);
       const labels: Record<string, string> = {
         ready: "Order marked ready.",
         canceled: "Order canceled.",
@@ -318,12 +308,11 @@ export default function SellerStorePage() {
     try {
       await sellerApi.confirmPickup(token, storeId, orderId, code);
       // Refresh both orders and offerings since inventory may have changed.
-      const [os, ofs] = await Promise.all([
+      const [os] = await Promise.all([
         sellerApi.listOrders(token, storeId, selectedWindowId),
         sellerApi.listOfferings(token, storeId, selectedWindowId),
       ]);
       setOrders(os);
-      setOfferings(ofs);
       setPickupCodeByOrderId((prev) => {
         const next = { ...prev };
         delete next[orderId];

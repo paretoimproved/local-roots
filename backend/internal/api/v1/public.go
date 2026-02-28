@@ -519,20 +519,10 @@ func (a PublicAPI) ListStoreReviews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var avgRating float64
-	var reviewCount int
-	err := a.DB.QueryRow(r.Context(), `
-		select coalesce(avg(rating)::numeric(2,1), 0), count(*)
-		from reviews
-		where store_id = $1::uuid
-	`, storeID).Scan(&avgRating, &reviewCount)
-	if err != nil {
-		resp.Internal(w, err)
-		return
-	}
-
 	rows, err := a.DB.Query(r.Context(), `
-		select id::text, rating, body, created_at
+		select id::text, rating, body, created_at,
+			count(*) over() as review_count,
+			coalesce(avg(rating) over()::numeric(2,1), 0) as avg_rating
 		from reviews
 		where store_id = $1::uuid
 		order by created_at desc
@@ -544,10 +534,12 @@ func (a PublicAPI) ListStoreReviews(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rows.Close()
 
+	var avgRating float64
+	var reviewCount int
 	reviews := make([]PublicReview, 0)
 	for rows.Next() {
 		var rev PublicReview
-		if err := rows.Scan(&rev.ID, &rev.Rating, &rev.Body, &rev.CreatedAt); err != nil {
+		if err := rows.Scan(&rev.ID, &rev.Rating, &rev.Body, &rev.CreatedAt, &reviewCount, &avgRating); err != nil {
 			resp.Internal(w, err)
 			return
 		}

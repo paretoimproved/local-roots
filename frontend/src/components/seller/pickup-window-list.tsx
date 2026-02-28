@@ -29,6 +29,7 @@ export function PickupWindowList({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <select
           className="lr-field px-3 py-2 text-sm"
+          aria-label="Select pickup window"
           value={selectedWindowId}
           onChange={(e) => onWindowChange(e.target.value)}
         >

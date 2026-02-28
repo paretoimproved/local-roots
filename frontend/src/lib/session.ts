@@ -37,20 +37,4 @@ export const session = {
   },
 };
 
-/**
- * @deprecated Use `session` instead. This shim exists only to migrate users
- * who still have tokens stored under the old `localroots_buyer_token` key.
- */
-export const buyerSession = {
-  getToken(): string | null {
-    // Unified key first, then fall back to legacy key for migration.
-    return session.getToken() ?? (typeof window !== "undefined" ? window.localStorage.getItem(LEGACY_BUYER_TOKEN_KEY) : null);
-  },
-  setToken(token: string) {
-    session.setToken(token);
-  },
-  clearToken() {
-    session.clearToken();
-  },
-};
 
