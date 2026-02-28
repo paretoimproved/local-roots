@@ -1,9 +1,32 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
 import type { PickupWindow, SubscriptionPlan, Offering, ReviewsResponse } from "@/lib/api";
 import { formatMoney } from "@/lib/ui";
 import { ReviewSummary, ReviewCard } from "@/components/review-card";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ storeId: string }>;
+}): Promise<Metadata> {
+  const { storeId } = await params;
+  try {
+    const store = await api.getStore(storeId);
+    const title = `${store.name} — Local Roots`;
+    const description = store.description
+      ? `${store.description.slice(0, 150)} — subscribe to farm boxes and pick up fresh food.`
+      : `Subscribe to farm boxes from ${store.name} and pick up fresh, local food.`;
+    return {
+      title,
+      description,
+      openGraph: { title, description, type: "website" },
+    };
+  } catch {
+    return { title: "Farm — Local Roots" };
+  }
+}
 
 /* ── helpers ─────────────────────────────────────────────────────── */
 

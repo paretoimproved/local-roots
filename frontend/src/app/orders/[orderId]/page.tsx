@@ -21,7 +21,6 @@ export default function OrderPage() {
 
   const tokenFromQuery = search.get("t");
   const [token, setToken] = useState<string>("");
-  const [tokenInput, setTokenInput] = useState("");
   const [data, setData] = useState<GetOrderResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -64,14 +63,6 @@ export default function OrderPage() {
     const status = data?.order.status;
     return status === "picked_up" && !reviewDone;
   }, [data, reviewDone]);
-
-  async function submitToken() {
-    const t = tokenInput.trim();
-    if (!t) return;
-    orderToken.set(orderId, t);
-    setToken(t);
-    setTokenInput("");
-  }
 
   async function submitReview() {
     if (!data) return;
@@ -120,30 +111,20 @@ export default function OrderPage() {
       ) : null}
 
       {!token ? (
-        <section className="lr-card lr-card-strong p-6">
+        <section className="lr-card lr-card-strong p-6 text-center">
           <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
-            Access token
+            Sign in to view your order
           </h2>
-          <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-            Paste the token from your confirmation (or add `?t=...` to the URL).
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Use the link from your confirmation email, or sign in to access your
+            orders.
           </p>
-          <div className="mt-4 grid gap-2 sm:flex">
-            <label className="sr-only" htmlFor="order-token">Access token</label>
-            <input
-              id="order-token"
-              className="lr-field w-full px-3 py-2 text-sm"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="token"
-            />
-            <button
-              className="lr-btn lr-btn-primary px-4 py-2 text-sm font-medium"
-              type="button"
-              onClick={submitToken}
-            >
-              Load
-            </button>
-          </div>
+          <a
+            className="lr-btn lr-btn-primary mt-4 inline-flex items-center justify-center px-6 py-2 text-sm font-medium"
+            href="/buyer/login"
+          >
+            Sign in
+          </a>
         </section>
       ) : null}
 

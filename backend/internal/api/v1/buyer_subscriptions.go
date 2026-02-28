@@ -283,7 +283,8 @@ func (a BuyerSubscriptionsAPI) ConfirmPaymentMethod(w http.ResponseWriter, r *ht
 }
 
 type UpdateSubscriptionStatusRequest struct {
-	Status string `json:"status"`
+	Status       string `json:"status"`
+	CancelReason string `json:"cancel_reason"`
 }
 
 func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Request) {
@@ -312,10 +313,12 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
+	cancelReason := strings.TrimSpace(in.CancelReason)
+
 	// MVP behavior:
 	// - update subscription status
 	// - if canceling, also cancel the next upcoming order (if cutoff hasn't passed yet)
-	note, err := a.updateStatusAndMaybeCancelUpcomingOrder(r.Context(), subID, bi, status)
+	note, err := a.updateStatusAndMaybeCancelUpcomingOrder(r.Context(), subID, bi, status, cancelReason)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			resp.Unauthorized(w, "subscription not found")
@@ -354,7 +357,7 @@ func (a BuyerSubscriptionsAPI) UpdateStatus(w http.ResponseWriter, r *http.Reque
 	resp.OK(w, out)
 }
 
-func (a BuyerSubscriptionsAPI) updateStatusAndMaybeCancelUpcomingOrder(ctx context.Context, subID string, bi buyerIdentity, status string) (note string, err error) {
+func (a BuyerSubscriptionsAPI) updateStatusAndMaybeCancelUpcomingOrder(ctx context.Context, subID string, bi buyerIdentity, status string, cancelReason string) (note string, err error) {
 	tx, err := a.DB.Begin(ctx)
 	if err != nil {
 		return "", err
@@ -379,13 +382,17 @@ func (a BuyerSubscriptionsAPI) updateStatusAndMaybeCancelUpcomingOrder(ctx conte
 
 	if _, err := tx.Exec(ctx, `
 		update subscriptions
-		set status = $4, updated_at = now()
+		set status = $4,
+			canceled_at  = case when $4 = 'canceled' then now() else canceled_at end,
+			cancel_reason = case when $4 = 'canceled' then nullif($5, '') else cancel_reason end,
+			paused_at    = case when $4 = 'paused'   then now() else paused_at end,
+			updated_at   = now()
 		where id = $1::uuid
 			and (
 				($2::text is not null and buyer_token = $2)
 				or ($3::uuid is not null and buyer_user_id = $3::uuid)
 			)
-	`, subID, bi.buyerToken, bi.userID, status); err != nil {
+	`, subID, bi.buyerToken, bi.userID, status, cancelReason); err != nil {
 		return "", err
 	}
 

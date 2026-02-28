@@ -38,6 +38,12 @@ export default function RootLayout({
         className={`${lrSans.variable} ${lrSerif.variable} ${geistMono.variable} lr-body antialiased`}
       >
         <Providers>
+          <a
+            href="#main-content"
+            className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-[var(--lr-ink)] focus:rounded-lg focus:shadow-lg focus:outline-none"
+          >
+            Skip to content
+          </a>
           <div className="mx-auto max-w-5xl px-6 py-10">
             <header className="flex flex-wrap items-end justify-between gap-4">
               <Link href="/" className="group grid gap-1">
@@ -51,7 +57,7 @@ export default function RootLayout({
                 </div>
               </Link>
 
-              <nav className="flex flex-wrap items-center gap-2 text-sm">
+              <nav aria-label="Main navigation" className="flex flex-wrap items-center gap-2 text-sm">
                 <Link className="lr-btn px-4 py-2 text-[color:var(--lr-ink)]" href="/stores">
                   Browse
                 </Link>
@@ -60,7 +66,7 @@ export default function RootLayout({
               </nav>
             </header>
 
-            <main className="mt-10">{children}</main>
+            <main id="main-content" className="mt-10">{children}</main>
           </div>
 
           <div className="mt-16">

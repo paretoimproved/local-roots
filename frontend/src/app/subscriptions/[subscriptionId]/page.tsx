@@ -111,7 +111,7 @@ function CancelFlow({
   open: boolean;
   submitting: boolean;
   onPause: () => void;
-  onCancel: () => void;
+  onCancel: (reason: string) => void;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -210,8 +210,7 @@ function CancelFlow({
               className="w-full rounded-full bg-rose-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rose-700 disabled:opacity-50"
               disabled={submitting}
               onClick={() => {
-                console.log("[CancelFlow] reason:", reason);
-                onCancel();
+                onCancel(reason);
               }}
             >
               {submitting ? "Canceling\u2026" : "Cancel subscription"}
@@ -240,7 +239,6 @@ export default function SubscriptionPage() {
   useEffect(() => { document.title = "Subscription — LocalRoots"; }, []);
 
   const [token, setToken] = useState<string>("");
-  const [tokenInput, setTokenInput] = useState("");
   const [sub, setSub] = useState<BuyerSubscription | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -291,20 +289,16 @@ export default function SubscriptionPage() {
     }).format(start);
   }, [sub]);
 
-  async function submitToken() {
-    const t = tokenInput.trim();
-    if (!t) return;
-    subscriptionToken.set(subscriptionId, t);
-    setToken(t);
-    setTokenInput("");
-  }
-
-  async function setStatus(status: "active" | "paused" | "canceled") {
+  async function setStatus(status: "active" | "paused" | "canceled", cancelReason?: string) {
     if (!token) return;
     setSubmitting(true);
     setError(null);
     try {
-      await buyerApi.updateSubscriptionStatus(subscriptionId, { token, status });
+      await buyerApi.updateSubscriptionStatus(subscriptionId, {
+        token,
+        status,
+        ...(cancelReason ? { cancel_reason: cancelReason } : {}),
+      });
       const labels: Record<string, string> = {
         paused: "Subscription paused",
         active: "Subscription resumed",
@@ -382,30 +376,20 @@ export default function SubscriptionPage() {
       ) : null}
 
       {!token ? (
-        <section className="lr-card lr-card-strong p-6">
+        <section className="lr-card lr-card-strong p-6 text-center">
           <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
-            Access token
+            Sign in to view your subscription
           </h2>
-          <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-            Paste the token from your confirmation (or add `?t=...` to the URL).
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Use the link from your confirmation email, or sign in to access your
+            subscriptions.
           </p>
-          <div className="mt-4 grid gap-2 sm:flex">
-            <label className="sr-only" htmlFor="sub-token">Access token</label>
-            <input
-              id="sub-token"
-              className="lr-field w-full px-3 py-2 text-sm"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="token"
-            />
-            <button
-              className="lr-btn lr-btn-primary px-4 py-2 text-sm font-medium"
-              type="button"
-              onClick={submitToken}
-            >
-              Load
-            </button>
-          </div>
+          <a
+            className="lr-btn lr-btn-primary mt-4 inline-flex items-center justify-center px-6 py-2 text-sm font-medium"
+            href="/buyer/login"
+          >
+            Sign in
+          </a>
         </section>
       ) : null}
 
@@ -529,9 +513,9 @@ export default function SubscriptionPage() {
           setShowCancelFlow(false);
           void setStatus("paused");
         }}
-        onCancel={() => {
+        onCancel={(reason) => {
           setShowCancelFlow(false);
-          void setStatus("canceled");
+          void setStatus("canceled", reason);
         }}
         onClose={() => setShowCancelFlow(false)}
       />

@@ -10,12 +10,21 @@ import { useToast } from "@/components/toast";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
+export type PickupInfo = {
+  date: string;
+  time: string;
+  locationName: string | null;
+  locationAddress: string;
+};
+
 export function CheckoutForm({
   pickupWindowId,
   offerings,
+  pickupInfo,
 }: {
   pickupWindowId: string;
   offerings: Offering[];
+  pickupInfo?: PickupInfo;
 }) {
   const { showToast } = useToast();
   const [qty, setQty] = useState<Record<string, number>>(() =>
@@ -185,6 +194,28 @@ export function CheckoutForm({
               Card authorized — captured on pickup
             </span>
           </div>
+
+          {pickupInfo ? (
+            <div className="mt-4 rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
+              <div className="text-sm font-medium text-[color:var(--lr-ink)]">
+                Pickup details
+              </div>
+              <div className="mt-2 grid gap-1 text-sm text-[color:var(--lr-muted)]">
+                <div>
+                  {pickupInfo.date} at {pickupInfo.time}
+                </div>
+                <div>
+                  {pickupInfo.locationName ? (
+                    <span className="font-medium text-[color:var(--lr-ink)]">
+                      {pickupInfo.locationName}
+                    </span>
+                  ) : null}
+                  {pickupInfo.locationName ? " · " : ""}
+                  {pickupInfo.locationAddress}
+                </div>
+              </div>
+            </div>
+          ) : null}
         </section>
 
         <PickupCodeCard

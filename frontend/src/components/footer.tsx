@@ -1,12 +1,10 @@
 import Link from "next/link";
 
 const links = [
-  { label: "About", href: "#" },
-  { label: "How it Works", href: "#" },
-  { label: "FAQ", href: "#" },
-  { label: "Terms", href: "#" },
-  { label: "Privacy", href: "#" },
-  { label: "Contact", href: "#" },
+  { label: "Browse Farms", href: "/stores" },
+  { label: "Policies", href: "/policies" },
+  { label: "Start Selling", href: "/seller/register" },
+  { label: "Contact", href: "mailto:hello@localroots.com" },
 ] as const;
 
 export function Footer() {

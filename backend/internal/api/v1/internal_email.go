@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"crypto/subtle"
 	"fmt"
 	"net/http"
 	"strings"
@@ -164,7 +165,7 @@ func (a InternalEmailAPI) requireSecret(w http.ResponseWriter, r *http.Request) 
 		resp.Unauthorized(w, "missing token")
 		return false
 	}
-	if strings.TrimSpace(parts[1]) != secret {
+	if subtle.ConstantTimeCompare([]byte(strings.TrimSpace(parts[1])), []byte(secret)) != 1 {
 		resp.Unauthorized(w, "invalid token")
 		return false
 	}

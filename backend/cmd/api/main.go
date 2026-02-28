@@ -22,8 +22,8 @@ import (
 func main() {
 	cfg := config.FromEnv()
 
-	if cfg.Env == "prod" && cfg.JWTSecret == "" {
-		log.Fatal("JWT_SECRET must be set in production")
+	if cfg.Env == "prod" && len(cfg.JWTSecret) < 32 {
+		log.Fatal("JWT_SECRET must be at least 32 characters in production")
 	}
 
 	var pool *pgxpool.Pool

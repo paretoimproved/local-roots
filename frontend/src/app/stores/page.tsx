@@ -46,6 +46,8 @@ function StoresContent() {
   const [locationLabel, setLocationLabel] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifySubmitted, setNotifySubmitted] = useState(false);
 
   // Autocomplete state
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
@@ -375,12 +377,40 @@ pnpm migrate:up`}</code>
       ) : null}
 
       {!loading && stores && stores.length === 0 ? (
-        <div className="lr-card lr-card-strong p-6">
-          <p className="text-sm text-[color:var(--lr-muted)]">
+        <div className="lr-card lr-card-strong p-6 text-center">
+          <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
+            No farms in your area yet
+          </h2>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
             {hasLocation
-              ? "No stores found nearby. Try a different location or expand your radius."
-              : "No stores yet."}
+              ? "Try a different location or expand your radius, or leave your email and we\u2019ll let you know when a farm joins near you."
+              : "Leave your email and we\u2019ll let you know when a farm joins near you."}
           </p>
+          {notifySubmitted ? (
+            <p className="mt-4 text-sm font-medium text-[color:var(--lr-green)]">
+              &#10003; Thanks! We&apos;ll notify you when farms are available nearby.
+            </p>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (notifyEmail.trim()) setNotifySubmitted(true);
+              }}
+              className="mx-auto mt-4 flex max-w-sm gap-2"
+            >
+              <input
+                type="email"
+                required
+                placeholder="you@example.com"
+                value={notifyEmail}
+                onChange={(e) => setNotifyEmail(e.target.value)}
+                className="lr-field min-w-0 flex-1"
+              />
+              <button type="submit" className="lr-btn lr-btn-primary whitespace-nowrap px-4 py-2 text-sm font-semibold">
+                Notify me
+              </button>
+            </form>
+          )}
         </div>
       ) : null}
 

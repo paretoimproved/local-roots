@@ -185,14 +185,17 @@ export const buyerApi = {
 
   updateSubscriptionStatus: (
     subscriptionId: string,
-    input: { token: string; status: "active" | "paused" | "canceled" },
+    input: { token: string; status: "active" | "paused" | "canceled"; cancel_reason?: string },
   ) =>
     requestJSON<{ ok: boolean; status: string; note?: string }>(
       `/v1/subscriptions/${subscriptionId}/status`,
       {
         method: "POST",
         token: input.token,
-        body: JSON.stringify({ status: input.status }),
+        body: JSON.stringify({
+          status: input.status,
+          ...(input.cancel_reason ? { cancel_reason: input.cancel_reason } : {}),
+        }),
       },
     ),
 

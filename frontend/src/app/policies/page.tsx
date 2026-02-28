@@ -1,6 +1,11 @@
-"use client";
-
+import type { Metadata } from "next";
 import Link from "next/link";
+
+export const metadata: Metadata = {
+  title: "Policies — Local Roots",
+  description:
+    "How payments, pickups, subscriptions, and refunds work on Local Roots.",
+};
 
 export default function PoliciesPage() {
   return (

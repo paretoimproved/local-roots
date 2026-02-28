@@ -1,6 +1,19 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { api, type Store } from "@/lib/api";
+
+export const metadata: Metadata = {
+  title: "Local Roots — Subscribe to Your Farmer",
+  description:
+    "Fresh, local food picked up directly from farms near you. Subscribe to weekly boxes and support your local farmers — no shipping, no middlemen.",
+  openGraph: {
+    title: "Local Roots — Subscribe to Your Farmer",
+    description:
+      "Fresh, local food picked up directly from farms near you. Subscribe to weekly boxes and support your local farmers.",
+    type: "website",
+  },
+};
 
 async function getFeaturedStores(): Promise<Store[]> {
   try {
@@ -32,18 +45,18 @@ export default async function Home() {
 
         <div className="relative z-10 px-8 py-20 sm:px-12 sm:py-28">
           <h1 className="max-w-xl text-4xl font-semibold tracking-tight text-white sm:text-5xl font-[family-name:var(--font-lr-serif)]">
-            Fresh food from local farmers.
+            Subscribe to your farmer.
           </h1>
           <p className="mt-5 max-w-lg text-base leading-relaxed text-white/80">
-            Subscribe to a weekly farm box, then pick it up at a time that works
-            for you. Real food from people nearby — no shipping, no middlemen.
+            Pick up a fresh farm box every week from growers near you — no
+            shipping, no middlemen, just real food from people you can trust.
           </p>
           <div className="mt-8">
             <Link
               className="lr-btn lr-btn-primary inline-flex items-center justify-center px-6 py-3 text-sm font-medium"
               href="/stores"
             >
-              Find a farm near you
+              Browse local farms
             </Link>
           </div>
         </div>

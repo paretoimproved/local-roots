@@ -140,6 +140,7 @@ func ExecutePickupConfirm(
 		set status = 'picked_up',
 			payment_status = 'paid',
 			captured_cents = total_cents,
+			picked_up_at = now(),
 			updated_at = now()
 		where id = $1::uuid
 	`, orderID); err != nil {

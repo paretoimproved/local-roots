@@ -1,10 +1,30 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
 import type { PickupWindowDetail, Offering } from "@/lib/api";
-import { CheckoutForm } from "@/components/checkout-form";
+import { CheckoutForm, type PickupInfo } from "@/components/checkout-form";
 import { RefreshButton } from "@/components/refresh-button";
 import { formatMoney } from "@/lib/ui";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ pickupWindowId: string }>;
+}): Promise<Metadata> {
+  const { pickupWindowId } = await params;
+  try {
+    const pw = await api.getPickupWindow(pickupWindowId);
+    const title = `${pw.store_name} Pickup — Local Roots`;
+    return {
+      title,
+      description: `Shop fresh items from ${pw.store_name} and pick them up locally.`,
+      openGraph: { title, type: "website" },
+    };
+  } catch {
+    return { title: "Pickup — Local Roots" };
+  }
+}
 
 function formatPickupDate(iso: string, tz: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -63,6 +83,15 @@ export default async function PickupWindowOfferingsPage({
   const breadcrumbDate = windowDetail
     ? `${shortDate(windowDetail.start_at, tz)} pickup`
     : "Pickup";
+
+  const pickupInfo: PickupInfo | undefined = windowDetail
+    ? {
+        date: formatPickupDate(windowDetail.start_at, tz),
+        time: formatPickupTime(windowDetail.start_at, tz),
+        locationName: windowDetail.pickup_location.label,
+        locationAddress: `${windowDetail.pickup_location.address1}, ${windowDetail.pickup_location.city}, ${windowDetail.pickup_location.region}`,
+      }
+    : undefined;
 
   return (
     <div className="grid gap-6">
@@ -149,7 +178,7 @@ export default async function PickupWindowOfferingsPage({
           </ul>
 
           <div className="md:sticky md:top-6">
-            <CheckoutForm pickupWindowId={pickupWindowId} offerings={offerings} />
+            <CheckoutForm pickupWindowId={pickupWindowId} offerings={offerings} pickupInfo={pickupInfo} />
           </div>
         </div>
       ) : null}

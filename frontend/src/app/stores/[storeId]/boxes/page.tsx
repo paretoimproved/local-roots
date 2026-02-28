@@ -1,9 +1,29 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
 import type { ReviewsResponse } from "@/lib/api";
 import { formatMoney } from "@/lib/ui";
 import { ReviewSummary, ReviewCard } from "@/components/review-card";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ storeId: string }>;
+}): Promise<Metadata> {
+  const { storeId } = await params;
+  try {
+    const store = await api.getStore(storeId);
+    const title = `${store.name} Boxes — Local Roots`;
+    return {
+      title,
+      description: `Browse subscription boxes from ${store.name}. Fresh, local food picked up on your schedule.`,
+      openGraph: { title, type: "website" },
+    };
+  } catch {
+    return { title: "Farm Boxes — Local Roots" };
+  }
+}
 
 function formatNext(plan: Awaited<ReturnType<typeof api.listStoreSubscriptionPlans>>[number]) {
   const tz = plan.pickup_location.timezone || "UTC";

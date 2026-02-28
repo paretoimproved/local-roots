@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
@@ -6,6 +7,28 @@ import { SubscribeForm } from "@/components/subscribe-form";
 import { RefreshButton } from "@/components/refresh-button";
 import { formatMoney } from "@/lib/ui";
 import { ReviewSummary, ReviewCard } from "@/components/review-card";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ planId: string }>;
+}): Promise<Metadata> {
+  const { planId } = await params;
+  try {
+    const plan = await api.getSubscriptionPlan(planId);
+    const title = `${plan.title} — Local Roots`;
+    const description = plan.description
+      ? `${plan.description.slice(0, 150)} — subscribe and pick up fresh food.`
+      : `Subscribe to ${plan.title} and pick up fresh, local food.`;
+    return {
+      title,
+      description,
+      openGraph: { title, description, type: "website" },
+    };
+  } catch {
+    return { title: "Farm Box — Local Roots" };
+  }
+}
 
 function formatPickupDate(isoDate: string, timezone: string) {
   const start = new Date(isoDate);
