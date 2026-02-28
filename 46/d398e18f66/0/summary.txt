@@ -1,0 +1,1 @@
+Task #3 is complete and the team lead has been notified. The decomposition is done — the 966-line seller store page has been split into 5 focused components, with the main page reduced to ~310 lines as a thin orchestrator. All verification passes.

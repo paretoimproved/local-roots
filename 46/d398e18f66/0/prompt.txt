@@ -1,0 +1,16 @@
+<teammate-message teammate_id="team-lead" summary="Start seller page decomposition #34">
+Please start your task. Implement item #34 — decompose the 966-line seller store page.
+
+Read `frontend/src/app/seller/stores/[storeId]/page.tsx`. Extract these sections into new components in `frontend/src/components/seller/`:
+- pickup-window-list
+- order-list  
+- manual-pickup-entry
+- payout-summary
+- subscription-plan-list
+
+Create clear props interfaces. The main page becomes a thin orchestrator. Pure refactor — don't change behavior.
+
+After changes: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots" && pnpm typecheck && pnpm lint`
+
+Mark task #3 as completed when done.
+</teammate-message>
