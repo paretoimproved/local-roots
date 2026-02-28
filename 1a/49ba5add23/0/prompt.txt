@@ -1,0 +1,3 @@
+<teammate-message teammate_id="backend-fixes" color="blue">
+{"type":"task_assignment","taskId":"1","subject":"Quick Backend Fixes (#36, #37, #38)","description":"Extract validUUID/extractBuyerToken to validate.go, add HTTP server timeouts, log Stripe capture errors.","assignedBy":"backend-fixes","timestamp":"2026-02-28T17:41:49.495Z"}
+</teammate-message>

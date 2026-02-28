@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "1a49ba5add23",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/components/seller/order-list.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1a/49ba5add23/0/metadata.json",
+      "transcript": "/1a/49ba5add23/0/full.jsonl",
+      "context": "",
+      "content_hash": "/1a/49ba5add23/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 32372,
+    "cache_read_tokens": 635266,
+    "output_tokens": 3623,
+    "api_call_count": 16
+  }
+}
