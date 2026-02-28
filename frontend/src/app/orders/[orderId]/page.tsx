@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { buyerApi, type GetOrderResponse } from "@/lib/buyer-api";
 import { orderToken } from "@/lib/order-token";
 import { session } from "@/lib/session";
@@ -12,6 +12,10 @@ import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 export default function OrderPage() {
+  return <Suspense><OrderInner /></Suspense>;
+}
+
+function OrderInner() {
   const params = useParams<{ orderId: string }>();
   const search = useSearchParams();
   const orderId = params.orderId;

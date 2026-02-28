@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, Suspense, useEffect, useState } from "react";
 import { sellerApi } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
@@ -11,6 +11,10 @@ import { GoogleSignInButton } from "@/components/google-sign-in";
 import { oauthApi } from "@/lib/oauth-api";
 
 export default function SellerLoginPage() {
+  return <Suspense><SellerLoginInner /></Suspense>;
+}
+
+function SellerLoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next");

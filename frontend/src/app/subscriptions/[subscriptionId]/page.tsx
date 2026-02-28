@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buyerApi, type BuyerSubscription } from "@/lib/buyer-api";
 import { subscriptionToken } from "@/lib/subscription-token";
 import { ErrorAlert } from "@/components/error-alert";
@@ -230,6 +230,10 @@ function CancelFlow({
 }
 
 export default function SubscriptionPage() {
+  return <Suspense><SubscriptionInner /></Suspense>;
+}
+
+function SubscriptionInner() {
   const params = useParams<{ subscriptionId: string }>();
   const search = useSearchParams();
   const subscriptionId = params.subscriptionId;

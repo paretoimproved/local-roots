@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import {
   sellerApi,
   type SellerPickupLocation,
@@ -45,6 +45,10 @@ function formatWindowLabel(w: SellerPickupWindow): string {
 }
 
 export default function SettingsPage() {
+  return <Suspense><SettingsInner /></Suspense>;
+}
+
+function SettingsInner() {
   const params = useParams<{ storeId: string }>();
   const storeId = params.storeId;
   const router = useRouter();
