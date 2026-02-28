@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "52a065e148ed",
+  "session_id": "71d8ccaa-3e7d-48a4-bcad-41bf3d0e0ebe",
+  "strategy": "auto-commit",
+  "created_at": "2026-02-28T17:53:45.674235Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/migrations/0026_box_previews.sql",
+    "frontend/src/app/boxes/[planId]/page.tsx",
+    "frontend/src/app/seller/stores/[storeId]/plans/[planId]/preview/page.tsx",
+    "frontend/src/lib/api.ts"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 49,
+    "cache_creation_tokens": 82726,
+    "cache_read_tokens": 3405614,
+    "output_tokens": 14185,
+    "api_call_count": 44,
+    "subagent_tokens": {
+      "input_tokens": 0,
+      "cache_creation_tokens": 0,
+      "cache_read_tokens": 0,
+      "output_tokens": 0,
+      "api_call_count": 2
+    }
+  }
+}
