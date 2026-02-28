@@ -377,7 +377,7 @@ Polish, forward-compatibility, and lower-impact improvements.
 | **P0** | 6 | ~2 hours | This week | **DONE** (2026-02-28) |
 | **P1** | 10 | ~2-3 days | This sprint | **DONE** (2026-02-28) |
 | **P2** | 11 | ~1 week | Next sprint | **DONE** (2026-02-28) |
-| **P3** | 13 | ~6-8 weeks | Weeks 4-8 | Pending |
+| **P3** | 13 | ~6-8 weeks | Weeks 4-8 | **DONE** (2026-02-28) |
 | **P4** | 40+ | Ongoing | Backlog | Pending |
 
-**P0-P2 (27 items) completed 2026-02-28. P3 and P4 remain.**
+**P0-P3 (40 items) completed 2026-02-28. P4 backlog remains.**
