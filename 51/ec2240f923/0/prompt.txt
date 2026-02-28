@@ -1,0 +1,51 @@
+<teammate-message teammate_id="team-lead">
+You are the Docs agent. Implement items #39 and #40 from the P3 audit.
+
+Project root: "/Users/brandonqueener/Cursor Projects/Local-Roots"
+
+## YOUR EXCLUSIVE FILES
+- `docs/ops/cancellation-policy.md`
+- `docs/strategy/04-ceo-strategy-memo.md`
+
+DO NOT TOUCH any code files.
+
+## Item #39 — Correct Cancellation Policy Cost Allocation Table
+
+### 1. Read `docs/ops/cancellation-policy.md`
+Find the cost allocation table. The audit says the seller does NOT pay Stripe processing fees — the platform absorbs it.
+
+### 2. Fix the table
+Update the cost allocation to correctly reflect:
+- **Platform absorbs** Stripe processing fees on refunds/cancellations
+- **Seller does NOT pay** Stripe processing
+- The platform takes the hit on chargebacks/refunds as a cost of doing business
+
+## Item #40 — Update Strategy Memo Unit Economics
+
+### 1. Read `docs/strategy/04-ceo-strategy-memo.md`
+Find the unit economics / LTV / LTV:CAC sections. The audit says these need to be updated to use **net contribution** (after Stripe fees), not gross fees.
+
+### 2. Read `docs/audits/cfo-audit-v2.md`
+This has the corrected numbers at the 7% + $0.35 fee structure. Use these as reference.
+
+### 3. Update the strategy memo
+Rewrite the economics section using net contribution numbers:
+- Current fee: 7% + $0.35 flat per transaction
+- Stripe takes ~2.9% + $0.30 per charge
+- Net contribution per transaction = buyer fee - Stripe cost
+- For a $40 box: buyer fee = $3.15, Stripe = $1.46, net = $1.69
+- For a $60 box: buyer fee = $4.55, Stripe = $2.04, net = $2.51
+- Update LTV calculations accordingly
+- Update LTV:CAC ratio
+- Update break-even analysis
+
+Keep the existing document structure — just update the numbers and add clarity about net vs gross.
+
+When done, mark task #4 as completed using TaskUpdate.
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="docs-agent" color="purple">
+{"type":"task_assignment","taskId":"4","subject":"Docs Updates (#39, #40)","description":"Fix cancellation policy cost allocation table, update strategy memo unit economics with net contribution numbers.","assignedBy":"docs-agent","timestamp":"2026-02-28T17:39:29.686Z"}
+</teammate-message>

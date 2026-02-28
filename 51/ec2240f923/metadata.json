@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "51ec2240f923",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/migrations/0026_box_previews.sql",
+    "docs/ops/cancellation-policy.md",
+    "docs/strategy/04-ceo-strategy-memo.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/51/ec2240f923/0/metadata.json",
+      "transcript": "/51/ec2240f923/0/full.jsonl",
+      "context": "",
+      "content_hash": "/51/ec2240f923/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 102112,
+    "cache_read_tokens": 332309,
+    "output_tokens": 29021,
+    "api_call_count": 7
+  }
+}

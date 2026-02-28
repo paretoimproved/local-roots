@@ -1,0 +1,22 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "51ec2240f923",
+  "session_id": "0dd61fb0-a212-4742-8130-160d8659d1e6",
+  "strategy": "auto-commit",
+  "created_at": "2026-02-28T17:42:34.961689Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/migrations/0026_box_previews.sql",
+    "docs/ops/cancellation-policy.md",
+    "docs/strategy/04-ceo-strategy-memo.md"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 12,
+    "cache_creation_tokens": 102112,
+    "cache_read_tokens": 332309,
+    "output_tokens": 29021,
+    "api_call_count": 7
+  }
+}
