@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { sellerApi, type PickupPreviewResponse, type PickupConfirmResponse } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { formatMoney, parseApiError } from "@/lib/ui";
@@ -15,6 +15,14 @@ type PageState =
   | { kind: "error"; message: string };
 
 export default function PickupConfirmPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto max-w-lg"><section className="lr-card lr-card-strong p-6 text-center"><p className="text-sm text-[color:var(--lr-muted)]">Loading pickup details...</p></section></div>}>
+      <PickupConfirmInner />
+    </Suspense>
+  );
+}
+
+function PickupConfirmInner() {
   const router = useRouter();
   const search = useSearchParams();
   const orderId = search.get("order") ?? "";
