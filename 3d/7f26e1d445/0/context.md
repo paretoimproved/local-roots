@@ -1,0 +1,26 @@
+# Session Context
+
+Session ID: 6edb5d4d-1b47-4720-ad48-167e284c890e
+Commit Message: <teammate-message teammate_id="team-lead" summary="Start backend fixes #
+
+## Prompts
+
+### Prompt 1
+
+<teammate-message teammate_id="team-lead" summary="Start backend fixes #36 #37 #38">
+Please start your task. You need to implement items #36, #37, #38:
+
+1. **#36 - Extract validUUID/extractBuyerToken**: Read `backend/internal/api/v1/orders.go`, find `validUUID` (line 24) and `extractBuyerToken` (line 28), move them to a new file `backend/internal/api/v1/validate.go`, delete from orders.go.
+
+2. **#37 - HTTP Server Timeouts**: Read `backend/cmd/api/main.go`, find where the server starts, add ReadTimeout: 30s, WriteTimeout: 60s, IdleTimeout: 120s. Do NOT change the JWT_SECRET check.
+
+3. **#38 - Log Stripe capture errors**: Read `backend/internal/api/v1/pickup_execute.go`, find `_ = stripe.CaptureAuthorization(...)` and change to log the error instead of discarding it.
+
+After changes: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots/backend" && go build ./... && go test ./...`
+
+Mark task #1 as completed when done.
+</teammate-message>
+
+## Summary
+
+All three backend fixes are done and verified. Waiting for the team lead to assign next work.
