@@ -123,6 +123,7 @@ Frontend (`frontend/`):
 | 2026-02 | Used `-- +migrate up/down` in migration | Must be `-- +goose Up` / `-- +goose Down` (case-sensitive) |
 | 2026-02 | Forgot `await params` in Next.js server components | Next.js 15+ requires `await params` in server components |
 | 2026-02 | Omitted `payment_method` from walk-up order creation | `CreateOrderInput` requires `payment_method: "card"` — backend rejects without it |
+| 2026-02 | `useSearchParams()` pages fail Vercel build without Suspense | Wrap default export in `<Suspense>`, move component body to inner function — required for Next.js 16 static generation |
 
 ---
 

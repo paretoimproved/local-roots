@@ -372,12 +372,12 @@ Polish, forward-compatibility, and lower-impact improvements.
 
 ## Summary: Effort Estimates by Priority
 
-| Priority | Items | Total Effort | When |
-|----------|-------|-------------|------|
-| **P0** | 6 | ~2 hours | This week |
-| **P1** | 10 | ~2-3 days | This sprint |
-| **P2** | 11 | ~1 week | Next sprint |
-| **P3** | 13 | ~6-8 weeks | Weeks 4-8 |
-| **P4** | 40+ | Ongoing | Backlog |
+| Priority | Items | Total Effort | When | Status |
+|----------|-------|-------------|------|--------|
+| **P0** | 6 | ~2 hours | This week | **DONE** (2026-02-28) |
+| **P1** | 10 | ~2-3 days | This sprint | **DONE** (2026-02-28) |
+| **P2** | 11 | ~1 week | Next sprint | **DONE** (2026-02-28) |
+| **P3** | 13 | ~6-8 weeks | Weeks 4-8 | Pending |
+| **P4** | 40+ | Ongoing | Backlog | Pending |
 
-**The first 6 items (P0) can be done in a single afternoon and eliminate every critical security + reliability issue.**
+**P0-P2 (27 items) completed 2026-02-28. P3 and P4 remain.**
