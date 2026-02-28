@@ -1,0 +1,7 @@
+Task #2 is complete. Both items implemented and verified:
+
+**#33 — Form elements**: Wrapped checkout and subscribe form sections in `<form onSubmit>` with `e.preventDefault()`, changed buttons to `type="submit"`.
+
+**#35 — cadenceLabel DRY**: Extracted to `lib/ui.ts`, replaced in 6 files (skipped `stores/[storeId]/page.tsx` per instructions). The review page's different variant ("/week" suffix) was adapted to use the standard label with dot separators.
+
+Typecheck and lint both pass clean.
