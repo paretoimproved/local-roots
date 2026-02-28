@@ -1,0 +1,112 @@
+# Session Context
+
+Session ID: 71d8ccaa-3e7d-48a4-bcad-41bf3d0e0ebe
+Commit Message: <teammate-message teammate_id="team-lead">
+You are the Box Preview Featu
+
+## Prompts
+
+### Prompt 1
+
+<teammate-message teammate_id="team-lead">
+You are the Box Preview Feature agent. Implement item #28 from the P3 audit — "What's in the Box" weekly preview.
+
+Project root: "/Users/brandonqueener/Cursor Projects/Local-Roots"
+Backend: Go + PostgreSQL, migrations use goose (`-- +goose Up` / `-- +goose Down`). Latest migration is 0025.
+Frontend: Next.js 16, React 19. Seller pages use `useParams()` (client). Design system: `.lr-btn`, `.lr-btn-primary`, `.lr-card`, `.lr-field`, CSS vars.
+Storage: Supabase Storage for photos (existing `ImageUpload` component at `components/seller/image-upload.tsx`).
+
+## YOUR EXCLUSIVE FILES
+- `backend/migrations/0026_box_previews.sql` (new)
+- `backend/internal/api/v1/box_previews.go` (new)
+- `backend/internal/httpx/handler.go` — add routes for new endpoints (ONLY add routes, don't change existing ones)
+- `frontend/src/app/seller/stores/[storeId]/plans/[planId]/preview/page.tsx` (new)
+- `frontend/src/app/boxes/[planId]/page.tsx` — add preview display to buyer view (be careful, another agent may have touched this for cadenceLabel — just add the preview section)
+
+DO NOT TOUCH: seller store main page, checkout-form, subscribe-form, layout.tsx, docs, main.go
+
+## Spec
+Seller posts text + optional photo per cycle for a subscription plan. Buyers see the latest preview on the box detail page. Include in pickup reminder email later (out of scope for now).
+
+## Backend
+
+### 1. Create migration `backend/migrations/0026_box_previews.sql`
+```sql
+-- +goose Up
+CREATE TABLE box_previews (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  plan_id UUID NOT NULL REFERENCES subscription_plans(id) ON DELETE CASCADE,
+  cycle_date DATE NOT NULL,
+  body TEXT NOT NULL DEFAULT '',
+  photo_url TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX idx_box_previews_plan_cycle ON box_previews(plan_id, cycle_date DESC);
+
+-- +goose Down
+DROP TABLE box_previews;
+```
+
+### 2. Create `backend/internal/api/v1/box_previews.go`
+
+Read existing endpoint patterns (e.g., `seller_orders.go`, `subscriptions.go`) to match the coding style.
+
+Implement these handlers in a `BoxPreviewAPI` struct (with DB, and maybe store middleware):
+
+**Seller endpoints (authenticated, store-scoped):**
+- `POST /v1/seller/stores/{storeId}/plans/{planId}/previews` — create/update preview for a cycle
+  - Body: `{ "cycle_date": "2026-03-07", "body": "This week: spring greens, radishes, eggs", "photo_url": "..." }`
+  - Upsert: if a preview for that plan+cycle_date exists, update it; otherwise insert
+  - Verify the plan belongs to the store
+- `GET /v1/seller/stores/{storeId}/plans/{planId}/previews` — list all previews (most recent first)
+- `DELETE /v1/seller/stores/{storeId}/plans/{planId}/previews/{previewId}` — delete a preview
+
+**Public buyer endpoint:**
+- `GET /v1/plans/{planId}/preview/latest` — get the latest preview for a plan (no auth required)
+  - Returns the most recent preview by cycle_date
+  - Returns 404 if none exist
+
+### 3. Register routes in `handler.go`
+Read the file, find the seller routes section, add:
+```go
+boxPreviews := v1.BoxPreviewAPI{DB: deps.DB}
+mux.HandleFunc("POST /v1/seller/stores/{storeId}/plans/{planId}/previews", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, boxPreviews.Create)))
+mux.HandleFunc("GET /v1/seller/stores/{storeId}/plans/{planId}/previews", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, boxPreviews.List)))
+mux.HandleFunc("DELETE /v1/seller/stores/{storeId}/plans/{planId}/previews/{previewId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, boxPreviews.Delete)))
+mux.HandleFunc("GET /v1/plans/{planId}/preview/latest", boxPreviews.Latest)
+```
+
+## Frontend — Seller
+
+### 4. Create seller preview page
+Create `frontend/src/app/seller/stores/[storeId]/plans/[planId]/preview/page.tsx`
+
+A simple page where the seller can:
+- See their existing previews listed
+- Post a new preview: text area for body, optional photo upload (use existing `ImageUpload` component), date picker for cycle_date
+- Delete old previews
+
+Use the existing design patterns (`.lr-card`, `.lr-field`, `.lr-btn-primary`, `useToast()`, etc.).
+Add appropriate seller API functions — read `frontend/src/lib/seller-api.ts` to see patterns, then add the box preview API calls there OR create them inline.
+
+## Frontend — Buyer
+
+### 5. Add preview display to box detail page
+Read `frontend/src/app/boxes/[planId]/page.tsx`. Add a section that fetches and displays the latest preview:
+- Title: "This week's box" or "What's in the box"
+- Show the body text and photo (if any)
+- If no preview exists, don't show the section at all
+- Style consistently with the existing page
+
+## Verification
+After changes:
+- `cd "/Users/brandonqueener/Cursor Projects/Local-Roots/backend" && go build ./... && go test ./...`
+- `cd "/Users/brandonqueener/Cursor Projects/Local-Roots" && pnpm typecheck && pnpm lint`
+
+When done, mark task #5 as completed using TaskUpdate.
+</teammate-message>
+
+## Summary
+
+You've hit your limit · resets 10am (America/Los_Angeles)
