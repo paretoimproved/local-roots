@@ -94,7 +94,10 @@ func (a AuthAPI) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 30*24*time.Hour)
+	var tokenVersion int
+	_ = a.DB.QueryRow(r.Context(), `select token_version from users where id = $1::uuid`, u.ID).Scan(&tokenVersion)
+
+	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 4*time.Hour, tokenVersion)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -157,7 +160,10 @@ func (a AuthAPI) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 30*24*time.Hour)
+	var tokenVersion int
+	_ = a.DB.QueryRow(r.Context(), `select token_version from users where id = $1::uuid`, u.ID).Scan(&tokenVersion)
+
+	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 4*time.Hour, tokenVersion)
 	if err != nil {
 		resp.Internal(w, err)
 		return
@@ -191,18 +197,24 @@ func (a AuthAPI) RequireUser(next func(http.ResponseWriter, *http.Request, AuthU
 		}
 
 		var u AuthUser
+		var dbTokenVersion int
 		err = a.DB.QueryRow(r.Context(), `
-			select id::text, email, role, display_name
+			select id::text, email, role, display_name, token_version
 			from users
 			where id = $1::uuid
 			limit 1
-		`, claims.UserID).Scan(&u.ID, &u.Email, &u.Role, &u.DisplayName)
+		`, claims.UserID).Scan(&u.ID, &u.Email, &u.Role, &u.DisplayName, &dbTokenVersion)
 		if err != nil {
 			if err == pgx.ErrNoRows {
 				resp.Unauthorized(w, "invalid token")
 				return
 			}
 			resp.Internal(w, err)
+			return
+		}
+
+		if claims.Version != dbTokenVersion {
+			resp.Unauthorized(w, "token revoked")
 			return
 		}
 

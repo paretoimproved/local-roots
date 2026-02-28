@@ -11,8 +11,9 @@ import (
 var ErrInvalidToken = errors.New("invalid token")
 
 type Claims struct {
-	UserID string `json:"uid"`
-	Role   string `json:"role"`
+	UserID  string `json:"uid"`
+	Role    string `json:"role"`
+	Version int    `json:"ver,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -28,11 +29,12 @@ func CheckPassword(hash string, password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 }
 
-func SignJWT(secret []byte, userID string, role string, ttl time.Duration) (string, error) {
+func SignJWT(secret []byte, userID string, role string, ttl time.Duration, version int) (string, error) {
 	now := time.Now()
 	claims := Claims{
-		UserID: userID,
-		Role:   role,
+		UserID:  userID,
+		Role:    role,
+		Version: version,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),

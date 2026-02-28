@@ -118,12 +118,8 @@ func (a OrderCheckoutAPI) Checkout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Calculate buyer fee (same formula as subscription checkout).
-	buyerFee := (subtotal * a.BuyerFeeBps) / 10000
-	if a.BuyerFeeFlatCts > 0 {
-		buyerFee += a.BuyerFeeFlatCts
-	}
-	total := subtotal + buyerFee
+	// Calculate buyer fee.
+	buyerFee, total := computeBuyerFee(subtotal, a.BuyerFeeBps, a.BuyerFeeFlatCts)
 
 	// Find or create Stripe customer.
 	customerID, err := a.Stripe.FindOrCreateCustomer(ctx, buyerEmail, in.Buyer.Name, in.Buyer.Phone)

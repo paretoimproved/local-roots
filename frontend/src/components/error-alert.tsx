@@ -8,7 +8,7 @@ export function ErrorAlert({
   className?: string;
 }) {
   return (
-    <div className={`rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200${className ? ` ${className}` : ""}`}>
+    <div role="alert" className={`rounded-xl bg-rose-50 p-4 text-sm text-rose-800 ring-1 ring-rose-200${className ? ` ${className}` : ""}`}>
       <p>{error}</p>
       {onRetry ? (
         <button

@@ -22,6 +22,10 @@ import (
 func main() {
 	cfg := config.FromEnv()
 
+	if cfg.Env == "prod" && cfg.JWTSecret == "" {
+		log.Fatal("JWT_SECRET must be set in production")
+	}
+
 	var pool *pgxpool.Pool
 	if cfg.DatabaseURL != "" {
 		p, err := db.Connect(context.Background(), cfg.DatabaseURL)

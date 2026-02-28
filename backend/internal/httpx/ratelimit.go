@@ -25,6 +25,8 @@ type RateLimitTier struct {
 var tiers = map[string]RateLimitTier{
 	"auth":     {Rate: rate.Every(time.Minute / 5), Burst: 5},
 	"checkout": {Rate: rate.Every(time.Minute / 10), Burst: 10},
+	"geo":      {Rate: rate.Every(time.Minute / 20), Burst: 20},
+	"pickup":   {Rate: rate.Every(time.Minute / 5), Burst: 5},
 	"webhook":  {Rate: rate.Every(time.Minute / 100), Burst: 100},
 	"default":  {Rate: rate.Every(time.Minute / 60), Burst: 60},
 }

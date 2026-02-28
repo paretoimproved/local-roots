@@ -10,7 +10,7 @@ import (
 func TestSignParseJWT_RoundTrip(t *testing.T) {
 	secret := []byte("test-secret")
 
-	token, err := SignJWT(secret, "user-123", "seller", time.Hour)
+	token, err := SignJWT(secret, "user-123", "seller", time.Hour, 1)
 	if err != nil {
 		t.Fatalf("SignJWT: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestParseJWT_RejectsBadSignature(t *testing.T) {
 	secret := []byte("test-secret")
 	other := []byte("other-secret")
 
-	token, err := SignJWT(other, "user-123", "seller", time.Hour)
+	token, err := SignJWT(other, "user-123", "seller", time.Hour, 1)
 	if err != nil {
 		t.Fatalf("SignJWT: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestCheckPasswordWrongPassword(t *testing.T) {
 func TestParseJWT_RejectsExpiredToken(t *testing.T) {
 	secret := []byte("test-secret")
 
-	token, err := SignJWT(secret, "user-123", "seller", -1*time.Hour)
+	token, err := SignJWT(secret, "user-123", "seller", -1*time.Hour, 1)
 	if err != nil {
 		t.Fatalf("SignJWT: %v", err)
 	}

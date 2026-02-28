@@ -274,27 +274,6 @@ type CheckoutResponse struct {
 	DepositCents      int    `json:"deposit_cents"`
 }
 
-func computeBuyerFee(subtotalCents, bps, flatCts int) (feeCents, totalCents int) {
-	if subtotalCents < 0 {
-		subtotalCents = 0
-	}
-	if bps < 0 {
-		bps = 0
-	}
-	if flatCts < 0 {
-		flatCts = 0
-	}
-	fee := (subtotalCents * bps) / 10000
-	fee += flatCts
-	if fee < 0 {
-		fee = 0
-	}
-	total := subtotalCents + fee
-	if total < 0 {
-		total = 0
-	}
-	return fee, total
-}
 
 type Subscription struct {
 	ID         string    `json:"id"`

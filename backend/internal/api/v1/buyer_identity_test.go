@@ -41,7 +41,7 @@ func TestResolveBuyerAuth_JWT(t *testing.T) {
 	secret := "test-jwt-secret-32chars-minimum!"
 
 	// Create a valid buyer JWT.
-	tok, err := auth.SignJWT([]byte(secret), "user-123", "buyer", time.Hour)
+	tok, err := auth.SignJWT([]byte(secret), "user-123", "buyer", time.Hour, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,7 +97,7 @@ func TestResolveBuyerAuth_SellerJWT(t *testing.T) {
 	secret := "test-jwt-secret-32chars-minimum!"
 
 	// Create a seller JWT — should now authenticate (unified session).
-	tok, err := auth.SignJWT([]byte(secret), "seller-456", "seller", time.Hour)
+	tok, err := auth.SignJWT([]byte(secret), "seller-456", "seller", time.Hour, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -122,7 +122,7 @@ func TestResolveBuyerAuth_ExpiredJWT(t *testing.T) {
 	secret := "test-jwt-secret-32chars-minimum!"
 
 	// Create an expired JWT.
-	tok, err := auth.SignJWT([]byte(secret), "user-123", "buyer", -time.Hour)
+	tok, err := auth.SignJWT([]byte(secret), "user-123", "buyer", -time.Hour, 1)
 	if err != nil {
 		t.Fatal(err)
 	}

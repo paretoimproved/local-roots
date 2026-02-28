@@ -61,7 +61,7 @@ func NewHandler(deps Deps) http.Handler {
 		Email:           emailClient,
 		FrontendURL:     deps.Config.FrontendURL,
 	}
-	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/orders", orders.CreateOrder)
+	mux.HandleFunc("POST /v1/pickup-windows/{pickupWindowId}/orders", WithRateLimit("checkout", orders.CreateOrder))
 
 	orderCheckout := v1.OrderCheckoutAPI{
 		DB:              deps.DB,
@@ -120,11 +120,11 @@ func NewHandler(deps Deps) http.Handler {
 	sellerOrders := v1.SellerOrdersAPI{DB: deps.DB, Stripe: stripeClient, NoShowFeeCents: deps.Config.NoShowFeeCents, NoShowPlatformSplitBps: deps.Config.NoShowPlatformSplitBps, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ListOrdersForPickupWindow)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.UpdateOrderStatus)))
-	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ConfirmPickup)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", WithRateLimit("pickup", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ConfirmPickup))))
 
 	pickupConfirm := v1.PickupConfirmAPI{DB: deps.DB, Stripe: stripeClient, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
 	mux.HandleFunc("GET /v1/seller/pickup/preview", authAPI.RequireUser(pickupConfirm.Preview))
-	mux.HandleFunc("POST /v1/seller/pickup/confirm", authAPI.RequireUser(pickupConfirm.Confirm))
+	mux.HandleFunc("POST /v1/seller/pickup/confirm", WithRateLimit("pickup", authAPI.RequireUser(pickupConfirm.Confirm)))
 
 	sellerPayouts := v1.SellerPayoutsAPI{DB: deps.DB, NoShowPlatformSplitBps: deps.Config.NoShowPlatformSplitBps}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/payout-summary", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerPayouts.GetPickupWindowPayoutSummary)))
@@ -147,8 +147,8 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.GenerateNextCycle)))
 
 	geo := v1.GeoAPI{GooglePlacesAPIKey: deps.Config.GooglePlacesAPIKey}
-	mux.HandleFunc("GET /v1/places/autocomplete", geo.PublicAutocomplete)
-	mux.HandleFunc("GET /v1/geocode", geo.PublicGeocode)
+	mux.HandleFunc("GET /v1/places/autocomplete", WithRateLimit("geo", geo.PublicAutocomplete))
+	mux.HandleFunc("GET /v1/geocode", WithRateLimit("geo", geo.PublicGeocode))
 	mux.HandleFunc("POST /v1/seller/geo/places/autocomplete", authAPI.RequireUser(geo.PlacesAutocomplete))
 	mux.HandleFunc("POST /v1/seller/geo/places/details", authAPI.RequireUser(geo.PlacesDetails))
 	mux.HandleFunc("POST /v1/seller/geo/timezone", authAPI.RequireUser(geo.Timezone))
@@ -168,5 +168,5 @@ func NewHandler(deps Deps) http.Handler {
 	}
 	mux.HandleFunc("POST /v1/internal/email/pickup-reminders", internalEmail.SendPickupReminders)
 
-	return withLogging(withCORS(deps.Config, mux))
+	return withSecurityHeaders(withLogging(withCORS(deps.Config, mux)))
 }

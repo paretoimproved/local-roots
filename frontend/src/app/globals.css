@@ -3,7 +3,7 @@
 :root {
   --lr-bg: #f6f1e8; /* sand */
   --lr-ink: #1c1b16; /* ink */
-  --lr-muted: #5a5549; /* peat */
+  --lr-muted: #4a463c; /* peat */
   --lr-card: rgba(255, 255, 255, 0.78);
   --lr-card-strong: rgba(255, 255, 255, 0.92);
   --lr-border: rgba(38, 28, 10, 0.12);
@@ -77,6 +77,11 @@ h3 {
   background: rgba(255, 255, 255, 0.65);
 }
 
+.lr-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.18);
+}
+
 .lr-btn {
   border-radius: 9999px;
   border: 1px solid var(--lr-border);
@@ -93,6 +98,11 @@ h3 {
   box-shadow: 0 12px 24px rgba(38, 28, 10, 0.12);
 }
 
+.lr-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.18);
+}
+
 .lr-btn-primary {
   border-color: rgba(47, 107, 79, 0.35);
   background: linear-gradient(135deg, rgba(47, 107, 79, 0.94), rgba(31, 108, 120, 0.88));
@@ -101,6 +111,11 @@ h3 {
 
 .lr-btn-primary:hover {
   background: linear-gradient(135deg, rgba(47, 107, 79, 0.98), rgba(31, 108, 120, 0.92));
+}
+
+.lr-btn-primary:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.3);
 }
 
 .lr-field {

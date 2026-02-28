@@ -433,93 +433,29 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 	}
 	defer tx.Rollback(ctx)
 
-	var currentStatus string
-	var pickupWindowID string
-	var pickupCode string
-	var stripePI *string
-	var subtotalCents int
-	if err := tx.QueryRow(ctx, `
-		select
-			status,
-			pickup_window_id::text,
-			pickup_code,
-			stripe_payment_intent_id,
-			subtotal_cents
-		from orders
-		where id = $1::uuid and store_id = $2::uuid
-		for update
-	`, orderID, sc.StoreID).Scan(&currentStatus, &pickupWindowID, &pickupCode, &stripePI, &subtotalCents); err != nil {
-		if err == pgx.ErrNoRows {
+	result, err := ExecutePickupConfirm(ctx, tx, a.DB, a.Stripe, a.Email, a.FrontendURL, orderID, in.PickupCode, sc.StoreID)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrOrderNotFound):
 			resp.NotFound(w, "order not found")
-			return
+		case errors.Is(err, ErrOrderNotEligible):
+			resp.BadRequest(w, "order must be placed or ready for pickup")
+		case errors.Is(err, ErrInvalidPickupCode):
+			resp.BadRequest(w, "invalid pickup code")
+		case errors.Is(err, ErrPaymentsNotConfigured):
+			resp.ServiceUnavailable(w, "payments not configured")
+		case errors.Is(err, ErrNoPaymentIntent):
+			resp.BadRequest(w, "order has no payment intent")
+		default:
+			resp.Internal(w, err)
 		}
-		resp.Internal(w, err)
 		return
-	}
-
-	if currentStatus != "placed" && currentStatus != "ready" {
-		resp.BadRequest(w, "order must be placed or ready for pickup")
-		return
-	}
-	if pickupCode != in.PickupCode {
-		resp.BadRequest(w, "invalid pickup code")
-		return
-	}
-
-	if a.Stripe == nil || !a.Stripe.Enabled() {
-		resp.ServiceUnavailable(w, "payments not configured")
-		return
-	}
-	if stripePI == nil || strings.TrimSpace(*stripePI) == "" {
-		resp.BadRequest(w, "order has no payment intent")
-		return
-	}
-	trimPI := strings.TrimSpace(*stripePI)
-
-	if err := adjustOfferingsForOrder(ctx, tx, orderID, "finalize"); err != nil {
-		resp.Internal(w, err)
-		return
-	}
-
-	if _, err := tx.Exec(ctx, `
-		update orders
-		set status = 'picked_up',
-			payment_status = 'paid',
-			captured_cents = total_cents,
-			updated_at = now()
-		where id = $1::uuid
-	`, orderID); err != nil {
-		resp.Internal(w, err)
-		return
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		resp.Internal(w, err)
-		return
-	}
-
-	// Capture the Stripe authorization after commit. If this fails, the
-	// payment_intent.succeeded webhook will reconcile the payment status.
-	_ = a.Stripe.CaptureAuthorization(ctx, trimPI, "capture-"+orderID)
-
-	// Transfer seller's share to their Connect account.
-	// Seller gets subtotal_cents; buyer_fee_cents stays on the platform.
-	transferToSeller(ctx, a.DB, a.Stripe, sc.StoreID, orderID, trimPI, subtotalCents, "transfer-")
-
-	// Send payment receipt email.
-	if a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
-		if info, ok := fetchOrderEmailInfo(ctx, a.DB, orderID); ok {
-			orderURL := strings.TrimRight(a.FrontendURL, "/") + "/orders/" + orderID + "?t=" + info.buyerToken
-			amountStr := fmt.Sprintf("$%.2f", float64(info.totalCents)/100.0)
-			subj, body := email.PaymentReceipt(amountStr, info.boxTitle, orderURL)
-			a.Email.SendAsync(info.buyerEmail, subj, body)
-		}
 	}
 
 	resp.OK(w, map[string]any{
 		"id":               orderID,
 		"store_id":         sc.StoreID,
-		"pickup_window_id": pickupWindowID,
+		"pickup_window_id": result.PickupWindowID,
 		"status":           "picked_up",
 	})
 }

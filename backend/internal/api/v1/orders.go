@@ -264,11 +264,7 @@ func (a OrdersAPI) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Calculate buyer fee.
-	buyerFee := (subtotal * a.BuyerFeeBps) / 10000
-	if a.BuyerFeeFlatCts > 0 {
-		buyerFee += a.BuyerFeeFlatCts
-	}
-	total := subtotal + buyerFee
+	buyerFee, total := computeBuyerFee(subtotal, a.BuyerFeeBps, a.BuyerFeeFlatCts)
 
 	// Validate payment — card is the only accepted method.
 	if strings.TrimSpace(in.PaymentMethod) != "card" {

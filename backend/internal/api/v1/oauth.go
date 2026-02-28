@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"net/http"
 	"strings"
 	"time"
@@ -92,7 +93,7 @@ func (o OAuthAPI) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 			_, _ = o.DB.Exec(ctx, `UPDATE users SET role = 'seller' WHERE id = $1::uuid`, u.ID)
 			u.Role = "seller"
 		}
-		o.issueToken(w, u)
+		o.issueToken(ctx, w, u)
 		return
 	}
 	if err != pgx.ErrNoRows {
@@ -131,7 +132,7 @@ func (o OAuthAPI) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 			u.Role = "seller"
 		}
 
-		o.issueToken(w, u)
+		o.issueToken(ctx, w, u)
 		return
 	}
 	if err != pgx.ErrNoRows {
@@ -188,13 +189,16 @@ func (o OAuthAPI) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 		WHERE lower(buyer_email) = $2 AND buyer_user_id IS NULL
 	`, u.ID, email)
 
-	o.issueToken(w, u)
+	o.issueToken(ctx, w, u)
 }
 
-func (o OAuthAPI) issueToken(w http.ResponseWriter, u AuthUser) {
-	ttl := 30 * 24 * time.Hour
+func (o OAuthAPI) issueToken(ctx context.Context, w http.ResponseWriter, u AuthUser) {
+	ttl := 4 * time.Hour
 
-	tok, err := auth.SignJWT([]byte(o.JWTSecret), u.ID, u.Role, ttl)
+	var tokenVersion int
+	_ = o.DB.QueryRow(ctx, `select token_version from users where id = $1::uuid`, u.ID).Scan(&tokenVersion)
+
+	tok, err := auth.SignJWT([]byte(o.JWTSecret), u.ID, u.Role, ttl, tokenVersion)
 	if err != nil {
 		resp.Internal(w, err)
 		return

@@ -1,7 +1,7 @@
 package v1
 
 import (
-	"fmt"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -200,66 +200,16 @@ func (a PickupConfirmAPI) Confirm(w http.ResponseWriter, r *http.Request, u Auth
 	}
 
 	ctx := r.Context()
-	tx, err := a.DB.Begin(ctx)
-	if err != nil {
-		resp.Internal(w, err)
-		return
-	}
-	defer tx.Rollback(ctx)
 
-	var (
-		currentStatus  string
-		storeID        string
-		pickupWindowID string
-		pickupCode     string
-		stripePI       *string
-		subtotalCents  int
-		buyerName      *string
-		buyerEmail     string
-		totalCents     int
-	)
-	err = tx.QueryRow(ctx, `
-		select
-			o.status,
-			o.store_id::text,
-			o.pickup_window_id::text,
-			o.pickup_code,
-			o.stripe_payment_intent_id,
-			o.subtotal_cents,
-			o.buyer_name,
-			o.buyer_email,
-			o.total_cents
-		from orders o
-		where o.id = $1::uuid
-		for update
-	`, in.OrderID).Scan(
-		&currentStatus,
-		&storeID,
-		&pickupWindowID,
-		&pickupCode,
-		&stripePI,
-		&subtotalCents,
-		&buyerName,
-		&buyerEmail,
-		&totalCents,
-	)
-	if err != nil {
-		if err == pgx.ErrNoRows {
-			resp.BadRequest(w, "invalid pickup code")
-			return
-		}
-		resp.Internal(w, err)
-		return
-	}
-
-	if pickupCode != in.PickupCode {
-		resp.BadRequest(w, "invalid pickup code")
-		return
-	}
-
-	// Verify seller owns the store.
+	// Verify seller owns the store that this order belongs to.
 	var ownerUserID string
-	if err := tx.QueryRow(ctx, `select owner_user_id::text from stores where id = $1::uuid`, storeID).Scan(&ownerUserID); err != nil {
+	err := a.DB.QueryRow(ctx, `
+		select s.owner_user_id::text
+		from orders o
+		join stores s on s.id = o.store_id
+		where o.id = $1::uuid
+	`, in.OrderID).Scan(&ownerUserID)
+	if err != nil {
 		if err == pgx.ErrNoRows {
 			resp.BadRequest(w, "invalid pickup code")
 			return
@@ -272,62 +222,35 @@ func (a PickupConfirmAPI) Confirm(w http.ResponseWriter, r *http.Request, u Auth
 		return
 	}
 
-	if currentStatus != "placed" && currentStatus != "ready" {
-		resp.BadRequest(w, "order is not eligible for pickup")
-		return
-	}
-
-	if a.Stripe == nil || !a.Stripe.Enabled() {
-		resp.ServiceUnavailable(w, "payments not configured")
-		return
-	}
-	if stripePI == nil || strings.TrimSpace(*stripePI) == "" {
-		resp.BadRequest(w, "order has no payment intent")
-		return
-	}
-	trimPI := strings.TrimSpace(*stripePI)
-
-	if err := adjustOfferingsForOrder(ctx, tx, in.OrderID, "finalize"); err != nil {
+	tx, err := a.DB.Begin(ctx)
+	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
+	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `
-		update orders
-		set status = 'picked_up',
-			payment_status = 'paid',
-			captured_cents = total_cents,
-			updated_at = now()
-		where id = $1::uuid
-	`, in.OrderID); err != nil {
-		resp.Internal(w, err)
-		return
-	}
-
-	if err := tx.Commit(ctx); err != nil {
-		resp.Internal(w, err)
+	result, err := ExecutePickupConfirm(ctx, tx, a.DB, a.Stripe, a.Email, a.FrontendURL, in.OrderID, in.PickupCode, "")
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrOrderNotFound):
+			resp.BadRequest(w, "invalid pickup code")
+		case errors.Is(err, ErrOrderNotEligible):
+			resp.BadRequest(w, "order is not eligible for pickup")
+		case errors.Is(err, ErrInvalidPickupCode):
+			resp.BadRequest(w, "invalid pickup code")
+		case errors.Is(err, ErrPaymentsNotConfigured):
+			resp.ServiceUnavailable(w, "payments not configured")
+		case errors.Is(err, ErrNoPaymentIntent):
+			resp.BadRequest(w, "order has no payment intent")
+		default:
+			resp.Internal(w, err)
+		}
 		return
 	}
 
 	now := time.Now().UTC()
 
-	// Capture the Stripe authorization after commit.
-	_ = a.Stripe.CaptureAuthorization(ctx, trimPI, "capture-"+in.OrderID)
-
-	// Transfer seller's share to their Connect account.
-	transferToSeller(ctx, a.DB, a.Stripe, storeID, in.OrderID, trimPI, subtotalCents, "transfer-")
-
-	// Send payment receipt email.
-	if a.Email != nil && a.Email.Enabled() && a.FrontendURL != "" {
-		if info, ok := fetchOrderEmailInfo(ctx, a.DB, in.OrderID); ok {
-			orderURL := strings.TrimRight(a.FrontendURL, "/") + "/orders/" + in.OrderID + "?t=" + info.buyerToken
-			amountStr := fmt.Sprintf("$%.2f", float64(info.totalCents)/100.0)
-			subj, body := email.PaymentReceipt(amountStr, info.boxTitle, orderURL)
-			a.Email.SendAsync(info.buyerEmail, subj, body)
-		}
-	}
-
-	// Fetch items for the response.
+	// Fetch items for the rich response.
 	rows, err := a.DB.Query(ctx, `
 		select
 			id::text,
@@ -345,13 +268,13 @@ func (a PickupConfirmAPI) Confirm(w http.ResponseWriter, r *http.Request, u Auth
 		// Order already confirmed — return minimal success.
 		resp.OK(w, PickupConfirmResponse{
 			OrderID:        in.OrderID,
-			StoreID:        storeID,
-			PickupWindowID: pickupWindowID,
+			StoreID:        result.StoreID,
+			PickupWindowID: result.PickupWindowID,
 			Status:         "picked_up",
-			BuyerName:      buyerName,
-			BuyerEmail:     buyerEmail,
-			TotalCents:     totalCents,
-			SubtotalCents:  subtotalCents,
+			BuyerName:      result.BuyerName,
+			BuyerEmail:     result.BuyerEmail,
+			TotalCents:     result.TotalCents,
+			SubtotalCents:  result.SubtotalCents,
 			ConfirmedAt:    now,
 			Items:          []OrderItem{},
 		})
@@ -378,14 +301,14 @@ func (a PickupConfirmAPI) Confirm(w http.ResponseWriter, r *http.Request, u Auth
 
 	resp.OK(w, PickupConfirmResponse{
 		OrderID:        in.OrderID,
-		StoreID:        storeID,
-		PickupWindowID: pickupWindowID,
+		StoreID:        result.StoreID,
+		PickupWindowID: result.PickupWindowID,
 		Status:         "picked_up",
-		BuyerName:      buyerName,
-		BuyerEmail:     buyerEmail,
+		BuyerName:      result.BuyerName,
+		BuyerEmail:     result.BuyerEmail,
 		Items:          items,
-		TotalCents:     totalCents,
-		SubtotalCents:  subtotalCents,
+		TotalCents:     result.TotalCents,
+		SubtotalCents:  result.SubtotalCents,
 		ConfirmedAt:    now,
 	})
 }
