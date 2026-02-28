@@ -1,0 +1,22 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "4610d6d521e1",
+  "session_id": "6fee0305-5759-40cc-9398-b1f4fe609795",
+  "strategy": "auto-commit",
+  "created_at": "2026-02-28T17:43:56.278481Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/internal/api/v1/box_previews.go",
+    "backend/internal/api/v1/seller_analytics.go",
+    "frontend/src/app/layout.tsx"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 14,
+    "cache_creation_tokens": 21800,
+    "cache_read_tokens": 264687,
+    "output_tokens": 3196,
+    "api_call_count": 9
+  }
+}

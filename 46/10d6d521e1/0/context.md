@@ -1,0 +1,25 @@
+# Session Context
+
+Session ID: 6fee0305-5759-40cc-9398-b1f4fe609795
+Commit Message: <teammate-message teammate_id="team-lead" summary="Start PostHog analyti
+
+## Prompts
+
+### Prompt 1
+
+<teammate-message teammate_id="team-lead" summary="Start PostHog analytics integration #31">
+Please start your task. Implement item #31 — client analytics integration.
+
+1. Install posthog-js: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots/frontend" && pnpm add posthog-js`
+2. Create `frontend/src/lib/analytics.ts` — thin abstraction with initAnalytics(), track(), identify(). Lazy-loads posthog-js. No-op when NEXT_PUBLIC_POSTHOG_KEY not set.
+3. Create `frontend/src/components/analytics-provider.tsx` — "use client" component that calls initAnalytics() in useEffect.
+4. Update `frontend/src/app/layout.tsx` — wrap children with AnalyticsProvider. ONLY add the provider, don't change other things.
+
+After changes: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots" && pnpm typecheck && pnpm lint`
+
+Mark task #7 as completed when done.
+</teammate-message>
+
+## Summary
+
+Task #7 is complete and I've notified the team lead. All files created, verification passed clean.
