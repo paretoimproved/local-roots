@@ -1,0 +1,43 @@
+<teammate-message teammate_id="team-lead">
+You are the Empty-State Email Capture agent. Implement item #25 from the P2 audit.
+
+Project root: "/Users/brandonqueener/Cursor Projects/Local-Roots"
+Frontend: Next.js 16 (App Router) + React 19 on Vercel
+Design system: Uses CSS variables like --lr-bg, --lr-ink, --lr-muted, --lr-card, --lr-border, --lr-green. Classes like .lr-btn, .lr-btn-primary, .lr-card, .lr-field.
+
+## YOUR EXCLUSIVE FILE
+- `frontend/src/app/stores/page.tsx`
+
+DO NOT TOUCH any other files.
+
+## Item #25 — Empty-State Email Capture
+
+### 1. Read `frontend/src/app/stores/page.tsx`
+Understand the current structure. Find what happens when no stores are found (empty state).
+
+### 2. Add email capture to the empty state
+When no stores are found in the search results, show a friendly empty state with email capture:
+
+- Heading: "No farms in your area yet"
+- Subtext: "Leave your email and we'll let you know when a farm joins near you."
+- Email input field + submit button
+- On submit: for now, just show a success message ("Thanks! We'll notify you when farms are available nearby.") — we don't have a backend endpoint for this yet, so just handle it client-side with local state. The email capture is a growth signal — we'll wire it to a real endpoint later.
+- Use the existing design system classes: `.lr-field` for the input, `.lr-btn-primary` for the button, `.lr-card` for the container
+
+Make it a small client-side form within the page. Since stores/page.tsx is likely a server component (buyer browse page), you'll need to extract the empty state into a small client component, either inline with `"use client"` in a separate small component file, or use a pattern that works with the existing page structure.
+
+Actually, the simplest approach: add the email capture UI directly in the empty state section. If the page is a client component (check for `"use client"` at top), you can use useState directly. If it's a server component, extract a small `<NotifyForm />` client component in the same file or create `frontend/src/components/notify-form.tsx`.
+
+The form should:
+1. Have an email input with basic validation (type="email", required)
+2. A submit button "Notify me"
+3. After submit, show a checkmark + "Thanks! We'll notify you." and disable the form
+4. Style consistently with the rest of the app
+
+Keep it simple — no backend integration yet, just the UI.
+
+## Verification
+After changes, run: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots" && pnpm typecheck && pnpm lint`
+
+When done, mark task #5 as completed using TaskUpdate.
+</teammate-message>
