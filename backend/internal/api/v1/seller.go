@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -114,6 +115,48 @@ type updateStoreRequest struct {
 	Phone       *string `json:"phone"`
 	IsActive    *bool   `json:"is_active"`
 	ImageURL    *string `json:"image_url"`
+}
+
+func (a SellerAPI) DeleteStore(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
+	ctx := r.Context()
+
+	var activeSubs int
+	if err := a.DB.QueryRow(ctx, `
+		select count(1) from subscriptions where store_id = $1::uuid and status = 'active'
+	`, sc.StoreID).Scan(&activeSubs); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	if activeSubs > 0 {
+		resp.BadRequest(w, fmt.Sprintf("Cannot delete: you have %d active subscriber(s). Cancel all subscriptions first.", activeSubs))
+		return
+	}
+
+	var unfulfilledOrders int
+	if err := a.DB.QueryRow(ctx, `
+		select count(1) from orders where store_id = $1::uuid and status in ('placed', 'ready')
+	`, sc.StoreID).Scan(&unfulfilledOrders); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	if unfulfilledOrders > 0 {
+		resp.BadRequest(w, fmt.Sprintf("Cannot delete: you have %d unfulfilled order(s). Complete or cancel them first.", unfulfilledOrders))
+		return
+	}
+
+	tag, err := a.DB.Exec(ctx, `
+		delete from stores where id = $1::uuid and owner_user_id = $2::uuid
+	`, sc.StoreID, u.ID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		resp.NotFound(w, "store not found")
+		return
+	}
+
+	resp.OK(w, map[string]bool{"deleted": true})
 }
 
 func (a SellerAPI) UpdateStore(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {

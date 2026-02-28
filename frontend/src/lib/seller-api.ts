@@ -260,6 +260,12 @@ export const sellerApi = {
       }),
     }),
 
+  deleteStore: (token: string, storeId: string) =>
+    requestJSON<{ deleted: boolean }>(
+      `/v1/seller/stores/${storeId}`,
+      { method: "DELETE", token },
+    ),
+
   updateStore: (
     token: string,
     storeId: string,

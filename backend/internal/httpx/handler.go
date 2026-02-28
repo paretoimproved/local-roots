@@ -102,6 +102,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/seller/stores", authAPI.RequireUser(seller.ListMyStores))
 	mux.HandleFunc("POST /v1/seller/stores", authAPI.RequireUser(seller.CreateStore))
 	mux.HandleFunc("PATCH /v1/seller/stores/{storeId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.UpdateStore)))
+	mux.HandleFunc("DELETE /v1/seller/stores/{storeId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.DeleteStore)))
 
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-locations", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListPickupLocations)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-locations", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreatePickupLocation)))

@@ -18,6 +18,7 @@ import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { AddressAutocomplete } from "@/components/seller/address-autocomplete";
 import { ImageUpload } from "@/components/seller/image-upload";
 import { TimezoneCombobox } from "@/components/seller/timezone-combobox";
+import { ConfirmDialog } from "@/components/confirm-dialog";
 
 function toIso(dtLocal: string): string {
   const d = new Date(dtLocal);
@@ -98,6 +99,10 @@ function SettingsInner() {
 
   // Advanced tools
   const [showAdvanced, setShowAdvanced] = useState(false);
+
+  // Delete store
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deletingStore, setDeletingStore] = useState(false);
 
   // Pickup windows form
   const [windowLocationId, setWindowLocationId] = useState("");
@@ -1240,6 +1245,46 @@ function SettingsInner() {
               </div>
             ) : null}
           </section>
+
+          {/* ── Danger Zone ── */}
+          <section className="mt-12 rounded-2xl border-2 border-rose-200 bg-rose-50/50 p-6">
+            <h2 className="text-base font-semibold text-rose-700">Danger zone</h2>
+            <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+              Permanently delete this farm and all associated data.
+            </p>
+            <button
+              type="button"
+              className="mt-4 rounded-full px-5 py-2 text-sm font-semibold bg-rose-600 text-white hover:bg-rose-700 transition-colors disabled:opacity-50"
+              disabled={deletingStore}
+              onClick={() => setShowDeleteConfirm(true)}
+            >
+              {deletingStore ? "Deleting..." : "Delete farm"}
+            </button>
+          </section>
+
+          <ConfirmDialog
+            open={showDeleteConfirm}
+            title="Delete farm?"
+            message="This will permanently delete your farm, including all orders, pickup history, and settings. This cannot be undone."
+            confirmLabel="Delete farm"
+            destructive
+            onCancel={() => setShowDeleteConfirm(false)}
+            onConfirm={async () => {
+              setShowDeleteConfirm(false);
+              setDeletingStore(true);
+              try {
+                const t = session.getToken();
+                if (!t) throw new Error("Not authenticated");
+                await sellerApi.deleteStore(t, storeId);
+                showToast({ message: "Farm deleted", kind: "success" });
+                router.push("/seller");
+              } catch (err) {
+                showToast({ message: friendlyErrorMessage(err), kind: "error" });
+              } finally {
+                setDeletingStore(false);
+              }
+            }}
+          />
         </>
       )}
     </div>
