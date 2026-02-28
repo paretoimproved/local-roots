@@ -1,0 +1,70 @@
+# Session Context
+
+Session ID: 9f9f15c5-8cae-4821-ba7c-72f13ba1299f
+Commit Message: <teammate-message teammate_id="team-lead">
+You are the Seller Store Page
+
+## Prompts
+
+### Prompt 1
+
+<teammate-message teammate_id="team-lead">
+You are the Seller Store Page Decomposition agent. Implement item #34 from the P3 audit.
+
+Project root: "/Users/brandonqueener/Cursor Projects/Local-Roots"
+
+## YOUR EXCLUSIVE FILES
+- `frontend/src/app/seller/stores/[storeId]/page.tsx` (the main file to decompose)
+- New component files in `frontend/src/components/seller/` (create as needed)
+
+DO NOT TOUCH: `checkout-form.tsx`, `subscribe-form.tsx`, `lib/ui.ts`, `layout.tsx`, `globals.css`, backend files
+
+## Item #34 — Decompose 966-Line Seller Store Page
+
+### 1. Read the full file
+Read `frontend/src/app/seller/stores/[storeId]/page.tsx` carefully. Understand all the sections, state management, types, and API calls.
+
+### 2. Identify extraction targets
+The plan suggests extracting into these components:
+- `pickup-window-list` — the section showing pickup windows with their orders
+- `order-list` — order listing/management for a pickup window
+- `manual-pickup-entry` — the manual pickup code entry form
+- `payout-summary` — payout information for a pickup window
+- `subscription-plan-list` — subscription plan management
+
+### 3. Extract components
+For each component:
+1. Create a new file in `frontend/src/components/seller/` (e.g., `pickup-window-list.tsx`)
+2. Move the JSX and relevant logic into the new component
+3. Define clear props interfaces for what the component needs
+4. Add "use client" if the component uses hooks
+
+### 4. Update the main page
+Replace the inline sections with the new components. The main page should become a thin orchestrator that:
+- Manages authentication and top-level state
+- Fetches core data
+- Renders the extracted components with appropriate props
+
+### Key Principles:
+- **Don't change behavior** — this is a pure refactor. The page should work identically.
+- **Props over context** — pass data via props, don't introduce React context
+- **Keep state management where it makes sense** — if a section manages its own state independently, move that state into the component. If state is shared across sections, keep it in the parent.
+- **Minimize re-renders** — components that don't need parent state shouldn't receive it
+- **Follow existing patterns** — use the same styling, API call patterns, etc.
+
+### Note on cadenceLabel
+The page likely has a local `cadenceLabel` function. Another agent is extracting this to `lib/ui.ts`. You can either:
+- Keep a local copy for now (the other agent will skip this file)
+- Or import from `@/lib/ui` if you prefer (check if the export exists first)
+
+Either approach is fine — the important thing is the decomposition.
+
+## Verification
+After changes: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots" && pnpm typecheck && pnpm lint`
+
+When done, mark task #3 as completed using TaskUpdate.
+</teammate-message>
+
+## Summary
+
+You've hit your limit · resets 10am (America/Los_Angeles)

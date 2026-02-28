@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "e12ccee0902e",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "legacy/ts-stack-untracked/node_modules/.pnpm/tailwindcss@3.4.1/node_modules/tailwindcss/stubs/config.full.js",
+    "playwright-report/index.html"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e1/2ccee0902e/0/metadata.json",
+      "transcript": "/e1/2ccee0902e/0/full.jsonl",
+      "context": "",
+      "content_hash": "/e1/2ccee0902e/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 3,
+    "cache_creation_tokens": 5776,
+    "cache_read_tokens": 23218,
+    "output_tokens": 341,
+    "api_call_count": 2
+  }
+}
