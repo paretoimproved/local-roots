@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "e654a931d888",
+  "session_id": "3ade537b-209f-4f1f-9fb4-6933a2d5fbcd",
+  "strategy": "auto-commit",
+  "created_at": "2026-02-28T17:09:39.603957Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/internal/api/v1/buyer_subscriptions.go",
+    "backend/internal/api/v1/pickup_execute.go",
+    "backend/migrations/0025_analytics_columns.sql",
+    "frontend/src/app/subscriptions/[subscriptionId]/page.tsx",
+    "frontend/src/lib/buyer-api.ts"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 39088,
+    "cache_read_tokens": 945602,
+    "output_tokens": 6490,
+    "api_call_count": 19,
+    "subagent_tokens": {
+      "input_tokens": 150,
+      "cache_creation_tokens": 34302,
+      "cache_read_tokens": 161049,
+      "output_tokens": 1072,
+      "api_call_count": 7
+    }
+  }
+}

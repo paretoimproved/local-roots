@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "e654a931d888",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/internal/api/v1/buyer_subscriptions.go",
+    "backend/internal/api/v1/pickup_execute.go",
+    "backend/migrations/0025_analytics_columns.sql",
+    "frontend/src/app/subscriptions/[subscriptionId]/page.tsx",
+    "frontend/src/lib/buyer-api.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e6/54a931d888/0/metadata.json",
+      "transcript": "/e6/54a931d888/0/full.jsonl",
+      "context": "",
+      "content_hash": "/e6/54a931d888/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 25,
+    "cache_creation_tokens": 39088,
+    "cache_read_tokens": 945602,
+    "output_tokens": 6490,
+    "api_call_count": 19
+  }
+}
