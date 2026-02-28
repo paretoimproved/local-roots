@@ -304,16 +304,16 @@ Polish, forward-compatibility, and lower-impact improvements.
 - [ ] Add `requireDB` middleware instead of per-handler nil checks (Staff W-6)
 - [ ] Extract shared plan query builder for `ListStorePlans`/`GetPlan` (Staff W-4)
 - [ ] Extract `FeeConfig` struct with `ComputeBuyerFee` method (Staff W-10)
-- [ ] Extract `envInt()` helper for config parsing (Staff W-11)
+- [x] Extract `envInt()` helper for config parsing (Staff W-11) — **DONE** (2026-02-28)
 - [ ] Add `http.Flusher` implementation to `statusWriter` (Staff W-2)
-- [ ] Pass context to rate limiter cleanup goroutines (Staff W-1)
-- [ ] Combine `ListStoreReviews` into single CTE query (Staff S-1)
-- [ ] Remove deprecated `buyerSession` shim (Staff S-2)
-- [ ] Remove unused state setters in seller store page (Staff S-3)
-- [ ] Fix toast ID collision with counter instead of `Date.now()` (Staff S-4)
+- [x] Pass context to rate limiter cleanup goroutines (Staff W-1) — **DONE** (2026-02-28)
+- [x] Combine `ListStoreReviews` into single window-function query (Staff S-1) — **DONE** (2026-02-28)
+- [x] Remove deprecated `buyerSession` shim (Staff S-2) — **DONE** (2026-02-28)
+- [x] Remove unused state setters in seller store page (Staff S-3) — **DONE** (2026-02-28)
+- [x] Fix toast ID collision with counter instead of `Date.now()` (Staff S-4) — **DONE** (2026-02-28)
 - [ ] Split `subscriptions.go` (1,780 lines) into 3 files (Staff S-7)
 - [ ] Extract shared `CheckoutShell` from checkout-form + subscribe-form (Staff S-8)
-- [ ] Move `transferToSeller`/`fetchOrderEmailInfo` to `order_helpers.go` (Staff S-10)
+- [x] Move `transferToSeller`/`fetchOrderEmailInfo` to `order_helpers.go` (Staff S-10) — **DONE** (2026-02-28)
 
 ### Security (Lower Priority)
 - [ ] Document role auto-upgrade as accepted risk or add admin approval (Security M-5)
@@ -327,16 +327,16 @@ Polish, forward-compatibility, and lower-impact improvements.
 ### Accessibility & UX Polish
 - [ ] Add loading state `role="status"` announcements (UX 2.5)
 - [ ] Fix `ConfirmDialog` auto-focus for destructive actions (UX 2.4)
-- [ ] Add label to seller store window picker `<select>` (UX 2.1)
-- [ ] Add `aria-hidden="true"` to decorative star SVGs (UX 2.7)
+- [x] Add label to seller store window picker `<select>` (UX 2.1) — **DONE** (2026-02-28)
+- [x] Add `aria-hidden="true"` to decorative star SVGs (UX 2.7) — **DONE** (2026-02-28)
 - [ ] Add `aria-hidden="true"` to store placeholder letters (UX 2.6)
 - [ ] Standardize heading hierarchy on buyer dashboard (UX 2.8)
 - [ ] Group order filter buttons with `role="group"` (UX 2.9)
-- [ ] Guard `staticMapUrl` null lat/lng call (UX 6.3)
+- [x] Guard `staticMapUrl` null lat/lng call (UX 6.3) — **DONE** (2026-02-28)
 - [ ] Add back navigation to setup wizard steps (UX 5.4)
-- [ ] Add `prefers-reduced-motion` media query (UX 9.6)
+- [x] Add `prefers-reduced-motion` media query (UX 9.6) — **DONE** (2026-02-28)
 - [ ] Remove `console.log` in cancel flow (UX 9.7)
-- [ ] Add favicon and PWA manifest (UX 9.3 | Growth SEO8)
+- [x] Add favicon and PWA manifest (UX 9.3 | Growth SEO8) — **DONE** (2026-02-28)
 - [ ] Add toast entrance animation (UX 9.2)
 - [ ] Add unsaved changes warning on seller settings (UX 9.5)
 - [ ] Increase mobile touch targets for nav buttons (UX 4.1)
@@ -378,6 +378,6 @@ Polish, forward-compatibility, and lower-impact improvements.
 | **P1** | 10 | ~2-3 days | This sprint | **DONE** (2026-02-28) |
 | **P2** | 11 | ~1 week | Next sprint | **DONE** (2026-02-28) |
 | **P3** | 13 | ~6-8 weeks | Weeks 4-8 | **DONE** (2026-02-28) |
-| **P4** | 40+ | Ongoing | Backlog | Pending |
+| **P4** | 40+ | Ongoing | Backlog | 12 done (2026-02-28), backlog remains |
 
-**P0-P3 (40 items) completed 2026-02-28. P4 backlog remains.**
+**P0-P3 (40 items) completed 2026-02-28. P4: 12 hygiene items completed 2026-02-28; backlog remains.**
