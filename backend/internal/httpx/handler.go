@@ -129,11 +129,21 @@ func NewHandler(deps Deps) http.Handler {
 	sellerPayouts := v1.SellerPayoutsAPI{DB: deps.DB, NoShowPlatformSplitBps: deps.Config.NoShowPlatformSplitBps}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/payout-summary", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerPayouts.GetPickupWindowPayoutSummary)))
 
+	sellerAnalytics := v1.SellerAnalyticsAPI{DB: deps.DB}
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/analytics", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerAnalytics.GetAnalytics)))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/payouts", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerAnalytics.GetPayoutHistory)))
+
 	sellerConnect := v1.SellerConnectAPI{DB: deps.DB, Stripe: stripeClient, FrontendURL: deps.Config.FrontendURL}
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/connect/onboard", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.Onboard)))
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/connect/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.GetStatus)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/connect/refresh-link", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.RefreshLink)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/connect/account-session", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerConnect.AccountSession)))
+
+	boxPreviews := v1.BoxPreviewAPI{DB: deps.DB}
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/plans/{planId}/previews", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, boxPreviews.Create)))
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/plans/{planId}/previews", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, boxPreviews.List)))
+	mux.HandleFunc("DELETE /v1/seller/stores/{storeId}/plans/{planId}/previews/{previewId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, boxPreviews.Delete)))
+	mux.HandleFunc("GET /v1/plans/{planId}/preview/latest", boxPreviews.Latest)
 
 	sellerSub := v1.SellerSubscriptionAPI{
 		DB:              deps.DB,

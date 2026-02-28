@@ -3,7 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
 import type { ReviewsResponse } from "@/lib/api";
-import { formatMoney } from "@/lib/ui";
+import { cadenceLabel, formatMoney } from "@/lib/ui";
 import { ReviewSummary, ReviewCard } from "@/components/review-card";
 
 export async function generateMetadata({
@@ -36,13 +36,6 @@ function formatNext(plan: Awaited<ReturnType<typeof api.listStoreSubscriptionPla
     hour: "numeric",
     minute: "2-digit",
   }).format(start);
-}
-
-function cadenceLabel(c: string) {
-  if (c === "weekly") return "Weekly";
-  if (c === "biweekly") return "Every two weeks";
-  if (c === "monthly") return "Monthly";
-  return c;
 }
 
 export default async function StoreBoxesPage({

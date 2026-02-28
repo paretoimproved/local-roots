@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
-import type { ReviewsResponse } from "@/lib/api";
+import type { ReviewsResponse, BoxPreviewPublic } from "@/lib/api";
 import { SubscribeForm } from "@/components/subscribe-form";
 import { RefreshButton } from "@/components/refresh-button";
-import { formatMoney } from "@/lib/ui";
+import { cadenceLabel, formatMoney } from "@/lib/ui";
 import { ReviewSummary, ReviewCard } from "@/components/review-card";
 
 export async function generateMetadata({
@@ -42,13 +42,6 @@ function formatPickupDate(isoDate: string, timezone: string) {
   }).format(start);
 }
 
-function cadenceLabel(c: string) {
-  if (c === "weekly") return "Weekly";
-  if (c === "biweekly") return "Every two weeks";
-  if (c === "monthly") return "Monthly";
-  return c;
-}
-
 export default async function BoxPlanPage({
   params,
 }: {
@@ -67,6 +60,7 @@ export default async function BoxPlanPage({
   }
 
   let storeName = "Store";
+  let preview: BoxPreviewPublic | null = null;
   if (plan) {
     try {
       const store = await api.getStore(plan.store_id);
@@ -78,6 +72,11 @@ export default async function BoxPlanPage({
       reviews = await api.listStoreReviews(plan.store_id);
     } catch {
       // Reviews are non-critical; continue without them
+    }
+    try {
+      preview = await api.getLatestBoxPreview(planId);
+    } catch {
+      // Preview is non-critical; continue without it
     }
   }
 
@@ -124,6 +123,33 @@ export default async function BoxPlanPage({
             />
           </div>
         </div>
+      ) : null}
+
+      {preview ? (
+        <section className="lr-card lr-card-strong p-6 grid gap-3">
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            What&apos;s in the box
+          </h2>
+          {preview.body ? (
+            <p className="text-sm text-[color:var(--lr-muted)] whitespace-pre-line">
+              {preview.body}
+            </p>
+          ) : null}
+          {preview.photo_url ? (
+            <div className="relative aspect-[16/9] w-full overflow-hidden rounded-lg">
+              <Image
+                src={preview.photo_url}
+                alt="This week's box"
+                fill
+                className="object-cover"
+                sizes="(max-width: 1024px) 100vw, 1024px"
+              />
+            </div>
+          ) : null}
+          <p className="text-xs text-[color:var(--lr-muted)] opacity-70">
+            For the {preview.cycle_date} pickup
+          </p>
+        </section>
       ) : null}
 
       {plan ? (

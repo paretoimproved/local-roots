@@ -101,3 +101,10 @@ export function friendlyErrorMessage(e: unknown): string {
 export function fieldClass(base: string, hasError: boolean): string {
   return `${base} ${hasError ? "border-rose-300 bg-rose-50/70" : ""}`.trim();
 }
+
+export function cadenceLabel(c: string): string {
+  if (c === "weekly") return "Weekly";
+  if (c === "biweekly") return "Every two weeks";
+  if (c === "monthly") return "Monthly";
+  return c;
+}

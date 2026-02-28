@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { requestJSON } from "@/lib/http";
 import { PrintPosterActions } from "@/components/print-poster-actions";
+import { cadenceLabel } from "@/lib/ui";
 
 type Plan = {
   id: string;
@@ -38,13 +39,6 @@ async function requestOrigin() {
 
 function formatMoney(cents: number) {
   return `$${(cents / 100).toFixed(2)}`;
-}
-
-function cadenceLabel(c: string) {
-  if (c === "weekly") return "Weekly";
-  if (c === "biweekly") return "Every two weeks";
-  if (c === "monthly") return "Monthly";
-  return c;
 }
 
 async function qrDataUrl(value: string, size: number) {

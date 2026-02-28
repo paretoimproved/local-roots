@@ -14,28 +14,12 @@ import {
   type SellerSubscriptionPlan,
 } from "@/lib/seller-api";
 import { session } from "@/lib/session";
-import { QrCode } from "@/components/qr-code";
 import { useToast } from "@/components/toast";
-import { formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
-import { StatusPill, PaymentPill } from "@/components/seller/status-pills";
+import { friendlyErrorMessage, parseApiError } from "@/lib/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
-
-type OrderFilter =
-  | "all"
-  | "placed"
-  | "ready"
-  | "picked_up"
-  | "no_show"
-  | "canceled";
-
-function formatWindowLabel(w: SellerPickupWindow): string {
-  const start = new Date(w.start_at);
-  const end = new Date(w.end_at);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return `Window (${w.status})`;
-  }
-  return `${start.toLocaleString()}–${end.toLocaleTimeString()} (${w.status})`;
-}
+import { PickupWindowList } from "@/components/seller/pickup-window-list";
+import { SubscriptionPlanList } from "@/components/seller/subscription-plan-list";
+import { OrderList } from "@/components/seller/order-list";
 
 export default function SellerStorePage() {
   const params = useParams<{ storeId: string }>();
@@ -57,7 +41,6 @@ export default function SellerStorePage() {
   const [plans, setPlans] = useState<SellerSubscriptionPlan[] | null>(null);
 
   const [selectedWindowId, setSelectedWindowId] = useState<string>("");
-  const [orderFilter, setOrderFilter] = useState<OrderFilter>("all");
   const [supportOpen, setSupportOpen] = useState(false);
   const supportBtnRef = useRef<HTMLButtonElement | null>(null);
   const supportPanelRef = useRef<HTMLDivElement | null>(null);
@@ -80,30 +63,6 @@ export default function SellerStorePage() {
     if (!selectedWindowId) return null;
     return (windows ?? []).find((w) => w.id === selectedWindowId) ?? null;
   }, [windows, selectedWindowId]);
-
-  const filteredOrders = useMemo(() => {
-    if (!orders) return null;
-    if (orderFilter === "all") return orders;
-    return orders.filter((o) => o.status === orderFilter);
-  }, [orders, orderFilter]);
-
-  const orderCounts = useMemo(() => {
-    const base: Record<OrderFilter, number> = {
-      all: 0,
-      placed: 0,
-      ready: 0,
-      picked_up: 0,
-      no_show: 0,
-      canceled: 0,
-    };
-    if (!orders) return base;
-    base.all = orders.length;
-    for (const o of orders) {
-      const k = o.status as OrderFilter;
-      if (k in base) base[k] += 1;
-    }
-    return base;
-  }, [orders]);
 
   const siteOrigin = useMemo(() => {
     if (typeof window === "undefined") return "";
@@ -378,6 +337,10 @@ export default function SellerStorePage() {
     }
   }
 
+  function handlePickupCodeChange(orderId: string, code: string) {
+    setPickupCodeByOrderId((prev) => ({ ...prev, [orderId]: code }));
+  }
+
   return (
     <div className="grid gap-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -386,7 +349,7 @@ export default function SellerStorePage() {
             className="lr-btn lr-chip inline-flex w-fit items-center gap-2 px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
             href="/seller"
           >
-            <span aria-hidden="true">←</span>
+            <span aria-hidden="true">&larr;</span>
             Seller home
           </Link>
           <div>
@@ -462,491 +425,34 @@ export default function SellerStorePage() {
         </div>
       ) : null}
 
-      <section className="lr-card lr-card-strong lr-animate sticky top-3 z-10 grid gap-3 p-4 md:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <select
-            className="lr-field px-3 py-2 text-sm"
-            value={selectedWindowId}
-            onChange={(e) => setSelectedWindowId(e.target.value)}
-          >
-            <option value="">Select a window…</option>
-            {(windows ?? []).map((w) => (
-              <option key={w.id} value={w.id}>
-                {formatWindowLabel(w)}
-              </option>
-            ))}
-          </select>
-
-          {selectedWindowId ? (
-            <Link
-              className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-              href={`/pickup-windows/${selectedWindowId}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Buyer view
-            </Link>
-          ) : null}
-        </div>
-
-        {selectedWindow ? (
-          <>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-base font-semibold text-[color:var(--lr-ink)]">
-                {(() => {
-                  const start = new Date(selectedWindow.start_at);
-                  const end = new Date(selectedWindow.end_at);
-                  const now = new Date();
-                  const label = start > now ? "Next pickup" : "Current pickup";
-                  const day = start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
-                  const startTime = start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-                  const endTime = end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
-                  return `${label} · ${day} · ${startTime} – ${endTime}`;
-                })()}
-              </div>
-              <StatusPill status={selectedWindow.status} />
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--lr-muted)]">
-              <span>
-                {selectedWindow.pickup_location.label ?? "Pickup"} ·{" "}
-                {selectedWindow.pickup_location.city},{" "}
-                {selectedWindow.pickup_location.region}
-              </span>
-              <span>·</span>
-              <span>
-                Orders close{" "}
-                <span className="font-medium text-[color:var(--lr-ink)]">
-                  {new Date(selectedWindow.cutoff_at).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
-                </span>
-              </span>
-            </div>
-          </>
-        ) : (
-          <div className="text-sm text-[color:var(--lr-muted)]">
-            Generate a box cycle to create a pickup window.
-          </div>
-        )}
-      </section>
+      <PickupWindowList
+        windows={windows}
+        selectedWindowId={selectedWindowId}
+        selectedWindow={selectedWindow}
+        onWindowChange={setSelectedWindowId}
+      />
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <section className="lr-card lr-animate grid gap-4 p-6">
-          <div>
-            <h2 className="text-base font-semibold">Subscription boxes</h2>
-            <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-              Curated seasonal boxes for recurring buyers. Print a farmstand QR
-              to turn walk-up buyers into subscriptions.
-            </p>
-          </div>
+        <SubscriptionPlanList
+          plans={plans}
+          siteOrigin={siteOrigin}
+          generatingCycle={generatingCycle}
+          togglingPlan={togglingPlan}
+          onGenerateNextCycle={generateNextCycle}
+          onTogglePlanActive={togglePlanActive}
+          showToast={showToast}
+        />
 
-          {plans?.length ? (
-            <ul className="grid gap-3">
-              {plans.map((p) => (
-                <li key={p.id} className="lr-chip rounded-2xl p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-[240px]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="font-semibold text-[color:var(--lr-ink)]">
-                          {p.title}
-                        </div>
-                        <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-muted)]">
-                          {p.cadence}
-                        </span>
-                        {p.is_live ? (
-                          <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-leaf)]">
-                            live
-                          </span>
-                        ) : (
-                          <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-clay)]">
-                            draft
-                          </span>
-                        )}
-                        {!p.is_active ? (
-                          <span className="lr-chip rounded-full px-3 py-1 text-xs font-semibold text-[color:var(--lr-clay)]">
-                            inactive
-                          </span>
-                        ) : null}
-                      </div>
-                      <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                        ${(p.price_cents / 100).toFixed(2)} · cap{" "}
-                        {p.subscriber_limit} · next{" "}
-                        {new Date(p.next_start_at).toLocaleString()}
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <Link
-                          className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-                          href={`/boxes/${p.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {p.is_live ? "Buyer page" : "Preview buyer page"}
-                        </Link>
-                        <button
-                          type="button"
-                          className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
-                          onClick={() => generateNextCycle(p.id)}
-                          disabled={generatingCycle}
-                        >
-                          {generatingCycle
-                            ? "Generating…"
-                            : p.is_live
-                            ? "Generate next cycle"
-                            : "Go live (generate first cycle)"}
-                        </button>
-                        <button
-                          type="button"
-                          className={`lr-btn lr-chip px-3 py-2 text-sm font-semibold disabled:opacity-50 ${
-                            p.is_active
-                              ? "text-[color:var(--lr-clay)]"
-                              : "text-[color:var(--lr-leaf)]"
-                          }`}
-                          onClick={() => togglePlanActive(p.id, p.is_active)}
-                          disabled={togglingPlan}
-                        >
-                          {togglingPlan
-                            ? "Updating…"
-                            : p.is_active
-                              ? "Pause box"
-                              : "Resume box"}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid gap-2 justify-items-end">
-                      {p.is_live ? (
-                        <>
-                          <QrCode
-                            value={
-                              siteOrigin
-                                ? `${siteOrigin}/b/${p.id}`
-                                : `/b/${p.id}`
-                            }
-                            size={140}
-                            label="Farmstand QR"
-                          />
-                          <div className="flex flex-wrap justify-end gap-2">
-                            <Link
-                              className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-                              href={`/boxes/${p.id}/qr`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Print poster
-                            </Link>
-                            <button
-                              type="button"
-                              className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-                              onClick={() => {
-                                const url = siteOrigin
-                                  ? `${siteOrigin}/b/${p.id}`
-                                  : `/b/${p.id}`;
-                                navigator.clipboard
-                                  .writeText(url)
-                                  .then(() =>
-                                    showToast({
-                                      kind: "success",
-                                      message: "Buyer link copied.",
-                                    }),
-                                  )
-                                  .catch(() =>
-                                    showToast({
-                                      kind: "error",
-                                      message:
-                                        "Could not copy. Your browser may block clipboard access.",
-                                    }),
-                                  );
-                              }}
-                            >
-                              Copy link
-                            </button>
-                          </div>
-                          <div className="max-w-[14rem] text-right text-xs text-[color:var(--lr-muted)]">
-                            Tip: print this QR at the farmstand.
-                          </div>
-                        </>
-                      ) : (
-                        <div className="lr-chip grid gap-2 rounded-2xl p-4 text-right">
-                          <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
-                            Farmstand QR
-                          </div>
-                          <div className="text-xs text-[color:var(--lr-muted)]">
-                            Go live to enable the buyer QR.
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-sm text-[color:var(--lr-muted)]">
-              No subscription boxes yet.
-            </div>
-          )}
-        </section>
-
-      <section className="lr-card lr-animate grid gap-4 p-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div>
-              <h2 className="text-base font-semibold">Orders</h2>
-              <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                Scan the buyer&apos;s QR with your phone camera, or enter the code manually.
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {(
-              [
-                ["all", "All"],
-                ["placed", "Placed"],
-                ["ready", "Ready"],
-                ["picked_up", "Picked up"],
-                ["no_show", "No show"],
-                ["canceled", "Canceled"],
-              ] as const
-            ).map(([k, label]) => {
-              const active = orderFilter === k;
-              const count = orderCounts[k];
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  className={`lr-btn px-3 py-1.5 text-sm font-semibold ${
-                    active
-                      ? "lr-btn-primary"
-                      : "lr-chip text-[color:var(--lr-ink)]"
-                  }`}
-                  onClick={() => setOrderFilter(k)}
-                  aria-pressed={active}
-                >
-                  {label}{" "}
-                  <span className="opacity-80" aria-label={`${count} orders`}>
-                    {count}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {payoutSummary ? (
-          <div className="rounded-2xl bg-white/60 p-4 text-sm ring-1 ring-[color:var(--lr-border)]">
-            <div className="flex flex-wrap items-baseline justify-between gap-4">
-              <div className="font-semibold text-[color:var(--lr-ink)]">
-                Payout summary (est.)
-              </div>
-              <div className="text-base font-semibold text-[color:var(--lr-ink)]">
-                {formatMoney(payoutSummary.seller_payout_cents)}
-              </div>
-            </div>
-            <div className="mt-2 grid gap-1 text-xs text-[color:var(--lr-muted)]">
-              <div>
-                Picked up: {payoutSummary.picked_up_count} ·{" "}
-                {formatMoney(payoutSummary.payout_picked_up_cents)}
-              </div>
-              <div>
-                No-show fees: {payoutSummary.no_show_count} ·{" "}
-                {formatMoney(payoutSummary.payout_no_show_cents)}
-              </div>
-              <div>
-                Platform fee collected:{" "}
-                {formatMoney(payoutSummary.platform_fee_cents)}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
-        {filteredOrders?.length ? (
-          <ul className="grid gap-2">
-            {filteredOrders.map((o) => (
-              <li key={o.id} className="lr-chip rounded-2xl px-4 py-3">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-[240px]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="font-medium text-[color:var(--lr-ink)]">
-                          {o.buyer_name ? `${o.buyer_name} · ` : ""}
-                          {o.buyer_email}
-                        </div>
-                        <StatusPill status={o.status} />
-                        <PaymentPill status={o.payment_status} />
-                      </div>
-                  <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                    Total{" "}
-                    <span className="font-semibold text-[color:var(--lr-ink)]">
-                      {formatMoney(o.total_cents)}
-                    </span>
-                    {" · "}Placed{" "}
-                    <span className="font-medium text-[color:var(--lr-ink)]">
-                      {new Date(o.created_at).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                    Seller payout (est.){" "}
-                    <span className="font-semibold text-[color:var(--lr-ink)]">
-                      {formatMoney(o.subtotal_cents)}
-                    </span>
-                    {o.payment_method === "card" && (o.buyer_fee_cents ?? 0) > 0 ? (
-                      <>
-                        {" · "}Service fee{" "}
-                        <span className="font-semibold text-[color:var(--lr-ink)]">
-                          {formatMoney(o.buyer_fee_cents)}
-                        </span>
-                      </>
-                    ) : null}
-                  </div>
-                  {o.status === "no_show" && (o.captured_cents ?? 0) > 0 ? (
-                    <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                      No-show fee{" "}
-                      <span className="font-semibold text-[color:var(--lr-ink)]">
-                        {formatMoney(o.captured_cents)}
-                      </span>
-                    </div>
-                  ) : null}
-                  <div className="mt-2 grid gap-1">
-                    {o.items.map((it) => (
-                      <div
-                        key={it.id}
-                          className="text-sm text-[color:var(--lr-muted)]"
-                        >
-                          <span className="font-semibold text-[color:var(--lr-ink)]">
-                            {it.quantity}×
-                          </span>{" "}
-                          {it.product_title}{" "}
-                          <span className="opacity-85">
-                            ({it.product_unit})
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {o.status === "placed" ? (
-                      <>
-                        <button
-                          type="button"
-                          className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
-                          onClick={() => setOrderStatus(o.id, "ready")}
-                          disabled={busyOrderId === o.id}
-                        >
-                          {busyOrderId === o.id ? "Updating…" : "Mark ready"}
-                        </button>
-                        <div className="grid gap-2">
-                          <label className="grid gap-1">
-                            <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
-                              Pickup code
-                            </span>
-                            <input
-                              className="lr-field w-40 px-3 py-2 text-sm font-mono tracking-widest"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={6}
-                              placeholder="123456"
-                              value={pickupCodeByOrderId[o.id] ?? ""}
-                              onChange={(e) =>
-                                setPickupCodeByOrderId((prev) => ({
-                                  ...prev,
-                                  [o.id]: e.target.value.replace(/\D/g, "").slice(0, 6),
-                                }))
-                              }
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
-                            onClick={() => confirmPickup(o.id)}
-                            disabled={busyOrderId === o.id}
-                          >
-                            {busyOrderId === o.id ? "Confirming…" : "Confirm"}
-                          </button>
-                        </div>
-                        <button
-                          type="button"
-                          className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-rose-900 disabled:opacity-50"
-                          onClick={() => setOrderStatus(o.id, "canceled")}
-                          disabled={busyOrderId === o.id}
-                        >
-                          Cancel
-                        </button>
-                      </>
-                    ) : null}
-
-                    {o.status === "ready" ? (
-                      <>
-                        <div className="grid gap-2">
-                          <label className="grid gap-1">
-                            <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
-                              Pickup code
-                            </span>
-                            <input
-                              className="lr-field w-40 px-3 py-2 text-sm font-mono tracking-widest"
-                              inputMode="numeric"
-                              pattern="[0-9]*"
-                              maxLength={6}
-                              placeholder="123456"
-                              value={pickupCodeByOrderId[o.id] ?? ""}
-                              onChange={(e) =>
-                                setPickupCodeByOrderId((prev) => ({
-                                  ...prev,
-                                  [o.id]: e.target.value.replace(/\D/g, "").slice(0, 6),
-                                }))
-                              }
-                            />
-                          </label>
-                          <button
-                            type="button"
-                            className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold disabled:opacity-50"
-                            onClick={() => confirmPickup(o.id)}
-                            disabled={busyOrderId === o.id}
-                          >
-                            {busyOrderId === o.id ? "Confirming…" : "Confirm"}
-                          </button>
-                        </div>
-                        <div className="grid content-start gap-2">
-                          <button
-                            type="button"
-                            className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-clay)] disabled:opacity-50"
-                            onClick={() =>
-                              setOrderStatus(o.id, "no_show", {
-                                waive_fee: false,
-                              })
-                            }
-                            disabled={busyOrderId === o.id}
-                            title="Capture a small no-show fee (default $5) when authorized."
-                          >
-                            No show (charge fee)
-                          </button>
-                          <button
-                            type="button"
-                            className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-muted)] disabled:opacity-50"
-                            onClick={() =>
-                              setOrderStatus(o.id, "no_show", { waive_fee: true })
-                            }
-                            disabled={busyOrderId === o.id}
-                            title="Void the authorization (waive fee)."
-                          >
-                            No show (waive)
-                          </button>
-                        </div>
-                      </>
-                    ) : null}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : selectedWindowId ? (
-          <div className="text-sm text-[color:var(--lr-muted)]">
-            No orders yet for this window.
-          </div>
-        ) : (
-          <div className="text-sm text-[color:var(--lr-muted)]">
-            Select an active pickup window above to view orders.
-          </div>
-        )}
-      </section>
+        <OrderList
+          orders={orders}
+          selectedWindowId={selectedWindowId}
+          busyOrderId={busyOrderId}
+          pickupCodeByOrderId={pickupCodeByOrderId}
+          payoutSummary={payoutSummary}
+          onSetOrderStatus={setOrderStatus}
+          onConfirmPickup={confirmPickup}
+          onPickupCodeChange={handlePickupCodeChange}
+        />
       </div>
 
       <ConfirmDialog

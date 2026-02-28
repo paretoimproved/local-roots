@@ -13,14 +13,7 @@ import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { PickupCodeCard } from "@/components/pickup-code-card";
 import { useToast } from "@/components/toast";
-import { formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
-
-function cadenceLabel(c: string) {
-  if (c === "weekly") return "Weekly";
-  if (c === "biweekly") return "Every two weeks";
-  if (c === "monthly") return "Monthly";
-  return c;
-}
+import { cadenceLabel, formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {

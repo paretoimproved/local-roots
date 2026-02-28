@@ -189,6 +189,44 @@ export type PickupConfirmResponse = {
   confirmed_at: string;
 };
 
+export type RevenueByCycle = {
+  cycle_date: string;
+  revenue_cents: number;
+  orders: number;
+  pickups: number;
+};
+
+export type StoreAnalytics = {
+  active_subscribers: number;
+  total_subscribers: number;
+  churn_count: number;
+  total_revenue_cents: number;
+  total_orders: number;
+  picked_up_count: number;
+  pickup_rate: number;
+  revenue_by_cycle: RevenueByCycle[];
+};
+
+export type PayoutHistoryEntry = {
+  order_id: string;
+  pickup_date: string;
+  total_cents: number;
+  seller_payout_cents: number;
+  platform_fee_cents: number;
+  status: string;
+  transfer_id: string | null;
+};
+
+export type BoxPreview = {
+  id: string;
+  plan_id: string;
+  cycle_date: string;
+  body: string;
+  photo_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export const sellerApi = {
   registerSeller: (email: string, password: string, displayName?: string) =>
     requestJSON<AuthResponse>("/v1/auth/register", {
@@ -507,5 +545,38 @@ export const sellerApi = {
     requestJSON<{ client_secret: string }>(
       `/v1/seller/stores/${storeId}/connect/account-session`,
       { method: "POST", token, body: JSON.stringify({}) },
+    ),
+
+  // Box previews
+  listBoxPreviews: (token: string, storeId: string, planId: string) =>
+    requestJSON<BoxPreview[]>(
+      `/v1/seller/stores/${storeId}/plans/${planId}/previews`,
+      { token },
+    ),
+  createBoxPreview: (
+    token: string,
+    storeId: string,
+    planId: string,
+    input: { cycle_date: string; body: string; photo_url?: string | null },
+  ) =>
+    requestJSON<BoxPreview>(
+      `/v1/seller/stores/${storeId}/plans/${planId}/previews`,
+      { method: "POST", token, body: JSON.stringify(input) },
+    ),
+  deleteBoxPreview: (token: string, storeId: string, planId: string, previewId: string) =>
+    requestJSON<{ deleted: boolean }>(
+      `/v1/seller/stores/${storeId}/plans/${planId}/previews/${previewId}`,
+      { method: "DELETE", token },
+    ),
+
+  getStoreAnalytics: (token: string, storeId: string) =>
+    requestJSON<StoreAnalytics>(
+      `/v1/seller/stores/${storeId}/analytics`,
+      { token },
+    ),
+  getPayoutHistory: (token: string, storeId: string) =>
+    requestJSON<PayoutHistoryEntry[]>(
+      `/v1/seller/stores/${storeId}/payouts`,
+      { token },
     ),
 };

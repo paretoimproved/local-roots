@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/jackc/pgx/v5"
@@ -153,7 +154,9 @@ func ExecutePickupConfirm(
 	}
 
 	// 8. Capture the Stripe authorization (after commit; webhook reconciles on failure).
-	_ = stripe.CaptureAuthorization(ctx, trimPI, "capture-"+orderID)
+	if err := stripe.CaptureAuthorization(ctx, trimPI, "capture-"+orderID); err != nil {
+		log.Printf("WARN: capture authorization failed for order %s: %v (webhook will reconcile)", orderID, err)
+	}
 
 	// 9. Transfer seller's share to their Connect account.
 	transferToSeller(ctx, db, stripe, storeID, orderID, trimPI, subtotalCents, "transfer-")

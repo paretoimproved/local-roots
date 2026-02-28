@@ -112,6 +112,16 @@ export type GeocodeResult = {
   label: string;
 };
 
+export type BoxPreviewPublic = {
+  id: string;
+  plan_id: string;
+  cycle_date: string;
+  body: string;
+  photo_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export const api = {
   placesAutocomplete: (q: string) =>
     requestJSON<PlacePrediction[]>(
@@ -174,5 +184,10 @@ export const api = {
     requestJSON<PickupWindowDetail>(`/v1/pickup-windows/${pickupWindowId}`, {
       method: "GET",
       next: { revalidate: 30 },
+    }),
+  getLatestBoxPreview: (planId: string) =>
+    requestJSON<BoxPreviewPublic>(`/v1/plans/${planId}/preview/latest`, {
+      method: "GET",
+      cache: "no-store",
     }),
 };

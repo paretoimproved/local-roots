@@ -8,16 +8,9 @@ import { orderToken } from "@/lib/order-token";
 import { subscriptionToken } from "@/lib/subscription-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
 import { useToast } from "@/components/toast";
-import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
+import { cadenceLabel, formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { AuthorizeCard, isStripeAvailable } from "@/components/stripe-card-auth";
 import { ErrorAlert } from "@/components/error-alert";
-
-function cadenceLabel(c: string) {
-  if (c === "weekly") return "Weekly";
-  if (c === "biweekly") return "Every two weeks";
-  if (c === "monthly") return "Monthly";
-  return c;
-}
 
 export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   const { showToast } = useToast();
@@ -120,6 +113,11 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
       // overwriting our detailed error message.
       throw new Error("__handled__");
     }
+  }
+
+  function handleSubscribeSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    startCheckout();
   }
 
   if (done) {
@@ -243,7 +241,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-3">
+      <form onSubmit={handleSubscribeSubmit} className="mt-4 grid gap-3">
         <label className="grid gap-1">
           <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
             Email
@@ -285,10 +283,9 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
         </div>
 
         <button
-          type="button"
+          type="submit"
           className={`lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-semibold disabled:opacity-50${checkout ? " cursor-not-allowed" : ""}`}
           disabled={submitting || !email.trim() || !plan.is_live || !paymentsReady || !!checkout}
-          onClick={startCheckout}
         >
           {!plan.is_live
             ? "Not live yet"
@@ -318,7 +315,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             .
           </div>
         )}
-      </div>
+      </form>
     </section>
   );
 }

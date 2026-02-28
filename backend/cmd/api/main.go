@@ -47,6 +47,9 @@ func main() {
 		Addr:              cfg.Addr,
 		Handler:           httpx.NewHandler(httpx.Deps{Config: cfg, DB: pool, Stripe: stripeClient, Email: emailClient}),
 		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      60 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	// Start in-process scheduler in production (replaces GitHub Actions cron).

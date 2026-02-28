@@ -30,7 +30,7 @@ At scale, Local-Roots is a vertical commerce platform that owns the relationship
 | **Unique Value Proposition** | Farmers get Shopify-simple subscription management with built-in demand. Buyers get one-tap access to local farm subscriptions with guaranteed pickup slots. |
 | **Solution** | Subscription box builder, Stripe-powered recurring billing, pickup window management, QR code fulfillment verification, buyer discovery marketplace. |
 | **Channels** | (1) Farmer onboarding via farmers market field sales, ag extension partnerships, word-of-mouth. (2) Buyer acquisition via local SEO, farmer cross-promotion, community partnerships. |
-| **Revenue Streams** | 5% buyer service fee on every transaction. Future: seller SaaS tier ($29-99/mo for advanced features), promoted listings, data/insights products. |
+| **Revenue Streams** | 7% + $0.35 buyer service fee on every transaction. Future: seller SaaS tier ($29-99/mo for advanced features), promoted listings, data/insights products. |
 | **Cost Structure** | Engineering (60%), farmer success/onboarding (20%), hosting and payment processing (10%), marketing (10%). |
 | **Key Metrics** | GMV, active subscriptions, farmer retention, buyer retention, subscription renewal rate, pickup completion rate. |
 | **Unfair Advantage** | Density-based supply lock-in: once a farmer's subscribers are on the platform, switching costs are high. Local trust graph is defensible and compounds. |
@@ -41,56 +41,62 @@ At scale, Local-Roots is a vertical commerce platform that owns the relationship
 
 ### Per-Transaction Economics
 
+> **Note:** All revenue figures below are **net of Stripe processing fees**, reflecting true platform contribution. Previous versions showed gross fees, which overstated unit economics.
+
 | Metric | Value | Notes |
 |---|---|---|
 | Average subscription box price | $45 | Based on CSA market data |
-| Buyer service fee (5%) | $2.25 | Platform revenue per transaction |
-| Stripe processing (~2.9% + $0.30) | $1.61 | Passed through or absorbed |
-| Net revenue per transaction | $2.25 | Service fee only model |
+| Buyer service fee (7% + $0.35) | $3.50 | Gross platform revenue per transaction |
+| Total charged to buyer | $48.50 | Subtotal + service fee |
+| Stripe processing (~2.9% + $0.30) | -$1.71 | Absorbed by platform out of service fee |
+| **Net platform revenue per transaction** | **$1.79** | Service fee minus Stripe |
 | Platform COGS per transaction | ~$0.15 | Hosting, support, infrastructure |
-| **Gross margin per transaction** | **$2.10 (~93%)** | High-margin marketplace model |
+| **Net contribution per transaction** | **$1.64** | Revenue after all variable costs |
 
 ### Per-Farmer Economics
 
 | Metric | Value | Notes |
 |---|---|---|
 | Average subscribers per farmer | 40 | At steady state |
-| Average order frequency | 2.2x/month | Mix of weekly, biweekly, monthly |
-| Monthly GMV per farmer | $3,960 | 40 subs x 2.2 orders x $45 |
-| Monthly platform revenue per farmer | $198 | 5% of GMV |
-| Annual platform revenue per farmer | $2,376 | |
+| Weighted avg order frequency | 3.1x/month | 60% weekly, 25% biweekly, 15% monthly |
+| Monthly GMV per farmer | $5,580 | 40 subs × 3.1 orders × $45 |
+| Monthly net contribution per farmer | $213 | 40 subs × $5.33 blended contribution |
+| Annual net contribution per farmer | $2,558 | |
 | Farmer acquisition cost (CAC) | $300-500 | Field sales + onboarding support |
-| **Farmer LTV (3-yr, 80% retention)** | **$5,261** | Discounted at 10% annual rate |
-| **LTV:CAC ratio** | **10.5-17.5x** | Excellent unit economics |
+| **Farmer LTV (3-yr, 80% retention)** | **$5,247** | Discounted at 10% annual rate, net of Stripe |
+| **LTV:CAC ratio** | **10.5-17.5x** | Based on net contribution (after Stripe fees) |
 
 ### Per-Buyer Economics
 
 | Metric | Value | Notes |
 |---|---|---|
-| Monthly spend per active buyer | $99 | 2.2 orders x $45 |
-| Monthly service fee per buyer | $4.95 | 5% fee |
-| Annual revenue per buyer | $59.40 | |
+| Monthly spend per active subscriber | $140 | 3.1 orders × $45 |
+| Monthly gross service fee per subscriber | $10.85 | 3.1 orders × $3.50 |
+| Monthly net contribution per subscriber | $5.33 | After Stripe fees and infrastructure |
+| Annual net contribution per subscriber | $63.96 | |
 | Buyer CAC | $8-15 | Organic/referral-heavy model |
-| **Buyer LTV (2-yr, 65% retention)** | **$82** | Discounted |
-| **LTV:CAC ratio** | **5.5-10.3x** | Strong for marketplace |
+| **Subscriber LTV (12.5 mo avg lifetime, 8% churn)** | **$60** | Discounted at 10% annual rate |
+| **LTV:CAC ratio** | **4.0-7.5x** | Strong for marketplace; based on net contribution |
 
 ### Break-Even Analysis
 
-| Scale | Farmers | Active Buyers | Monthly GMV | Monthly Revenue | Monthly Costs | Status |
-|---|---|---|---|---|---|---|
-| Pre-seed (now) | 20 | 200 | $18K | $900 | $15K | -$14.1K/mo |
-| Seed milestone | 200 | 4,000 | $180K | $9K | $40K | -$31K/mo |
-| Series A target | 1,000 | 25,000 | $1.1M | $56K | $80K | -$24K/mo |
-| Break-even | 2,500 | 60,000 | $2.7M | $135K | $130K | +$5K/mo |
-| Scale (Year 4) | 10,000 | 300,000 | $13.5M | $675K | $400K | +$275K/mo |
+> **Note:** "Monthly Net Contribution" is revenue after Stripe processing fees and infrastructure costs. Previous versions showed gross fees, which overstated unit economics.
 
-**Key insight:** At pure 5% take rate, break-even requires ~2,500 active farmers and ~60,000 active buyers. Adding a seller SaaS tier ($49/mo average) at 30% attach rate accelerates break-even to ~1,200 farmers.
+| Scale | Farmers | Subscribers | Monthly GMV | Monthly Net Contribution | Monthly Costs | Status |
+|---|---|---|---|---|---|---|
+| Pre-seed (now) | 20 | 200 | $28K | $1.1K | $15K | -$13.9K/mo |
+| Seed milestone | 200 | 4,000 | $558K | $21.3K | $40K | -$18.7K/mo |
+| Series A target | 1,000 | 25,000 | $3.5M | $133K | $80K | +$53K/mo |
+| Break-even (scale team) | 610 | 24,400 | $3.4M | $130K | $130K | ~$0/mo |
+| Scale (Year 4) | 10,000 | 300,000 | $41.9M | $1.6M | $400K | +$1.2M/mo |
+
+**Key insight:** At 7% + $0.35 take rate, net of Stripe fees, break-even at scale-team costs ($130K/mo) requires ~610 farmers with ~24,400 active subscribers -- a 74% reduction from the prior 5% model. Adding a seller SaaS tier ($49/mo average) at 30% attach rate accelerates break-even to ~400 farmers.
 
 ### Revenue Model Evolution
 
 | Phase | Revenue Source | Contribution |
 |---|---|---|
-| Phase 1 (Now) | 5% buyer service fee | 100% |
+| Phase 1 (Now) | 7% + $0.35 buyer service fee | 100% |
 | Phase 2 (Year 2) | + Seller SaaS tier ($29-99/mo) | 60% / 40% |
 | Phase 3 (Year 3) | + Promoted listings, analytics | 45% / 35% / 20% |
 | Phase 4 (Year 4+) | + Financial services, insurance, logistics | Diversified |
@@ -135,7 +141,7 @@ Local food is inherently emotional and community-driven. Local-Roots has the opp
 
 - Food is personal -- buyers want to trust the source.
 - Farmers want to associate with a platform that genuinely serves their interests (not extract maximum fees).
-- The 5% buyer-side fee signals farmer-first alignment.
+- The buyer-side-only fee (zero seller fees) signals farmer-first alignment.
 
 ### 4.5 What Makes This "10x Better"
 
@@ -148,7 +154,7 @@ Compared to the status quo (manual CSAs, Square invoices, Facebook groups, sprea
 | Text/email pickup coordination | Structured pickup windows with QR verification |
 | No demand generation | Built-in buyer marketplace |
 | No analytics | Subscription and demand analytics |
-| 0% platform fee but 100% of the work | 5% fee, 90% less operational burden |
+| 0% platform fee but 100% of the work | 7% + $0.35 buyer fee, 90% less operational burden |
 
 ---
 
@@ -213,14 +219,14 @@ Compared to the status quo (manual CSAs, Square invoices, Facebook groups, sprea
 - Competitors are SaaS-only (no marketplace/demand generation). Local-Roots' marketplace component is the differentiator.
 - Move fast to lock in density in core markets. Once a farmer's subscribers are on-platform, switching costs are high.
 - Build community and brand that competitors cannot replicate with features alone.
-- The 5% buyer-side fee (vs. $99-299/mo SaaS fees) is more farmer-friendly for smaller operations.
+- The buyer-side fee at 7% + $0.35 (vs. $99-299/mo SaaS fees) is more farmer-friendly for smaller operations.
 
-### Risk 3: Low Take Rate Ceiling
-**Severity:** High
-**Description:** At 5% buyer-side-only, revenue per transaction is thin ($2.25 on a $45 box). Reaching profitability requires massive scale or revenue diversification.
+### Risk 3: Take Rate Ceiling
+**Severity:** Medium
+**Description:** At 7% + $0.35 buyer-side, net contribution per transaction is $1.64 on a $45 box. While break-even is now achievable at realistic scale (~610 farmers), further revenue growth requires diversification.
 **Mitigation:**
 - Revenue diversification roadmap: SaaS tier, promoted listings, financial services, logistics.
-- The 5% fee is the wedge, not the ceiling. As platform value increases, blended take rate should reach 8-12% through additional services.
+- The 7% + $0.35 fee is the wedge, not the ceiling. As platform value increases, blended take rate should reach 8-12% through additional services.
 - Marketplace models historically expand take rates as they add services (Shopify: subscriptions to payments to capital to fulfillment).
 
 ### Risk 4: Seasonality and Geographic Limitations
@@ -244,24 +250,24 @@ Compared to the status quo (manual CSAs, Square invoices, Facebook groups, sprea
 
 ### Risk 6: Off-Platform Payment / Disintermediation
 **Severity:** High
-**Description:** Since buyer and farmer meet in person at every pickup, buyers have an obvious opportunity to bypass the platform and pay the farmer directly (cash, Venmo, etc.) to avoid the 5% service fee. This is the classic marketplace disintermediation risk, amplified by the in-person nature of every transaction.
+**Description:** Since buyer and farmer meet in person at every pickup, buyers have an obvious opportunity to bypass the platform and pay the farmer directly (cash, Venmo, etc.) to avoid the 7% + $0.35 service fee. This is the classic marketplace disintermediation risk, amplified by the in-person nature of every transaction.
 
 **Why it's partially self-mitigating:**
-- The 5% fee is buyer-side. The farmer gets their full amount regardless of whether payment goes through the platform. The farmer has **zero financial incentive** to encourage off-platform payment.
+- The fee is buyer-side. The farmer gets their full amount regardless of whether payment goes through the platform. The farmer has **zero financial incentive** to encourage off-platform payment.
 - The farmer actively **wants** buyers on-platform because it eliminates admin burden: automatic recurring billing, subscription management, no-show fee protection, pickup verification, and analytics. Going off-platform means going back to spreadsheets and Venmo chasing.
-- $2.25 on a $45 box is below most people's "bother threshold," especially when the platform provides card-on-file convenience, scheduling, reminders, and one-tap pause/cancel.
+- $3.50 on a $45 box is below most people's "bother threshold," especially when the platform provides card-on-file convenience, scheduling, reminders, and one-tap pause/cancel.
 
 **Where the risk is highest:**
-- High-value boxes ($80+) where the fee exceeds $4 and feels visible
+- High-value boxes ($80+) where the fee exceeds $6 and feels visible
 - Long-term loyal buyers who already have the farmer's contact info and don't need the platform's discovery or scheduling value
 - Cash-friendly buyer demographics
 
 **Design mitigations:**
 1. **Don't surface farmer contact info to buyers.** Communication goes through the platform. No phone/email on buyer-facing pages.
-2. **Frame the fee as value, not a tax.** Position as "Platform fee includes pickup scheduling, reminders, and payment protection" rather than a bare line item. Consider embedding the fee in the price (farmer sets buyer price, platform takes 5% from the gross) so the buyer never sees a separate fee.
+2. **Frame the fee as value, not a tax.** Position as "Platform fee includes pickup scheduling, reminders, and payment protection" rather than a bare line item. Consider embedding the fee in the price (farmer sets buyer price, platform takes 7% + $0.35 from the gross) so the buyer never sees a separate fee.
 3. **Lock operational value into the platform.** The 6-digit pickup code verification flow is key -- if the farmer relies on it for fulfillment tracking and no-show management, taking a buyer off-platform creates an operational gap.
 4. **Build retention features that only work on-platform.** Pause/resume, subscription history, pickup reminders, reviews, referral credits. The more the buyer's "local food life" lives on Local-Roots, the less they think about the fee.
-5. **Cap the service fee.** Cap at $3-4 per transaction so high-value boxes don't feel punitive. This costs very little revenue (most boxes are $35-55) but removes worst-case optics.
+5. **Cap the service fee.** Cap at $5-6 per transaction so high-value boxes don't feel punitive. This costs very little revenue (most boxes are $35-55) but removes worst-case optics.
 
 **Structural mitigation -- Deposit / No-Show Fee Split:**
 

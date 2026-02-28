@@ -38,8 +38,8 @@ Last updated: February 2026
 | Scenario | Who initiates | Buyer outcome | Seller outcome | Platform absorbs |
 |----------|--------------|---------------|----------------|-----------------|
 | Buyer cancels before cutoff | Buyer | Full void | No payout | Nothing |
-| Buyer cancels after cutoff | Buyer | Non-refundable | Full payout (minus platform fee) | Nothing |
-| Buyer no-show | — | Box forfeited, charged normally | Full payout (minus platform fee) | Nothing |
+| Buyer cancels after cutoff | Buyer | Non-refundable | Full payout (full subtotal) | Nothing |
+| Buyer no-show | — | Box forfeited, charged normally | Full payout (full subtotal) | Nothing |
 | Seller cancels order | Seller | Full refund | No payout | Stripe refund fees (~$0.25) |
 | Quality dispute (post-pickup) | Buyer | Case-by-case | Case-by-case | Potential partial refund |
 | Fraudulent charge | Buyer's bank | Chargeback | See below | Stripe chargeback fee ($15) |

@@ -9,21 +9,8 @@ import {
 } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
-import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
+import { cadenceLabel, formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { QrCode } from "@/components/qr-code";
-
-function cadenceLabel(cadence: string): string {
-  switch (cadence) {
-    case "weekly":
-      return "/week";
-    case "biweekly":
-      return "/2 weeks";
-    case "monthly":
-      return "/month";
-    default:
-      return "";
-  }
-}
 
 function friendlyDate(iso: string, tz?: string): string {
   const opts: Intl.DateTimeFormatOptions = {
@@ -262,8 +249,7 @@ export default function ReviewPage() {
               {plan.title}
             </p>
             <p className="mt-0.5 text-sm text-[color:var(--lr-muted)]">
-              {formatMoney(plan.price_cents)}
-              {cadenceLabel(plan.cadence)} &middot; Up to{" "}
+              {formatMoney(plan.price_cents)} · {cadenceLabel(plan.cadence)} · Up to{" "}
               {plan.subscriber_limit} customers
             </p>
             <p className="mt-0.5 text-sm text-[color:var(--lr-muted)]">

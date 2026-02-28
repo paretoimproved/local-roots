@@ -147,6 +147,11 @@ export function CheckoutForm({
     }
   }
 
+  function handleCheckoutSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    startCardCheckout();
+  }
+
   if (order) {
     return (
       <div className="grid gap-4">
@@ -275,7 +280,7 @@ export function CheckoutForm({
         })}
       </div>
 
-      <div className="mt-4 grid gap-2 rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
+      <form onSubmit={handleCheckoutSubmit} className="mt-4 grid gap-2 rounded-xl bg-white/60 p-4 ring-1 ring-[color:var(--lr-border)]">
         <div className="grid gap-2">
           <div className="flex items-baseline justify-between gap-4">
             <span className="text-sm font-medium text-[color:var(--lr-muted)]">Subtotal</span>
@@ -341,10 +346,9 @@ export function CheckoutForm({
         </div>
 
         <button
-          type="button"
+          type="submit"
           className={`lr-btn lr-btn-primary mt-2 inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50${checkout ? " cursor-not-allowed" : ""}`}
           disabled={submitting || items.length === 0 || !buyerEmail.trim() || !!checkout}
-          onClick={startCardCheckout}
         >
           {checkout
             ? "Complete payment below"
@@ -362,7 +366,7 @@ export function CheckoutForm({
             mode="payment_intent"
           />
         ) : null}
-      </div>
+      </form>
     </section>
   );
 }
