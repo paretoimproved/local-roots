@@ -1,0 +1,123 @@
+# Session Context
+
+Session ID: 6fee0305-5759-40cc-9398-b1f4fe609795
+Commit Message: <teammate-message teammate_id="team-lead">
+You are the Client Analytics
+
+## Prompts
+
+### Prompt 1
+
+<teammate-message teammate_id="team-lead">
+You are the Client Analytics Integration agent. Implement item #31 from the P3 audit.
+
+Project root: "/Users/brandonqueener/Cursor Projects/Local-Roots"
+Frontend: Next.js 16 (App Router) + React 19 on Vercel.
+
+## YOUR EXCLUSIVE FILES
+- `frontend/src/lib/analytics.ts` (new)
+- `frontend/src/components/analytics-provider.tsx` (new)
+- `frontend/src/app/layout.tsx` — add analytics provider (ONLY add the provider wrapper, don't change other things in layout)
+
+DO NOT TOUCH: checkout-form.tsx, subscribe-form.tsx, seller store pages, backend files, globals.css
+
+## Item #31 — Lightweight Client Analytics
+
+### Approach: Build a thin analytics abstraction
+Instead of tightly coupling to PostHog, create a thin analytics layer that:
+1. Can work with PostHog (or any provider) via env var
+2. Degrades gracefully when no analytics key is configured
+3. Doesn't block rendering or hurt performance
+
+### 1. Create `frontend/src/lib/analytics.ts`
+```typescript
+// Thin analytics abstraction — swap providers by changing the init.
+// Set NEXT_PUBLIC_POSTHOG_KEY to enable. Without it, all calls are no-ops.
+
+type AnalyticsEvent = {
+  name: string;
+  properties?: Record<string, string | number | boolean | null>;
+};
+
+let initialized = false;
+
+export function initAnalytics(): void {
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  if (!key || typeof window === "undefined") return;
+
+  // Lazy-load posthog-js to avoid blocking the main bundle.
+  import("posthog-js").then(({ default: posthog }) => {
+    posthog.init(key, {
+      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+      capture_pageview: true,
+      capture_pageleave: true,
+      loaded: () => { initialized = true; },
+    });
+  }).catch(() => {
+    // Analytics failure should never break the app.
+  });
+}
+
+export function track(event: string, properties?: Record<string, string | number | boolean | null>): void {
+  if (!initialized || typeof window === "undefined") return;
+  import("posthog-js").then(({ default: posthog }) => {
+    posthog.capture(event, properties);
+  }).catch(() => {});
+}
+
+export function identify(userId: string, traits?: Record<string, string | number | boolean | null>): void {
+  if (!initialized || typeof window === "undefined") return;
+  import("posthog-js").then(({ default: posthog }) => {
+    posthog.identify(userId, traits);
+  }).catch(() => {});
+}
+```
+
+### 2. Create `frontend/src/components/analytics-provider.tsx`
+```typescript
+"use client";
+
+import { useEffect } from "react";
+import { initAnalytics } from "@/lib/analytics";
+
+export function AnalyticsProvider({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    initAnalytics();
+  }, []);
+  return <>{children}</>;
+}
+```
+
+### 3. Add to layout.tsx
+Read `frontend/src/app/layout.tsx`. Wrap the children (or the existing providers) with `<AnalyticsProvider>`:
+```tsx
+import { AnalyticsProvider } from "@/components/analytics-provider";
+
+// In the JSX, wrap children:
+<AnalyticsProvider>
+  {children}
+</AnalyticsProvider>
+```
+
+### 4. Install posthog-js
+Run: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots/frontend" && pnpm add posthog-js`
+
+### 5. Document the env var
+The env var `NEXT_PUBLIC_POSTHOG_KEY` enables analytics. Without it, everything is a no-op. No changes needed to CLAUDE.md (that's someone else's responsibility).
+
+### Key Requirements:
+- **No-op when unconfigured** — the app must work perfectly without PostHog
+- **Lazy-loaded** — posthog-js should not be in the main bundle
+- **Never breaks the app** — all analytics calls wrapped in try/catch
+- **Track pageviews automatically** via PostHog's built-in page tracking
+- Do NOT add inline `track()` calls throughout the app — just set up the infrastructure. Event tracking in specific components can be added later.
+
+## Verification
+After changes: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots" && pnpm typecheck && pnpm lint`
+
+When done, mark task #7 as completed using TaskUpdate.
+</teammate-message>
+
+## Summary
+
+You've hit your limit · resets 10am (America/Los_Angeles)
