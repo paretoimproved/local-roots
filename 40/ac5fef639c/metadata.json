@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "40ac5fef639c",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/app/layout.tsx",
+    "frontend/src/app/orders/[orderId]/page.tsx",
+    "frontend/src/app/pickup-windows/[pickupWindowId]/page.tsx",
+    "frontend/src/app/subscriptions/[subscriptionId]/page.tsx",
+    "frontend/src/components/checkout-form.tsx",
+    "legacy/ts-stack-untracked/apps/web/node_modules/.pnpm/tailwindcss@3.4.1/node_modules/tailwindcss/stubs/.prettierrc.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/40/ac5fef639c/0/metadata.json",
+      "transcript": "/40/ac5fef639c/0/full.jsonl",
+      "context": "",
+      "content_hash": "/40/ac5fef639c/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 72478,
+    "cache_read_tokens": 1254488,
+    "output_tokens": 7203,
+    "api_call_count": 23
+  }
+}

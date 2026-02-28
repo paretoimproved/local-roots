@@ -1,0 +1,78 @@
+# Session Context
+
+Session ID: 3a701286-0c7e-41c4-baf1-b2044f80956b
+Commit Message: <teammate-message teammate_id="team-lead">
+You are the A11y + Buyer UX a
+
+## Prompts
+
+### Prompt 1
+
+<teammate-message teammate_id="team-lead">
+You are the A11y + Buyer UX agent. Implement items #20, #21, #22 from the P2 audit.
+
+Project root: "/Users/brandonqueener/Cursor Projects/Local-Roots"
+Frontend: Next.js 16 (App Router) + React 19 on Vercel
+Auth: JWT — buyer uses magic link + Google OAuth. Buyer pages use `await params` in server components.
+Error handling: use `parseApiError` / `mapApiError` from `lib/ui.ts`
+
+## YOUR EXCLUSIVE FILES
+- `frontend/src/app/layout.tsx`
+- `frontend/src/app/orders/[orderId]/page.tsx`
+- `frontend/src/app/subscriptions/[subscriptionId]/page.tsx`
+- `frontend/src/components/checkout-form.tsx`
+- Any nav components (buyer-nav-link.tsx, seller-nav-link.tsx)
+
+DO NOT TOUCH: `app/page.tsx`, `footer.tsx`, `stores/page.tsx`, `globals.css`, migration files, backend files
+
+## Item #20 — Skip-to-Content Link + Nav aria-labels
+
+### 1. Add skip-to-content link to `layout.tsx`
+Read `frontend/src/app/layout.tsx` first. Add a skip link as the FIRST child inside `<body>`:
+```tsx
+<a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-[var(--lr-ink)] focus:rounded-lg focus:shadow-lg focus:outline-none">
+  Skip to content
+</a>
+```
+Then find the `<main>` element and add `id="main-content"` to it. If there's no `<main>`, wrap the `{children}` in one.
+
+### 2. Add aria-labels to nav elements
+Read the nav components. Add `aria-label` to distinguish navigation regions:
+- Main buyer nav: `aria-label="Main navigation"`
+- Seller nav: `aria-label="Seller navigation"`
+- Footer nav (if it has a `<nav>`): `aria-label="Footer navigation"`
+Note: Do NOT modify footer.tsx — if the footer nav needs a label, skip it (another agent owns footer.tsx).
+
+## Item #21 — Replace Token Jargon with Sign-In Prompts
+
+### 1. Read `frontend/src/app/orders/[orderId]/page.tsx`
+Find where it shows "Paste the token" or similar developer-facing language when a buyer isn't authenticated. Replace with a user-friendly sign-in prompt:
+- Show a message like "Sign in to view your order"
+- Add a link/button to the buyer login page: `/buyer/login`
+- Keep the `?t=` token flow working for shared links — only change the fallback when no token is present
+
+### 2. Read `frontend/src/app/subscriptions/[subscriptionId]/page.tsx`
+Same treatment — replace any token jargon with "Sign in to view your subscription" + link to `/buyer/login`.
+
+## Item #22 — Add Pickup Info to Post-Checkout Success
+
+### 1. Read `frontend/src/components/checkout-form.tsx`
+Find the success/confirmation state shown after checkout completes. The checkout response likely includes order details. Add:
+- Pickup date/time (from the pickup window data that should be available in the parent context or passed as props)
+- Pickup location name/address
+
+Read the component carefully to understand what data is available in the success state. If pickup window info isn't passed to the checkout form, check the parent page that renders it to see what data is available. You may need to:
+- Add props to the checkout form for pickup window info (date, time, location)
+- Display them in the success state
+
+Keep the existing success UI pattern — just add the pickup details below the existing success message. Use the existing design system classes (.lr-card, text styles, etc.).
+
+## Verification
+After all changes, run: `cd "/Users/brandonqueener/Cursor Projects/Local-Roots" && pnpm typecheck && pnpm lint`
+
+When done, mark task #2 as completed using TaskUpdate.
+</teammate-message>
+
+## Summary
+
+All three audit items are implemented and verified. Waiting for team lead to assign further work or provide feedback.

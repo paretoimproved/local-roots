@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "40ac5fef639c",
+  "session_id": "3a701286-0c7e-41c4-baf1-b2044f80956b",
+  "strategy": "auto-commit",
+  "created_at": "2026-02-28T17:07:06.175743Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/app/layout.tsx",
+    "frontend/src/app/orders/[orderId]/page.tsx",
+    "frontend/src/app/pickup-windows/[pickupWindowId]/page.tsx",
+    "frontend/src/app/subscriptions/[subscriptionId]/page.tsx",
+    "frontend/src/components/checkout-form.tsx",
+    "legacy/ts-stack-untracked/apps/web/node_modules/.pnpm/tailwindcss@3.4.1/node_modules/tailwindcss/stubs/.prettierrc.json"
+  ],
+  "agent": "Claude Code",
+  "token_usage": {
+    "input_tokens": 27,
+    "cache_creation_tokens": 72478,
+    "cache_read_tokens": 1254488,
+    "output_tokens": 7203,
+    "api_call_count": 23
+  }
+}
