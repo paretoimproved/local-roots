@@ -505,6 +505,46 @@ These tests verify the 6 critical payment-safety fixes. Run after any change to 
 
 ---
 
+## 13. Delete Farm
+
+### 13a. Delete blocked by active subscription
+
+1. On `FRONTEND/seller/stores/{storeId}/settings`, scroll to the **"Danger zone"** section at the bottom.
+2. Verify a red-bordered section with heading **"Danger zone"** and a red **"Delete farm"** button.
+3. Ensure the store has at least one active subscription.
+4. Click **"Delete farm"**.
+5. **Expected:** A destructive confirm dialog appears: title **"Delete farm?"**, message about permanent deletion, red **"Delete farm"** confirm button.
+6. Click **"Delete farm"** in the dialog.
+7. **Expected:** A toast appears with error message: **"Cannot delete: you have N active subscriber(s). Cancel all subscriptions first."** Store is NOT deleted.
+
+### 13b. Delete blocked by unfulfilled orders
+
+1. Ensure the store has no active subscriptions but has at least one order with status **"placed"** or **"ready"**.
+2. Click **"Delete farm"** → confirm in the dialog.
+3. **Expected:** Toast error: **"Cannot delete: you have N unfulfilled order(s). Complete or cancel them first."** Store is NOT deleted.
+
+### 13c. Successful deletion
+
+1. Ensure the store has no active subscriptions and no unfulfilled orders (all orders are picked_up, canceled, or no_show; all subscriptions are canceled or paused).
+2. Click **"Delete farm"** → confirm in the dialog.
+3. **Expected:** Toast reads **"Farm deleted"**. Redirect to `/seller`. The store no longer appears in the "Your stores" list.
+
+### 13d. Cascade verification
+
+1. After a successful deletion, verify in the database (or via API) that all child records are gone:
+   - `pickup_locations` for the store → 0 rows.
+   - `products` for the store → 0 rows.
+   - `subscription_plans` for the store → 0 rows.
+   - `orders` for the store → 0 rows.
+   - `subscriptions` for the store → 0 rows.
+
+### 13e. Delete already-deleted store
+
+1. Attempt to call `DELETE /v1/seller/stores/{storeId}` for a store that no longer exists.
+2. **Expected:** HTTP 404 with `{"error":"store not found"}`.
+
+---
+
 ## Failure Modes
 
 - **Backend returns 502:** Check Railway logs for migration failures and missing env vars.
