@@ -118,6 +118,9 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListOfferings)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/offerings", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CreateOffering)))
 
+	mux.HandleFunc("GET /v1/seller/stores/{storeId}/subscriptions", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.ListSubscriptions)))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscriptions/{subscriptionId}/cancel", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, seller.CancelSubscription)))
+
 	sellerOrders := v1.SellerOrdersAPI{DB: deps.DB, Stripe: stripeClient, NoShowFeeCents: deps.Config.NoShowFeeCents, NoShowPlatformSplitBps: deps.Config.NoShowPlatformSplitBps, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ListOrdersForPickupWindow)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.UpdateOrderStatus)))

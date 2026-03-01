@@ -2,6 +2,7 @@ package v1
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -797,4 +798,140 @@ func (a SellerAPI) CreateOffering(w http.ResponseWriter, r *http.Request, u Auth
 	}
 
 	resp.OK(w, out)
+}
+
+// ── Subscriptions (seller view) ──────────────────────────────────────
+
+type SellerSubscription struct {
+	ID         string    `json:"id"`
+	PlanID     string    `json:"plan_id"`
+	PlanTitle  string    `json:"plan_title"`
+	BuyerEmail string    `json:"buyer_email"`
+	BuyerName  *string   `json:"buyer_name"`
+	Status     string    `json:"status"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+func (a SellerAPI) ListSubscriptions(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
+	rows, err := a.DB.Query(r.Context(), `
+		SELECT s.id::text, s.plan_id::text, sp.title, s.buyer_email, s.buyer_name, s.status, s.created_at
+		FROM subscriptions s
+		JOIN subscription_plans sp ON sp.id = s.plan_id
+		WHERE s.store_id = $1::uuid
+		ORDER BY s.created_at DESC
+		LIMIT 200
+	`, sc.StoreID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
+
+	out := make([]SellerSubscription, 0)
+	for rows.Next() {
+		var s SellerSubscription
+		if err := rows.Scan(&s.ID, &s.PlanID, &s.PlanTitle, &s.BuyerEmail, &s.BuyerName, &s.Status, &s.CreatedAt); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		out = append(out, s)
+	}
+	if rows.Err() != nil {
+		resp.Internal(w, rows.Err())
+		return
+	}
+
+	resp.OK(w, out)
+}
+
+func (a SellerAPI) CancelSubscription(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
+	subID := r.PathValue("subscriptionId")
+	if subID == "" || !validUUID(subID) {
+		resp.BadRequest(w, "invalid subscription id")
+		return
+	}
+
+	ctx := r.Context()
+	tx, err := a.DB.Begin(ctx)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	// Verify the subscription belongs to this store and is cancelable.
+	var currentStatus string
+	err = tx.QueryRow(ctx, `
+		SELECT status FROM subscriptions
+		WHERE id = $1::uuid AND store_id = $2::uuid
+		FOR UPDATE
+	`, subID, sc.StoreID).Scan(&currentStatus)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "subscription not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+	if currentStatus != "active" && currentStatus != "paused" {
+		resp.BadRequest(w, fmt.Sprintf("subscription is already %s", currentStatus))
+		return
+	}
+
+	// Cancel the subscription.
+	if _, err := tx.Exec(ctx, `
+		UPDATE subscriptions
+		SET status = 'canceled', canceled_at = now(), cancel_reason = 'canceled_by_seller'
+		WHERE id = $1::uuid
+	`, subID); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	// Find unfulfilled orders for this subscription.
+	orderRows, err := tx.Query(ctx, `
+		SELECT id::text FROM orders
+		WHERE subscription_id = $1::uuid AND status IN ('placed', 'ready')
+	`, subID)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer orderRows.Close()
+
+	var orderIDs []string
+	for orderRows.Next() {
+		var oid string
+		if err := orderRows.Scan(&oid); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		orderIDs = append(orderIDs, oid)
+	}
+	if orderRows.Err() != nil {
+		resp.Internal(w, orderRows.Err())
+		return
+	}
+
+	// Cancel each unfulfilled order and release inventory.
+	for _, oid := range orderIDs {
+		if err := adjustOfferingsForOrder(ctx, tx, oid, "release"); err != nil {
+			log.Printf("WARN: adjustOfferingsForOrder(%s, release): %v", oid, err)
+		}
+		if _, err := tx.Exec(ctx, `
+			UPDATE orders SET status = 'canceled', updated_at = now()
+			WHERE id = $1::uuid
+		`, oid); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, map[string]bool{"canceled": true})
 }

@@ -227,6 +227,16 @@ export type BoxPreview = {
   updated_at: string;
 };
 
+export type SellerSubscription = {
+  id: string;
+  plan_id: string;
+  plan_title: string;
+  buyer_email: string;
+  buyer_name: string | null;
+  status: string;
+  created_at: string;
+};
+
 export const sellerApi = {
   registerSeller: (email: string, password: string, displayName?: string) =>
     requestJSON<AuthResponse>("/v1/auth/register", {
@@ -573,6 +583,18 @@ export const sellerApi = {
     requestJSON<{ deleted: boolean }>(
       `/v1/seller/stores/${storeId}/plans/${planId}/previews/${previewId}`,
       { method: "DELETE", token },
+    ),
+
+  // Subscriptions (seller view)
+  listSubscriptions: (token: string, storeId: string) =>
+    requestJSON<SellerSubscription[]>(
+      `/v1/seller/stores/${storeId}/subscriptions`,
+      { token },
+    ),
+  cancelSubscription: (token: string, storeId: string, subscriptionId: string) =>
+    requestJSON<{ canceled: boolean }>(
+      `/v1/seller/stores/${storeId}/subscriptions/${subscriptionId}/cancel`,
+      { method: "POST", token, body: JSON.stringify({}) },
     ),
 
   getStoreAnalytics: (token: string, storeId: string) =>

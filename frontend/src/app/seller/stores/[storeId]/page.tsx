@@ -9,6 +9,7 @@ import {
   type SellerPayoutSummary,
   type SellerPickupWindow,
   type SellerSubscriptionPlan,
+  type SellerSubscription,
 } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
@@ -17,6 +18,7 @@ import { ConfirmDialog } from "@/components/confirm-dialog";
 import { PickupWindowList } from "@/components/seller/pickup-window-list";
 import { SubscriptionPlanList } from "@/components/seller/subscription-plan-list";
 import { OrderList } from "@/components/seller/order-list";
+import { SubscriberList } from "@/components/seller/subscriber-list";
 
 export default function SellerStorePage() {
   const params = useParams<{ storeId: string }>();
@@ -33,6 +35,8 @@ export default function SellerStorePage() {
     null,
   );
   const [plans, setPlans] = useState<SellerSubscriptionPlan[] | null>(null);
+  const [subscriptions, setSubscriptions] = useState<SellerSubscription[] | null>(null);
+  const [busySubId, setBusySubId] = useState<string | null>(null);
 
   const [selectedWindowId, setSelectedWindowId] = useState<string>("");
   const [supportOpen, setSupportOpen] = useState(false);
@@ -126,14 +130,16 @@ export default function SellerStorePage() {
   }, [supportOpen]);
 
   async function refreshAll(t: string) {
-    const [, ws, , sps] = await Promise.all([
+    const [, ws, , sps, subs] = await Promise.all([
       sellerApi.listPickupLocations(t, storeId),
       sellerApi.listPickupWindows(t, storeId),
       sellerApi.listProducts(t, storeId),
       sellerApi.listSubscriptionPlans(t, storeId),
+      sellerApi.listSubscriptions(t, storeId),
     ]);
     setWindows(ws);
     setPlans(sps);
+    setSubscriptions(subs);
     setSelectedWindowId((prev) => {
       if (prev && ws.some((w) => w.id === prev)) return prev;
       return ws[0]?.id ?? "";
@@ -330,6 +336,30 @@ export default function SellerStorePage() {
     setPickupCodeByOrderId((prev) => ({ ...prev, [orderId]: code }));
   }
 
+  function cancelSubscription(subId: string) {
+    setConfirmAction({
+      title: "Cancel subscription?",
+      message: "This will cancel the subscription and any unfulfilled orders for this subscriber.",
+      confirmLabel: "Cancel subscription",
+      destructive: true,
+      action: async () => {
+        if (!token) return;
+        setBusySubId(subId);
+        setError(null);
+        try {
+          await sellerApi.cancelSubscription(token, storeId, subId);
+          await refreshAll(token);
+          showToast({ kind: "success", message: "Subscription canceled." });
+        } catch (e: unknown) {
+          setError(friendlyErrorMessage(e));
+          showToast({ kind: "error", message: "Could not cancel subscription." });
+        } finally {
+          setBusySubId(null);
+        }
+      },
+    });
+  }
+
   return (
     <div className="grid gap-8">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -443,6 +473,12 @@ export default function SellerStorePage() {
           onPickupCodeChange={handlePickupCodeChange}
         />
       </div>
+
+      <SubscriberList
+        subscriptions={subscriptions}
+        busySubId={busySubId}
+        onCancel={cancelSubscription}
+      />
 
       <ConfirmDialog
         open={confirmAction !== null}
