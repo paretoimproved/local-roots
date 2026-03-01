@@ -65,10 +65,15 @@ test.describe("Seller onboarding", () => {
     const firstPickupInput = sellerPage.getByLabel("When's your first pickup?");
     await expect(firstPickupInput).not.toHaveValue("");
 
+    // Save the box (creates the plan, stays on page to allow photo upload)
+    await sellerPage.getByRole("button", { name: /save box/i }).click();
+
+    // Photo upload and Continue button should appear after plan is saved
+    await expect(sellerPage.getByText(/box photo/i)).toBeVisible();
     await sellerPage.getByRole("button", { name: /continue/i }).click();
 
-    // Should navigate to review page
-    await sellerPage.waitForURL(`**/setup/review`);
+    // Should navigate to payouts page
+    await sellerPage.waitForURL(`**/setup/payouts`);
   });
 
   test('review page shows "Set up payouts first" gate', async ({
