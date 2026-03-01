@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import { sellerApi, type SellerPickupLocation } from "@/lib/seller-api";
+import { sellerApi, type SellerPickupLocation, type SellerStore } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
 import { friendlyErrorMessage } from "@/lib/ui";
@@ -11,6 +11,7 @@ import {
   type AddressSelection,
 } from "@/components/seller/address-autocomplete";
 import { TimezoneCombobox } from "@/components/seller/timezone-combobox";
+import { ImageUpload } from "@/components/seller/image-upload";
 
 export default function SetupLocationPage() {
   const router = useRouter();
@@ -19,6 +20,7 @@ export default function SetupLocationPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [store, setStore] = useState<SellerStore | null>(null);
   const [existing, setExisting] = useState<SellerPickupLocation | null>(null);
 
   // Address fields populated by AddressAutocomplete
@@ -56,6 +58,15 @@ export default function SetupLocationPage() {
     }
 
     let cancelled = false;
+
+    sellerApi
+      .listMyStores(token)
+      .then((stores) => {
+        if (cancelled) return;
+        const s = stores.find((st) => st.id === params.storeId) ?? null;
+        setStore(s);
+      })
+      .catch(() => {});
 
     sellerApi
       .listPickupLocations(token, params.storeId)
@@ -289,6 +300,47 @@ export default function SetupLocationPage() {
             )}
           </div>
         )}
+      </div>
+
+      {/* Store cover photo */}
+      <div className="mt-6">
+        <label className="mb-1 block text-sm font-medium text-[color:var(--lr-ink)]">
+          Farm cover photo{" "}
+          <span className="font-normal text-[color:var(--lr-muted)]">
+            (optional)
+          </span>
+        </label>
+        <p className="mb-2 text-xs text-[color:var(--lr-muted)]">
+          This appears on your store page and farm listings.
+        </p>
+        <ImageUpload
+          currentUrl={store?.image_url ?? null}
+          storagePath={`stores/${params.storeId}/cover`}
+          onUploaded={async (url) => {
+            const t = session.getToken();
+            if (!t) return;
+            try {
+              const updated = await sellerApi.updateStore(t, params.storeId, { image_url: url });
+              setStore(updated);
+              showToast({ kind: "success", message: "Photo saved." });
+            } catch (e: unknown) {
+              showToast({ kind: "error", message: friendlyErrorMessage(e) });
+            }
+          }}
+          onRemoved={async () => {
+            const t = session.getToken();
+            if (!t) return;
+            try {
+              const updated = await sellerApi.updateStore(t, params.storeId, { image_url: "" });
+              setStore(updated);
+              showToast({ kind: "success", message: "Photo removed." });
+            } catch (e: unknown) {
+              showToast({ kind: "error", message: friendlyErrorMessage(e) });
+            }
+          }}
+          placeholderText="Add a cover photo for your farmstand"
+          aspectRatio="3/1"
+        />
       </div>
 
       {/* Continue button */}

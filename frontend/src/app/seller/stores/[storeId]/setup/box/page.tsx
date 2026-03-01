@@ -9,6 +9,7 @@ import {
 import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
 import { fieldClass, friendlyErrorMessage } from "@/lib/ui";
+import { ImageUpload } from "@/components/seller/image-upload";
 
 function parseUSDToCents(raw: string): number | null {
   const v = raw.trim();
@@ -143,8 +144,10 @@ export default function BoxPage() {
           price_cents: cents,
           subscriber_limit: subscriberLimit,
         });
+        showToast({ kind: "success", message: "Box saved." });
+        router.push(`/seller/stores/${storeId}/setup/payouts`);
       } else {
-        await sellerApi.createSubscriptionPlan(token, storeId, {
+        const created = await sellerApi.createSubscriptionPlan(token, storeId, {
           pickup_location_id: locationId,
           title: title.trim(),
           description: desc,
@@ -155,9 +158,9 @@ export default function BoxPage() {
           duration_minutes: 120,
           cutoff_hours: 24,
         });
+        setExistingPlan(created);
+        showToast({ kind: "success", message: "Box saved. Add a photo below, then continue." });
       }
-      showToast({ kind: "success", message: "Box saved." });
-      router.push(`/seller/stores/${storeId}/setup/payouts`);
     } catch (e: unknown) {
       showToast({ kind: "error", message: friendlyErrorMessage(e) });
     } finally {
@@ -316,16 +319,65 @@ export default function BoxPage() {
         )}
       </label>
 
-      {/* Continue button */}
-      <div className="flex justify-end pt-2">
+      {/* Box photo (shown after plan is saved) */}
+      {existingPlan && (
+        <div className="grid gap-1">
+          <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+            Box photo
+          </span>
+          <ImageUpload
+            currentUrl={existingPlan.image_url ?? null}
+            storagePath={`stores/${storeId}/products/${existingPlan.product_id}`}
+            onUploaded={async (url) => {
+              const t = session.getToken();
+              if (!t) return;
+              try {
+                await sellerApi.updateSubscriptionPlan(t, storeId, existingPlan.id, { image_url: url });
+                setExistingPlan((p) => p ? { ...p, image_url: url } : p);
+                showToast({ kind: "success", message: "Photo saved." });
+              } catch (e: unknown) {
+                showToast({ kind: "error", message: friendlyErrorMessage(e) });
+              }
+            }}
+            onRemoved={async () => {
+              const t = session.getToken();
+              if (!t) return;
+              try {
+                await sellerApi.updateSubscriptionPlan(t, storeId, existingPlan.id, { image_url: "" });
+                setExistingPlan((p) => p ? { ...p, image_url: null } : p);
+                showToast({ kind: "success", message: "Photo removed." });
+              } catch (e: unknown) {
+                showToast({ kind: "error", message: friendlyErrorMessage(e) });
+              }
+            }}
+            placeholderText="Add a photo of your box"
+            aspectRatio="4/3"
+          />
+          <span className="text-xs text-[color:var(--lr-muted)]">
+            Optional. Shown on your box listing.
+          </span>
+        </div>
+      )}
+
+      {/* Save / Continue buttons */}
+      <div className="flex justify-end gap-3 pt-2">
         <button
           type="button"
           className="lr-btn lr-btn-primary px-6 py-2.5 text-sm font-medium disabled:opacity-50"
           disabled={saving}
           onClick={handleSubmit}
         >
-          {saving ? "Saving..." : "Continue \u2192"}
+          {saving ? "Saving..." : existingPlan ? "Save" : "Save box"}
         </button>
+        {existingPlan && (
+          <button
+            type="button"
+            className="lr-btn lr-btn-primary px-6 py-2.5 text-sm font-medium"
+            onClick={() => router.push(`/seller/stores/${storeId}/setup/payouts`)}
+          >
+            Continue &rarr;
+          </button>
+        )}
       </div>
     </div>
   );
