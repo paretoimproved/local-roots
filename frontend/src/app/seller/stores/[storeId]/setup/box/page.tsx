@@ -57,6 +57,7 @@ export default function BoxPage() {
 
   // Form fields
   const [title, setTitle] = useState("Weekly Farm Box");
+  const [description, setDescription] = useState("");
   const [priceUsd, setPriceUsd] = useState("");
   const [cadence, setCadence] = useState<Cadence>("weekly");
   const [subscriberLimit, setSubscriberLimit] = useState(25);
@@ -98,6 +99,7 @@ export default function BoxPage() {
           const plan = plans.find((p) => p.is_active) ?? plans[0];
           setExistingPlan(plan);
           setTitle(plan.title);
+          setDescription(plan.description ?? "");
           setPriceUsd(toUSDInput(plan.price_cents));
           setCadence(plan.cadence as Cadence);
           setSubscriberLimit(plan.subscriber_limit);
@@ -133,9 +135,11 @@ export default function BoxPage() {
 
     setSaving(true);
     try {
+      const desc = description.trim() || null;
       if (existingPlan) {
         await sellerApi.updateSubscriptionPlan(token, storeId, existingPlan.id, {
           title: title.trim(),
+          description: desc,
           price_cents: cents,
           subscriber_limit: subscriberLimit,
         });
@@ -143,6 +147,7 @@ export default function BoxPage() {
         await sellerApi.createSubscriptionPlan(token, storeId, {
           pickup_location_id: locationId,
           title: title.trim(),
+          description: desc,
           cadence,
           price_cents: cents,
           subscriber_limit: subscriberLimit,
@@ -197,6 +202,22 @@ export default function BoxPage() {
         {titleErr && (
           <span className="text-xs text-rose-600">Box name is required.</span>
         )}
+      </label>
+
+      {/* Description */}
+      <label className="grid gap-1">
+        <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+          Description
+        </span>
+        <textarea
+          className="lr-field min-h-20 px-3 py-2 text-sm"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="What's in the box? Tell your customers what to expect."
+        />
+        <span className="text-xs text-[color:var(--lr-muted)]">
+          Optional. Shown on your box page.
+        </span>
       </label>
 
       {/* Price */}

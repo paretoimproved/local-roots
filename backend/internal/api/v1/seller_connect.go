@@ -37,11 +37,10 @@ func (a SellerConnectAPI) Onboard(w http.ResponseWriter, r *http.Request, u Auth
 	// Load store + user + first pickup location for pre-fill.
 	var stripeAccountID *string
 	var email, storeName string
-	var displayName *string
 	var plAddr1, plCity, plRegion, plPostalCode, plCountry *string
 	var plAddr2 *string
 	if err := a.DB.QueryRow(ctx, `
-		SELECT s.stripe_account_id, u.email, s.name, u.display_name,
+		SELECT s.stripe_account_id, u.email, s.name,
 		       pl.address1, pl.address2, pl.city, pl.region, pl.postal_code, pl.country
 		FROM stores s
 		JOIN users u ON u.id = s.owner_user_id
@@ -50,7 +49,7 @@ func (a SellerConnectAPI) Onboard(w http.ResponseWriter, r *http.Request, u Auth
 		ORDER BY pl.created_at ASC
 		LIMIT 1
 	`, sc.StoreID).Scan(
-		&stripeAccountID, &email, &storeName, &displayName,
+		&stripeAccountID, &email, &storeName,
 		&plAddr1, &plAddr2, &plCity, &plRegion, &plPostalCode, &plCountry,
 	); err != nil {
 		resp.Internal(w, err)
@@ -63,13 +62,6 @@ func (a SellerConnectAPI) Onboard(w http.ResponseWriter, r *http.Request, u Auth
 	} else {
 		// Build pre-fill input.
 		in := stripepay.ConnectAccountInput{Email: email, BusinessName: storeName}
-		if displayName != nil && *displayName != "" {
-			parts := strings.SplitN(*displayName, " ", 2)
-			in.FirstName = parts[0]
-			if len(parts) > 1 {
-				in.LastName = parts[1]
-			}
-		}
 		if plAddr1 != nil && *plAddr1 != "" {
 			addr := &stripepay.ConnectAddress{
 				Line1:      *plAddr1,

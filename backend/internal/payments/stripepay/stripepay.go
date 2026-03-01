@@ -234,8 +234,6 @@ func (c *Client) CaptureAuthorizationAmount(ctx context.Context, paymentIntentID
 type ConnectAccountInput struct {
 	Email        string
 	BusinessName string
-	FirstName    string
-	LastName     string
 	Address      *ConnectAddress
 }
 
@@ -279,14 +277,6 @@ func (c *Client) CreateConnectAccount(ctx context.Context, in ConnectAccountInpu
 			if in.Address.Line2 != "" {
 				p.BusinessProfile.SupportAddress.Line2 = stripe.String(in.Address.Line2)
 			}
-		}
-	}
-	if in.FirstName != "" {
-		p.Individual = &stripe.PersonParams{
-			FirstName: stripe.String(in.FirstName),
-		}
-		if in.LastName != "" {
-			p.Individual.LastName = stripe.String(in.LastName)
 		}
 	}
 	p.Context = ctx

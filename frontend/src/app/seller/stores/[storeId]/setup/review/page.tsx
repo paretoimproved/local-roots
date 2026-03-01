@@ -5,12 +5,14 @@ import { useEffect, useState } from "react";
 import {
   sellerApi,
   type SellerPickupLocation,
+  type SellerStore,
   type SellerSubscriptionPlan,
 } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
 import { cadenceLabel, formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { QrCode } from "@/components/qr-code";
+import { ImageUpload } from "@/components/seller/image-upload";
 
 function friendlyDate(iso: string, tz?: string): string {
   const opts: Intl.DateTimeFormatOptions = {
@@ -32,6 +34,7 @@ export default function ReviewPage() {
 
   const [loading, setLoading] = useState(true);
   const [launching, setLaunching] = useState(false);
+  const [store, setStore] = useState<SellerStore | null>(null);
   const [location, setLocation] = useState<SellerPickupLocation | null>(null);
   const [plan, setPlan] = useState<SellerSubscriptionPlan | null>(null);
   const [launched, setLaunched] = useState(false);
@@ -48,12 +51,16 @@ export default function ReviewPage() {
 
     async function load() {
       try {
-        const [locations, plans] = await Promise.all([
+        const [stores, locations, plans] = await Promise.all([
+          sellerApi.listMyStores(token!),
           sellerApi.listPickupLocations(token!, storeId),
           sellerApi.listSubscriptionPlans(token!, storeId),
         ]);
 
         if (cancelled) return;
+
+        const myStore = stores.find((s) => s.id === storeId) ?? null;
+        setStore(myStore);
 
         if (locations.length === 0) {
           router.replace(`/seller/stores/${storeId}/setup/location`);
@@ -107,6 +114,54 @@ export default function ReviewPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       showToast({ kind: "error", message: "Could not copy to clipboard." });
+    }
+  }
+
+  async function saveStoreImage(url: string) {
+    const token = session.getToken();
+    if (!token) return;
+    try {
+      const updated = await sellerApi.updateStore(token, storeId, { image_url: url });
+      setStore(updated);
+      showToast({ kind: "success", message: "Photo saved." });
+    } catch (e: unknown) {
+      showToast({ kind: "error", message: friendlyErrorMessage(e) });
+    }
+  }
+
+  async function removeStoreImage() {
+    const token = session.getToken();
+    if (!token) return;
+    try {
+      const updated = await sellerApi.updateStore(token, storeId, { image_url: "" });
+      setStore(updated);
+      showToast({ kind: "success", message: "Photo removed." });
+    } catch (e: unknown) {
+      showToast({ kind: "error", message: friendlyErrorMessage(e) });
+    }
+  }
+
+  async function saveBoxImage(url: string) {
+    const token = session.getToken();
+    if (!token || !plan) return;
+    try {
+      await sellerApi.updateSubscriptionPlan(token, storeId, plan.id, { image_url: url });
+      setPlan((p) => p ? { ...p, image_url: url } : p);
+      showToast({ kind: "success", message: "Photo saved." });
+    } catch (e: unknown) {
+      showToast({ kind: "error", message: friendlyErrorMessage(e) });
+    }
+  }
+
+  async function removeBoxImage() {
+    const token = session.getToken();
+    if (!token || !plan) return;
+    try {
+      await sellerApi.updateSubscriptionPlan(token, storeId, plan.id, { image_url: "" });
+      setPlan((p) => p ? { ...p, image_url: null } : p);
+      showToast({ kind: "success", message: "Photo removed." });
+    } catch (e: unknown) {
+      showToast({ kind: "error", message: friendlyErrorMessage(e) });
     }
   }
 
@@ -266,6 +321,50 @@ export default function ReviewPage() {
           >
             Edit
           </button>
+        </div>
+      </div>
+
+      {/* Photos */}
+      <div className="lr-card rounded-2xl p-5">
+        <div className="grid gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-[color:var(--lr-muted)]">
+              Photos
+            </p>
+            <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+              Add photos so buyers can see your farm and box.
+            </p>
+          </div>
+
+          <div className="grid gap-1">
+            <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+              Farm cover photo
+            </span>
+            <ImageUpload
+              currentUrl={store?.image_url ?? null}
+              storagePath={`stores/${storeId}/cover`}
+              onUploaded={saveStoreImage}
+              onRemoved={removeStoreImage}
+              placeholderText="Add a cover photo for your farmstand"
+              aspectRatio="3/1"
+            />
+          </div>
+
+          {plan ? (
+            <div className="grid gap-1">
+              <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+                Box photo
+              </span>
+              <ImageUpload
+                currentUrl={plan.image_url ?? null}
+                storagePath={`stores/${storeId}/products/${plan.product_id}`}
+                onUploaded={saveBoxImage}
+                onRemoved={removeBoxImage}
+                placeholderText="Add a photo of your box"
+                aspectRatio="4/3"
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
