@@ -9,7 +9,7 @@ const STEPS = [
   { label: "Pickup spot", path: "location" },
   { label: "Your box", path: "box" },
   { label: "Get paid", path: "payouts" },
-  { label: "Start selling", path: "review" },
+  { label: "Review", path: "review" },
 ] as const;
 
 function stepIndex(pathname: string): number {
@@ -30,6 +30,7 @@ export default function SetupLayout({ children }: { children: ReactNode }) {
   }
 
   const current = stepIndex(pathname);
+  const storeId = pathname.split("/stores/")[1]?.split("/")[0] ?? "";
 
   if (!authed) return null;
 
@@ -65,29 +66,19 @@ export default function SetupLayout({ children }: { children: ReactNode }) {
                     }}
                   />
                 )}
-                <div className="flex flex-col items-center gap-1.5">
-                  {/* Circle / check */}
-                  <div
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors"
-                    style={
-                      done
-                        ? {
-                            backgroundColor: "var(--lr-leaf)",
-                            color: "#fff",
-                          }
-                        : active
-                          ? {
-                              backgroundColor: "var(--lr-leaf)",
-                              color: "#fff",
-                            }
-                          : {
-                              backgroundColor: "transparent",
-                              border: "2px solid var(--lr-border)",
-                              color: "var(--lr-muted)",
-                            }
-                    }
+                {done ? (
+                  <Link
+                    href={`/seller/stores/${storeId}/setup/${step.path}`}
+                    className="flex flex-col items-center gap-1.5 cursor-pointer group"
                   >
-                    {done ? (
+                    {/* Circle / check */}
+                    <div
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors"
+                      style={{
+                        backgroundColor: "var(--lr-leaf)",
+                        color: "#fff",
+                      }}
+                    >
                       <svg
                         width="16"
                         height="16"
@@ -103,7 +94,33 @@ export default function SetupLayout({ children }: { children: ReactNode }) {
                           strokeLinejoin="round"
                         />
                       </svg>
-                    ) : (
+                    </div>
+                    {/* Label */}
+                    <span
+                      className="text-xs font-medium whitespace-nowrap group-hover:underline"
+                      style={{ color: "var(--lr-leaf)" }}
+                    >
+                      {step.label}
+                    </span>
+                  </Link>
+                ) : (
+                  <div className="flex flex-col items-center gap-1.5">
+                    {/* Circle / check */}
+                    <div
+                      className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold transition-colors"
+                      style={
+                        active
+                          ? {
+                              backgroundColor: "var(--lr-leaf)",
+                              color: "#fff",
+                            }
+                          : {
+                              backgroundColor: "transparent",
+                              border: "2px solid var(--lr-border)",
+                              color: "var(--lr-muted)",
+                            }
+                      }
+                    >
                       <span
                         className="block h-2.5 w-2.5 rounded-full"
                         style={{
@@ -112,19 +129,18 @@ export default function SetupLayout({ children }: { children: ReactNode }) {
                             : "var(--lr-muted)",
                         }}
                       />
-                    )}
+                    </div>
+                    {/* Label */}
+                    <span
+                      className="text-xs font-medium whitespace-nowrap"
+                      style={{
+                        color: active ? "var(--lr-leaf)" : "var(--lr-muted)",
+                      }}
+                    >
+                      {step.label}
+                    </span>
                   </div>
-                  {/* Label */}
-                  <span
-                    className="text-xs font-medium whitespace-nowrap"
-                    style={{
-                      color:
-                        done || active ? "var(--lr-leaf)" : "var(--lr-muted)",
-                    }}
-                  >
-                    {step.label}
-                  </span>
-                </div>
+                )}
               </li>
             );
           })}

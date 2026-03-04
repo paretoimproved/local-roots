@@ -19,6 +19,7 @@ export default function PayoutsPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<ConnectStatus>("none");
   const [starting, setStarting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
 
   // Fetch connect status on mount
   useEffect(() => {
@@ -71,6 +72,9 @@ export default function PayoutsPage() {
     try {
       const cs = await sellerApi.connectStatus(token, storeId);
       setStatus(cs.status as ConnectStatus);
+      if (cs.status === "onboarding") {
+        setSubmitted(true);
+      }
     } catch {
       // keep current status
     }
@@ -119,6 +123,54 @@ export default function PayoutsPage() {
           </h1>
           <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
             Your bank account is set up. You will get paid after each pickup.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="lr-btn lr-btn-primary px-6 py-2.5 text-sm font-semibold"
+          onClick={() =>
+            router.push(`/seller/stores/${storeId}/setup/review`)
+          }
+        >
+          Continue
+        </button>
+      </div>
+    );
+  }
+
+  // Submitted but still under review — let seller proceed
+  if (submitted && status === "onboarding") {
+    return (
+      <div className="lr-animate grid justify-items-center gap-6 text-center">
+        <div
+          className="flex h-16 w-16 items-center justify-center rounded-full"
+          style={{ backgroundColor: "var(--lr-leaf)" }}
+        >
+          <svg
+            width="32"
+            height="32"
+            viewBox="0 0 32 32"
+            fill="none"
+            aria-hidden="true"
+          >
+            <path
+              d="M8 17L13.5 22.5L24 10"
+              stroke="#fff"
+              strokeWidth="3"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </div>
+
+        <div>
+          <h1 className="text-2xl font-bold text-[color:var(--lr-ink)]">
+            Information submitted
+          </h1>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Stripe is reviewing your details — this usually takes less than a
+            minute. You can continue setting up while you wait.
           </p>
         </div>
 
