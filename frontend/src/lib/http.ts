@@ -41,18 +41,22 @@ export async function requestJSON<T>(
     const text = await res.text().catch(() => "");
 
     if (res.status === 401 && typeof window !== "undefined") {
-      session.clearToken();
       const path = window.location.pathname;
-      let loginUrl: string | null = null;
-      if (path.startsWith("/seller") || path.startsWith("/pickup/confirm")) {
-        loginUrl = "/seller/login";
-      } else if (path.startsWith("/buyer")) {
-        loginUrl = "/buyer/login";
-      }
-      if (loginUrl) {
-        const next = window.location.pathname + window.location.search;
-        window.location.href = `${loginUrl}?expired=1&next=${encodeURIComponent(next)}`;
-        throw new SessionExpiredError();
+      // Never redirect login/register pages — their 401s are login failures, not session expiry.
+      const isAuthPage = /^\/(seller|buyer)\/(login|register|auth)/.test(path);
+      if (!isAuthPage) {
+        session.clearToken();
+        let loginUrl: string | null = null;
+        if (path.startsWith("/seller") || path.startsWith("/pickup/confirm")) {
+          loginUrl = "/seller/login";
+        } else if (path.startsWith("/buyer")) {
+          loginUrl = "/buyer/login";
+        }
+        if (loginUrl) {
+          const next = path + window.location.search;
+          window.location.href = `${loginUrl}?expired=1&next=${encodeURIComponent(next)}`;
+          throw new SessionExpiredError();
+        }
       }
     }
 
