@@ -1,21 +1,37 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { buyerAuthApi } from "@/lib/buyer-api";
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
+import { useToast } from "@/components/toast";
 import { friendlyErrorMessage } from "@/lib/ui";
 import { GoogleSignInButton } from "@/components/google-sign-in";
 import { oauthApi } from "@/lib/oauth-api";
 
 export default function BuyerLoginPage() {
+  return <Suspense><BuyerLoginInner /></Suspense>;
+}
+
+function BuyerLoginInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const { showToast } = useToast();
+  const next = searchParams.get("next");
+  const redirectTo = next && next.startsWith("/") ? next : "/buyer";
+
   useEffect(() => { document.title = "Sign in — LocalRoots"; }, []);
   useEffect(() => {
-    if (session.getToken()) router.replace("/buyer");
-  }, [router]);
+    if (session.getToken()) router.replace(redirectTo);
+  }, [router, redirectTo]);
+  useEffect(() => {
+    if (searchParams.get("expired") === "1") {
+      showToast({ kind: "error", message: "Your session has expired. Please sign in again." });
+    }
+  }, [searchParams, showToast]);
+
   const [email, setEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [sent, setSent] = useState(false);
@@ -46,7 +62,7 @@ export default function BuyerLoginPage() {
       if (res.user.role === "seller") {
         router.replace("/seller");
       } else {
-        router.replace("/buyer");
+        router.replace(redirectTo);
       }
     } catch (err: unknown) {
       setError(friendlyErrorMessage(err));

@@ -53,8 +53,11 @@ export function mapApiError(status: number, body: string): string {
   }
 
   // Auth errors
-  if (status === 401 || status === 403) {
-    return jsonMsg ?? "You don\u2019t have access. Please sign in again.";
+  if (status === 401) {
+    return "Your session has expired. Please sign in again.";
+  }
+  if (status === 403) {
+    return jsonMsg ?? "You don\u2019t have access to this resource.";
   }
 
   // Not found
@@ -82,6 +85,11 @@ export function mapApiError(status: number, body: string): string {
 }
 
 export function friendlyErrorMessage(e: unknown): string {
+  // SessionExpiredError — redirect is already in progress.
+  if (e instanceof Error && e.name === "SessionExpiredError") {
+    return "Your session has expired. Redirecting to sign in...";
+  }
+
   const msg = e instanceof Error ? e.message : String(e);
 
   // Never show raw JS runtime errors in the UI.

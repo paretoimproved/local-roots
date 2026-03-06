@@ -6,6 +6,7 @@ import { type FormEvent, Suspense, useEffect, useState } from "react";
 import { sellerApi } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
+import { useToast } from "@/components/toast";
 import { friendlyErrorMessage } from "@/lib/ui";
 import { GoogleSignInButton } from "@/components/google-sign-in";
 import { oauthApi } from "@/lib/oauth-api";
@@ -17,6 +18,7 @@ export default function SellerLoginPage() {
 function SellerLoginInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const next = searchParams.get("next");
   const redirectTo = next && next.startsWith("/") ? next : "/seller";
 
@@ -24,6 +26,11 @@ function SellerLoginInner() {
   useEffect(() => {
     if (session.getToken()) router.replace(redirectTo);
   }, [router, redirectTo]);
+  useEffect(() => {
+    if (searchParams.get("expired") === "1") {
+      showToast({ kind: "error", message: "Your session has expired. Please sign in again." });
+    }
+  }, [searchParams, showToast]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);

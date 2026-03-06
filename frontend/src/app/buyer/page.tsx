@@ -12,8 +12,7 @@ import {
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
 import { PickupCodeCard } from "@/components/pickup-code-card";
-import { useToast } from "@/components/toast";
-import { cadenceLabel, formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
+import { cadenceLabel, formatMoney, friendlyErrorMessage } from "@/lib/ui";
 
 function statusBadge(status: string) {
   const colors: Record<string, string> = {
@@ -36,7 +35,6 @@ function statusBadge(status: string) {
 
 export default function BuyerDashboardPage() {
   const router = useRouter();
-  const { showToast } = useToast();
   const [user, setUser] = useState<BuyerAuthUser | null>(null);
   const [orders, setOrders] = useState<BuyerOrderSummary[]>([]);
   const [subscriptions, setSubscriptions] = useState<BuyerSubscriptionSummary[]>([]);
@@ -61,21 +59,11 @@ export default function BuyerDashboardPage() {
       setOrders(ords);
       setSubscriptions(subs);
     } catch (err: unknown) {
-      const apiErr = parseApiError(err);
-      if (apiErr && (apiErr.status === 401 || apiErr.status === 403)) {
-        session.clearToken();
-        showToast({
-          kind: "error",
-          message: "Your session has expired. Please sign in again.",
-        });
-        router.replace("/buyer/login");
-        return;
-      }
       setError(friendlyErrorMessage(err));
     } finally {
       setLoading(false);
     }
-  }, [router, showToast]);
+  }, [router]);
 
   useEffect(() => {
     load();

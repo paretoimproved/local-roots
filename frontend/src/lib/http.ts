@@ -1,8 +1,17 @@
+import { session } from "@/lib/session";
+
 function apiBaseUrl() {
   return (
     process.env.NEXT_PUBLIC_API_BASE_URL?.replace(/\/+$/, "") ||
     "http://localhost:8080"
   );
+}
+
+export class SessionExpiredError extends Error {
+  constructor() {
+    super("Your session has expired. Redirecting to sign in...");
+    this.name = "SessionExpiredError";
+  }
 }
 
 export type RequestJSONInit = RequestInit & {
@@ -30,6 +39,23 @@ export async function requestJSON<T>(
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+
+    if (res.status === 401 && typeof window !== "undefined") {
+      session.clearToken();
+      const path = window.location.pathname;
+      let loginUrl: string | null = null;
+      if (path.startsWith("/seller") || path.startsWith("/pickup/confirm")) {
+        loginUrl = "/seller/login";
+      } else if (path.startsWith("/buyer")) {
+        loginUrl = "/buyer/login";
+      }
+      if (loginUrl) {
+        const next = window.location.pathname + window.location.search;
+        window.location.href = `${loginUrl}?expired=1&next=${encodeURIComponent(next)}`;
+        throw new SessionExpiredError();
+      }
+    }
+
     throw new Error(`API ${res.status}: ${text || res.statusText}`);
   }
 
