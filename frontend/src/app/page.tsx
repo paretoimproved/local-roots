@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { api, type Store } from "@/lib/api";
+import { StoreCard } from "@/components/store-card";
 
 export const metadata: Metadata = {
   title: "Local Roots — Subscribe to Your Farmer",
@@ -116,44 +117,7 @@ export default async function Home() {
           </div>
           <div className="grid gap-4 sm:grid-cols-3">
             {featuredStores.map((s) => (
-              <Link
-                key={s.id}
-                href={`/stores/${s.id}`}
-                className="lr-card lr-card-strong overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
-              >
-                {s.image_url ? (
-                  <div className="relative aspect-[4/3] w-full">
-                    <Image
-                      src={s.image_url}
-                      alt={s.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 320px"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex aspect-[4/3] w-full items-center justify-center bg-[color:var(--lr-leaf)]/5">
-                    <span className="text-3xl text-[color:var(--lr-leaf)]/30">
-                      {s.name.charAt(0)}
-                    </span>
-                  </div>
-                )}
-                <div className="p-5">
-                  <h3 className="text-base font-semibold text-[color:var(--lr-ink)]">
-                    {s.name}
-                  </h3>
-                  {(s.city || s.region) && (
-                    <p className="mt-1 text-xs text-[color:var(--lr-muted)]">
-                      {[s.city, s.region].filter(Boolean).join(", ")}
-                    </p>
-                  )}
-                  {s.description && (
-                    <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-[color:var(--lr-muted)]">
-                      {s.description}
-                    </p>
-                  )}
-                </div>
-              </Link>
+              <StoreCard key={s.id} store={s} compact />
             ))}
           </div>
           <div className="text-center">

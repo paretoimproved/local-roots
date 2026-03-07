@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { type SellerSubscriptionPlan } from "@/lib/seller-api";
+import { formatMoney } from "@/lib/ui";
 import { QrCode } from "@/components/qr-code";
 
 interface SubscriptionPlanListProps {
@@ -101,7 +102,7 @@ export function SubscriptionPlanList({
                       ) : null}
                     </div>
                     <div className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                      ${(p.price_cents / 100).toFixed(2)} &middot; cap{" "}
+                      {formatMoney(p.price_cents)} &middot; cap{" "}
                       {p.subscriber_limit} &middot; next{" "}
                       {new Date(p.next_start_at).toLocaleString()}
                     </div>

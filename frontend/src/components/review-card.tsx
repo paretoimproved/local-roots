@@ -38,13 +38,15 @@ function timeAgo(dateStr: string): string {
 export function ReviewSummary({
   avgRating,
   reviewCount,
+  className,
 }: {
   avgRating: number;
   reviewCount: number;
+  className?: string;
 }) {
   if (reviewCount === 0) return null;
   return (
-    <div className="inline-flex items-center gap-2 text-sm text-[color:var(--lr-muted)]">
+    <div className={className ?? "inline-flex items-center gap-2 text-sm text-[color:var(--lr-muted)]"}>
       <StarRating rating={Math.round(avgRating)} />
       <span>
         {avgRating.toFixed(1)} from {reviewCount}{" "}

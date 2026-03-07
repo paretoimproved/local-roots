@@ -2,10 +2,10 @@
 
 import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { api, type Store, type PlacePrediction } from "@/lib/api";
 import { session } from "@/lib/session";
+import { StoreCard } from "@/components/store-card";
 
 const RADIUS_OPTIONS = [
   { label: "10 mi", km: 16 },
@@ -15,13 +15,6 @@ const RADIUS_OPTIONS = [
 ] as const;
 
 const DEFAULT_RADIUS_KM = 40;
-
-function formatDistance(km: number): string {
-  const miles = km * 0.621371;
-  return miles < 10
-    ? `${miles.toFixed(1)} mi away`
-    : `${Math.round(miles)} mi away`;
-}
 
 export default function StoresPage() {
   return (
@@ -417,59 +410,11 @@ pnpm migrate:up`}</code>
       {stores && stores.length > 0 ? (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {stores.map((s) => (
-            <li
-              key={s.id}
-              className="lr-card lr-card-strong overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
-            >
-              <Link href={`/stores/${s.id}`} className="block cursor-pointer">
-                {s.image_url ? (
-                  <div className="relative aspect-[4/3] w-full">
-                    <Image
-                      src={s.image_url}
-                      alt={s.name}
-                      fill
-                      className="object-cover"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex aspect-[4/3] w-full items-center justify-center bg-[color:var(--lr-leaf)]/5">
-                    <svg className="h-10 w-10 text-[color:var(--lr-leaf)]/20" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21c-4-4-8-7.5-8-11a8 8 0 0 1 16 0c0 3.5-4 7-8 11Z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
-                    </svg>
-                  </div>
-                )}
-                <div className="flex items-start justify-between gap-6 p-6">
-                  <div>
-                    <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
-                      {s.name}
-                    </h2>
-                    {s.city || s.region ? (
-                      <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
-                        {[s.city, s.region].filter(Boolean).join(", ")}
-                      </p>
-                    ) : null}
-                    {s.description ? (
-                      <p className="mt-2 line-clamp-2 text-sm text-[color:var(--lr-muted)]">
-                        {s.description}
-                      </p>
-                    ) : null}
-                  </div>
-                  <div className="flex flex-col items-end gap-2">
-                    {s.distance_km != null ? (
-                      <span className="lr-chip rounded-full px-3 py-1 text-xs font-medium">
-                        {formatDistance(s.distance_km)}
-                      </span>
-                    ) : null}
-                    {Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000 ? (
-                      <span className="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-800">
-                        New
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
-              </Link>
+            <li key={s.id}>
+              <StoreCard
+                store={s}
+                isNew={Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000}
+              />
             </li>
           ))}
         </ul>

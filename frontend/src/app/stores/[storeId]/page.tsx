@@ -220,10 +220,11 @@ export default async function StoreDetailPage({
               </p>
             ) : null}
             {hasReviews ? (
-              <div className="mt-1 [&_*]:!text-white/90">
+              <div className="mt-1">
                 <ReviewSummary
                   avgRating={reviews.avg_rating}
                   reviewCount={reviews.review_count}
+                  className="inline-flex items-center gap-2 text-sm text-white/80"
                 />
               </div>
             ) : null}
