@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "798ee3ae108f",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/app/page.tsx",
+    "frontend/src/app/stores/[storeId]/page.tsx",
+    "frontend/src/app/stores/page.tsx",
+    "frontend/src/components/review-card.tsx",
+    "frontend/src/components/seller/subscription-plan-list.tsx",
+    "frontend/src/components/store-card.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/79/8ee3ae108f/0/metadata.json",
+      "transcript": "/79/8ee3ae108f/0/full.jsonl",
+      "context": "",
+      "content_hash": "/79/8ee3ae108f/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 111,
+    "cache_creation_tokens": 128492,
+    "cache_read_tokens": 7896626,
+    "output_tokens": 25191,
+    "api_call_count": 77
+  }
+}

@@ -1,0 +1,31 @@
+`★ Insight ─────────────────────────────────────`
+**Component extraction trade-offs**: We extracted `StoreCard` because it was genuinely duplicated (browse page + homepage, ~50 lines each). We skipped extracting `BoxCard` because it only exists in one place — extracting it would be premature abstraction with no DRY benefit. The React purity lint rule caught `Date.now()` in the component body, which is actually correct — impure calls during render can cause hydration mismatches between server and client. Moving it to a prop is cleaner.
+
+**The `[&_*]:!text-white/90` hack**: This Tailwind arbitrary variant selector forced all descendants (including star SVGs) to white, which would break amber star colors. Adding an optional `className` prop to `ReviewSummary` lets the caller override the container styling without affecting child component internals.
+`─────────────────────────────────────────────────`
+
+Phase 6 is complete. Here's what changed:
+
+| Change | Files |
+|--------|-------|
+| Extracted `StoreCard` component | `components/store-card.tsx` (new) |
+| Replaced inline cards | `stores/page.tsx`, `page.tsx` |
+| Fixed `ReviewSummary` override hack | `review-card.tsx`, `stores/[storeId]/page.tsx` |
+| Fixed raw price formatting | `seller/subscription-plan-list.tsx` |
+| Removed unused `Image` import | `stores/page.tsx` |
+
+Now I have a design decision for you:
+
+---
+
+**Learn by Doing**
+
+**Context:** The `StoreCard` currently receives `isNew` as a prop because `Date.now()` can't be called during render (React purity rule). The stores browse page computes it inline: `Date.now() - new Date(s.created_at).getTime() < 30 * 24 * 60 * 60 * 1000`. The homepage doesn't pass `isNew` at all (compact cards don't show the badge). This works but the 30-day threshold is a magic number spread across files.
+
+**Your Task:** In `frontend/src/components/store-card.tsx`, look for the `TODO(human)` comment. Consider whether to add a small helper that centralizes the "new store" threshold logic — or whether the current approach (caller computes, passes boolean) is good enough.
+
+**Guidance:** The trade-off is: a helper function (e.g., `isNewStore(createdAt: string)` exported from `lib/ui.ts`) centralizes the 30-day logic but adds another import. The current approach is simpler but scatters the magic number. There's no wrong answer — what matters is your preference for where logic lives.
+
+---
+
+Actually, let me skip that and just commit. The current approach works fine and adding a helper for a single boolean is over-engineering. Want me to commit and push?
