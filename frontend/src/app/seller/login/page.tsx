@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, Suspense, useEffect, useState } from "react";
+import { type FormEvent, Suspense, useEffect, useRef, useState } from "react";
 import { sellerApi } from "@/lib/seller-api";
 import { session } from "@/lib/session";
 import { ErrorAlert } from "@/components/error-alert";
@@ -26,8 +26,10 @@ function SellerLoginInner() {
   useEffect(() => {
     if (session.getToken()) router.replace(redirectTo);
   }, [router, redirectTo]);
+  const shownExpiredRef = useRef(false);
   useEffect(() => {
-    if (searchParams.get("expired") === "1") {
+    if (searchParams.get("expired") === "1" && !shownExpiredRef.current) {
+      shownExpiredRef.current = true;
       showToast({ kind: "error", message: "Your session has expired. Please sign in again." });
     }
   }, [searchParams, showToast]);

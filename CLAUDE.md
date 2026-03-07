@@ -125,6 +125,7 @@ Frontend (`frontend/`):
 | 2026-02 | Omitted `payment_method` from walk-up order creation | `CreateOrderInput` requires `payment_method: "card"` — backend rejects without it |
 | 2026-02 | `useSearchParams()` pages fail Vercel build without Suspense | Wrap default export in `<Suspense>`, move component body to inner function — required for Next.js 16 static generation |
 | 2026-03 | 401 interceptor in `requestJSON` redirected login/register pages to themselves, causing Google OAuth loop | Auth pages (`/login`, `/register`, `/auth/*`) must be excluded from 401 session-expiry redirects — their 401s are login failures, not expired sessions |
+| 2026-03 | `showToast` in useEffect deps caused infinite re-render loop on login pages with `?expired=1` | `showToast` is unstable (its `useCallback` depends on `timerId` state). Use a ref guard (`shownExpiredRef`) to fire the toast only once |
 
 ---
 

@@ -26,8 +26,10 @@ function BuyerLoginInner() {
   useEffect(() => {
     if (session.getToken()) router.replace(redirectTo);
   }, [router, redirectTo]);
+  const shownExpiredRef = useRef(false);
   useEffect(() => {
-    if (searchParams.get("expired") === "1") {
+    if (searchParams.get("expired") === "1" && !shownExpiredRef.current) {
+      shownExpiredRef.current = true;
       showToast({ kind: "error", message: "Your session has expired. Please sign in again." });
     }
   }, [searchParams, showToast]);
