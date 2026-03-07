@@ -122,7 +122,7 @@ export default async function Home() {
                 className="lr-card lr-card-strong overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
               >
                 {s.image_url ? (
-                  <div className="relative aspect-[16/9] w-full">
+                  <div className="relative aspect-[4/3] w-full">
                     <Image
                       src={s.image_url}
                       alt={s.name}
@@ -132,7 +132,7 @@ export default async function Home() {
                     />
                   </div>
                 ) : (
-                  <div className="flex aspect-[16/9] w-full items-center justify-center bg-[color:var(--lr-leaf)]/5">
+                  <div className="flex aspect-[4/3] w-full items-center justify-center bg-[color:var(--lr-leaf)]/5">
                     <span className="text-3xl text-[color:var(--lr-leaf)]/30">
                       {s.name.charAt(0)}
                     </span>

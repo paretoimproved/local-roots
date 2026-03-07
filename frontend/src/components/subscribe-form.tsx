@@ -17,6 +17,7 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [showOptional, setShowOptional] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<SubscribeResponse | null>(null);
@@ -255,32 +256,42 @@ export function SubscribeForm({ plan }: { plan: SubscriptionPlan }) {
             disabled={formLocked}
           />
         </label>
-        <div className="grid gap-2 md:grid-cols-2">
-          <label className="grid gap-1">
-            <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
-              Name (optional)
-            </span>
-            <input
-              className="lr-field px-3 py-2 text-sm"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={formLocked}
-            />
-          </label>
-          <label className="grid gap-1">
-            <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
-              Phone (optional)
-            </span>
-            <input
-              className="lr-field px-3 py-2 text-sm"
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              disabled={formLocked}
-              placeholder="(555) 555-1234"
-            />
-          </label>
-        </div>
+        {showOptional ? (
+          <div className="grid gap-2 md:grid-cols-2">
+            <label className="grid gap-1">
+              <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                Name (optional)
+              </span>
+              <input
+                className="lr-field px-3 py-2 text-sm"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={formLocked}
+              />
+            </label>
+            <label className="grid gap-1">
+              <span className="text-xs font-semibold text-[color:var(--lr-muted)]">
+                Phone (optional)
+              </span>
+              <input
+                className="lr-field px-3 py-2 text-sm"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                disabled={formLocked}
+                placeholder="(555) 555-1234"
+              />
+            </label>
+          </div>
+        ) : (
+          <button
+            type="button"
+            className="text-left text-xs font-medium text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)] transition-colors"
+            onClick={() => setShowOptional(true)}
+          >
+            + Add name / phone (optional)
+          </button>
+        )}
 
         <button
           type="submit"

@@ -6,6 +6,7 @@ import { buyerApi, defaultItemQty, type Order, type OrderCheckoutResponse } from
 import { orderToken } from "@/lib/order-token";
 import { PickupCodeCard } from "@/components/pickup-code-card";
 import { AuthorizeCard, isStripeAvailable } from "@/components/stripe-card-auth";
+import { QuantityStepper } from "@/components/quantity-stepper";
 import { useToast } from "@/components/toast";
 import { ErrorAlert } from "@/components/error-alert";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
@@ -261,17 +262,14 @@ export function CheckoutForm({
                   {formatMoney(o.price_cents)} &middot; {o.product.unit} &middot; {remaining} left
                 </div>
               </div>
-              <input
-                className="lr-field w-20 sm:w-24 px-3 py-2 text-sm"
-                type="number"
-                min={0}
-                max={remaining}
+              <QuantityStepper
                 value={cur}
+                max={remaining}
                 disabled={formLocked || remaining === 0}
-                onChange={(e) =>
+                onChange={(val) =>
                   setQty((prev) => ({
                     ...prev,
-                    [o.id]: Math.max(0, Math.min(remaining, Number(e.target.value) || 0)),
+                    [o.id]: val,
                   }))
                 }
               />

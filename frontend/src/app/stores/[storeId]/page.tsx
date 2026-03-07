@@ -199,21 +199,38 @@ export default async function StoreDetailPage({
       </nav>
 
       {/* ── Hero section ──────────────────────────────────────── */}
-      <section className="grid gap-4">
-        {store.image_url ? (
-          <div className="relative aspect-[3/1] w-full overflow-hidden rounded-2xl">
-            <Image
-              src={store.image_url}
-              alt={storeName}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 900px"
-              priority
-            />
+      {store.image_url ? (
+        <section className="relative aspect-[3/1] w-full overflow-hidden rounded-2xl">
+          <Image
+            src={store.image_url}
+            alt={storeName}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 900px"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+          <div className="absolute bottom-0 left-0 right-0 grid gap-1 p-5 sm:p-6">
+            <h1 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+              {storeName}
+            </h1>
+            {store.city && store.region ? (
+              <p className="text-sm text-white/80">
+                {store.city}, {store.region}
+              </p>
+            ) : null}
+            {hasReviews ? (
+              <div className="mt-1 [&_*]:!text-white/90">
+                <ReviewSummary
+                  avgRating={reviews.avg_rating}
+                  reviewCount={reviews.review_count}
+                />
+              </div>
+            ) : null}
           </div>
-        ) : null}
-
-        <div className="grid gap-2">
+        </section>
+      ) : (
+        <section className="grid gap-2">
           <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
             {storeName}
           </h1>
@@ -230,8 +247,8 @@ export default async function StoreDetailPage({
               />
             </div>
           ) : null}
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Pickup locations ──────────────────────────────────── */}
       {locationGroups.length > 0 ? (
@@ -316,7 +333,7 @@ export default async function StoreDetailPage({
                             Upcoming pickups
                           </div>
                           <ul className="mt-2 grid gap-1">
-                            {loc.windows.slice(0, 6).map((pw) => (
+                            {loc.windows.slice(0, 3).map((pw) => (
                               <li
                                 key={pw.id}
                                 className="text-sm text-[color:var(--lr-muted)]"
@@ -326,6 +343,11 @@ export default async function StoreDetailPage({
                                 {formatTime(pw.end_at, loc.timezone)}
                               </li>
                             ))}
+                            {loc.windows.length > 3 ? (
+                              <li className="text-xs text-[color:var(--lr-muted)]">
+                                +{loc.windows.length - 3} more pickups
+                              </li>
+                            ) : null}
                           </ul>
                         </div>
                       ) : null}
@@ -398,12 +420,12 @@ export default async function StoreDetailPage({
 
         {/* Subscription boxes */}
         {hasSubscriptions ? (
-          <div className="grid gap-3">
+          <div className="grid gap-4 md:grid-cols-2">
             {livePlans.map((p) => (
               <Link
                 key={p.id}
                 href={`/boxes/${p.id}`}
-                className="lr-card lr-card-strong overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
+                className="lr-card lr-card-strong flex flex-col overflow-hidden transition hover:-translate-y-0.5 hover:shadow-[0_22px_60px_rgba(38,28,10,0.14)]"
               >
                 {p.image_url ? (
                   <div className="relative aspect-[16/9] w-full">
@@ -412,12 +434,12 @@ export default async function StoreDetailPage({
                       alt={p.title}
                       fill
                       className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 700px"
+                      sizes="(max-width: 768px) 100vw, 400px"
                     />
                   </div>
                 ) : null}
-                <div className="flex flex-wrap items-start justify-between gap-4 p-5">
-                  <div className="min-w-[200px]">
+                <div className="flex flex-1 flex-col gap-3 p-5">
+                  <div>
                     <div className="text-lg font-semibold text-[color:var(--lr-ink)]">
                       {p.title}
                     </div>
@@ -426,21 +448,26 @@ export default async function StoreDetailPage({
                         {p.description}
                       </p>
                     ) : null}
-                    <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-[color:var(--lr-muted)]">
-                      <span className="lr-chip rounded-full px-3 py-1">
-                        {cadenceLabel(p.cadence)}
-                      </span>
-                      <span className="lr-chip rounded-full px-3 py-1">
-                        {formatMoney(p.price_cents)} / box
-                      </span>
-                      <span className="lr-chip rounded-full px-3 py-1">
-                        Next: {formatNext(p)}
-                      </span>
-                    </div>
                   </div>
-                  <span className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold">
-                    Subscribe
-                  </span>
+                  <div className="text-xl font-bold text-[color:var(--lr-leaf)]">
+                    {formatMoney(p.price_cents)}
+                    <span className="text-sm font-normal text-[color:var(--lr-muted)]">
+                      {" "}/ box
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-[color:var(--lr-muted)]">
+                    <span className="lr-chip rounded-full px-3 py-1">
+                      {cadenceLabel(p.cadence)}
+                    </span>
+                    <span className="lr-chip rounded-full px-3 py-1">
+                      Next: {formatNext(p)}
+                    </span>
+                  </div>
+                  <div className="mt-auto pt-2">
+                    <span className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold">
+                      Subscribe
+                    </span>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -453,30 +480,35 @@ export default async function StoreDetailPage({
             <h3 className="text-sm font-semibold text-[color:var(--lr-muted)]">
               Or buy once at the next pickup
             </h3>
-            <div className="lr-card lr-card-strong p-5">
-              <div className="grid gap-2">
-                {walkUpOfferings.slice(0, 8).map((o) => (
-                  <div
-                    key={o.id}
-                    className="flex items-baseline justify-between gap-4 text-sm"
-                  >
-                    <span className="text-[color:var(--lr-ink)]">
-                      {o.product.title}
-                    </span>
-                    <span className="text-[color:var(--lr-muted)]">
-                      {formatMoney(o.price_cents)} · {o.quantity_remaining} left
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-4">
-                <Link
-                  className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
-                  href={`/pickup-windows/${nextWindow.id}`}
+            <div className="grid gap-2 sm:grid-cols-2">
+              {walkUpOfferings.slice(0, 8).map((o) => (
+                <div
+                  key={o.id}
+                  className="lr-card lr-card-strong flex items-center gap-3 p-3"
                 >
-                  Shop this pickup
-                </Link>
-              </div>
+                  <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg bg-[color:var(--lr-leaf)]/10">
+                    <svg aria-hidden="true" className="h-6 w-6 text-[color:var(--lr-leaf)]" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+                    </svg>
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-[color:var(--lr-ink)]">
+                      {o.product.title}
+                    </div>
+                    <div className="text-sm text-[color:var(--lr-muted)]">
+                      {formatMoney(o.price_cents)} / {o.product.unit} · {o.quantity_remaining} left
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div>
+              <Link
+                className="lr-btn lr-btn-primary px-4 py-2 text-sm font-semibold"
+                href={`/pickup-windows/${nextWindow.id}`}
+              >
+                Shop this pickup
+              </Link>
             </div>
           </div>
         ) : null}

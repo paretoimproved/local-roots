@@ -415,7 +415,7 @@ pnpm migrate:up`}</code>
       ) : null}
 
       {stores && stores.length > 0 ? (
-        <ul className="grid gap-3">
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {stores.map((s) => (
             <li
               key={s.id}
@@ -423,16 +423,23 @@ pnpm migrate:up`}</code>
             >
               <Link href={`/stores/${s.id}`} className="block cursor-pointer">
                 {s.image_url ? (
-                  <div className="relative aspect-[16/9] w-full">
+                  <div className="relative aspect-[4/3] w-full">
                     <Image
                       src={s.image_url}
                       alt={s.name}
                       fill
                       className="object-cover"
-                      sizes="(max-width: 768px) 100vw, 700px"
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     />
                   </div>
-                ) : null}
+                ) : (
+                  <div className="flex aspect-[4/3] w-full items-center justify-center bg-[color:var(--lr-leaf)]/5">
+                    <svg className="h-10 w-10 text-[color:var(--lr-leaf)]/20" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21c-4-4-8-7.5-8-11a8 8 0 0 1 16 0c0 3.5-4 7-8 11Z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 11a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+                    </svg>
+                  </div>
+                )}
                 <div className="flex items-start justify-between gap-6 p-6">
                   <div>
                     <h2 className="text-lg font-semibold text-[color:var(--lr-ink)]">
@@ -444,7 +451,7 @@ pnpm migrate:up`}</code>
                       </p>
                     ) : null}
                     {s.description ? (
-                      <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+                      <p className="mt-2 line-clamp-2 text-sm text-[color:var(--lr-muted)]">
                         {s.description}
                       </p>
                     ) : null}
