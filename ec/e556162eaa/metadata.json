@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "ece556162eaa",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/public/local-roots-logo.png",
+    "frontend/src/app/boxes/[planId]/qr/page.tsx",
+    "frontend/src/app/buyer/login/page.tsx",
+    "frontend/src/app/layout.tsx",
+    "frontend/src/app/seller/login/page.tsx",
+    "frontend/src/app/seller/register/page.tsx",
+    "frontend/src/components/footer.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ec/e556162eaa/0/metadata.json",
+      "transcript": "/ec/e556162eaa/0/full.jsonl",
+      "context": "",
+      "content_hash": "/ec/e556162eaa/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 23,
+    "cache_creation_tokens": 16847,
+    "cache_read_tokens": 2537344,
+    "output_tokens": 4199,
+    "api_call_count": 21
+  }
+}
