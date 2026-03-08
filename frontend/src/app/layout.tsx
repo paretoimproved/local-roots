@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   description: "Local pickup marketplace for produce and food",
   icons: {
     icon: [
-      { url: "/local-roots-logo.svg", type: "image/svg+xml" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico", sizes: "32x32" },
     ],
   },
