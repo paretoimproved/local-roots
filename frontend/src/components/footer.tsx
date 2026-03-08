@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { LocalRootsLogo } from "@/components/local-roots-logo";
 
 const links = [
   { label: "Browse Farms", href: "/stores" },
@@ -13,7 +13,7 @@ export function Footer() {
     <footer className="border-t border-[color:var(--lr-border)] px-6 py-8">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
         <p className="flex items-center gap-2 text-sm text-[color:var(--lr-muted)]">
-          <Image src="/local-roots-logo.svg" alt="" width={20} height={20} />
+          <LocalRootsLogo size={20} />
           <span className="font-[family-name:var(--font-lr-serif)] font-semibold text-[color:var(--lr-ink)]">
             LocalRoots
           </span>{" "}

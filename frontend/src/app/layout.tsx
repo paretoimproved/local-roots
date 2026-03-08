@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Spline_Sans } from "next/font/google";
-import Image from "next/image";
 import Link from "next/link";
 import { BuyerNavLink } from "@/components/buyer-nav-link";
+import { LocalRootsLogo } from "@/components/local-roots-logo";
 import { SellerNavLink } from "@/components/seller-nav-link";
 import { Footer } from "@/components/footer";
 import { AnalyticsProvider } from "@/components/analytics-provider";
@@ -56,14 +56,7 @@ export default function RootLayout({
             <div className="mx-auto max-w-5xl px-6 py-10">
               <header className="flex flex-wrap items-end justify-between gap-4">
                 <Link href="/" className="group flex items-center gap-3">
-                  <Image
-                    src="/local-roots-logo.svg"
-                    alt=""
-                    width={36}
-                    height={36}
-                    className="shrink-0"
-                    priority
-                  />
+                  <LocalRootsLogo size={36} className="shrink-0" />
                   <div className="grid gap-0.5">
                     <div className="text-xl font-semibold tracking-tight">
                       <span className="font-[family-name:var(--font-lr-serif)]">
