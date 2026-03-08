@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "12d10d969701",
+  "session_id": "47432d30-2d43-4d94-b137-1872c12dd7cf",
+  "strategy": "auto-commit",
+  "created_at": "2026-03-08T15:21:51.626049Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/public/favicon.svg",
+    "frontend/public/local-roots-logo.svg",
+    "frontend/src/components/local-roots-logo.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "7dd965ab5c3e",
+  "checkpoint_transcript_start": 1287,
+  "transcript_lines_at_start": 1287,
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 7382,
+    "cache_read_tokens": 955155,
+    "output_tokens": 3696,
+    "api_call_count": 9
+  }
+}
