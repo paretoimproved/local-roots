@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "bbc306da5a8e",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/components/seller/manual-pickup-entry.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/bb/c306da5a8e/0/metadata.json",
+      "transcript": "/bb/c306da5a8e/0/full.jsonl",
+      "context": "",
+      "content_hash": "/bb/c306da5a8e/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 282,
+    "cache_creation_tokens": 639517,
+    "cache_read_tokens": 17709620,
+    "output_tokens": 67061,
+    "api_call_count": 162
+  }
+}

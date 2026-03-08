@@ -1,0 +1,137 @@
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"task1-backend-lookup has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"task1-spec-review has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="task1-backend-lookup" color="blue">
+{"type":"shutdown_approved","requestId":"shutdown-1772929751674@task1-backend-lookup","from":"task1-backend-lookup","timestamp":"2026-03-08T00:29:16.144Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+<teammate-message teammate_id="task1-spec-review" color="green">
+{"type":"shutdown_approved","requestId":"shutdown-1772929752029@task1-spec-review","from":"task1-spec-review","timestamp":"2026-03-08T00:29:16.788Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="task4-orderlist-redesign" color="purple" summary="Task 4 OrderList redesign complete and committed">
+Task 4 (OrderList redesign) is complete and committed as `dd20568`.
+
+**Changes made to `frontend/src/components/seller/order-list.tsx`:**
+
+1. **Simplified props** — removed `pickupCodeByOrderId`, `onConfirmPickup`, `onPickupCodeChange`, `payoutSummary`
+2. **Removed imports** — `ManualPickupEntry`, `PayoutSummaryCard`, `OrderFilter` type
+3. **Replaced filter buttons with grouped sections** — `useMemo` groups orders into `ready`, `waiting`, `completed`
+4. **Ready section** — green accent (`--lr-leaf`), shows count
+5. **Waiting section** — muted text, shows count
+6. **Completed section** — collapsed by default with `showCompleted` toggle
+7. **Removed `lr-card` wrapper** — renders plain `<section>` with `grid gap-4`
+8. **Order cards preserved** — compact row with expand/collapse, primary "Mark ready" button for placed orders only, secondary actions (Cancel, No show) in expanded view
+9. **Empty states** — handled for no orders and no selected window
+
+**Verification:**
+- `pnpm lint` passes clean
+- `pnpm typecheck` fails only on the parent page (`page.tsx:469`) passing old props — expected, will be fixed in Task 6
+</teammate-message>
+
+<teammate-message teammate_id="task4-orderlist-redesign" color="purple">
+{"type":"idle_notification","from":"task4-orderlist-redesign","timestamp":"2026-03-08T00:38:31.770Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="task4-orderlist-redesign" color="purple">
+{"type":"shutdown_approved","requestId":"shutdown-1772930317677@task4-orderlist-redesign","from":"task4-orderlist-redesign","timestamp":"2026-03-08T00:38:42.803Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"task4-orderlist-redesign has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="task5-window-simplify" color="orange" summary="Task 5 pickup window simplify done and committed">
+Task 5 (pickup window simplify) is complete and committed.
+
+**What changed** in `frontend/src/components/seller/pickup-window-list.tsx`:
+- Added `"use client"` directive and `useState` for a `showSelector` toggle
+- Added `friendlyWindowLabel()` that shows relative day labels (Today/Tomorrow/weekday), location, and time range
+- When a window is selected: shows the friendly label prominently with a StatusPill, location/cutoff details, and a "Change" underline button that toggles the dropdown
+- When no window is selected: shows the dropdown by default with helper text
+- Removed the "Buyer view" link (per spec, it moves to the Manage tab)
+- Kept `formatWindowLabel` for dropdown options and the props interface unchanged
+
+**Verification**: Lint passes clean. The typecheck has one pre-existing error in `page.tsx` about `pickupCodeByOrderId` on `OrderListProps` — confirmed it exists on the prior commit too (unrelated to this change).
+
+Commit: `7c0c559 refactor: simplify pickup window display with friendly labels and toggle`
+</teammate-message>
+
+<teammate-message teammate_id="task5-window-simplify" color="orange">
+{"type":"idle_notification","from":"task5-window-simplify","timestamp":"2026-03-08T00:38:51.689Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="task2-3-api-and-component" color="yellow" summary="Tasks 2-3 complete: API client + component done">
+Tasks 2 and 3 are complete.
+
+**Task 2** — Added `lookupByCode` method to `frontend/src/lib/seller-api.ts` after `confirmPickup`. Committed as `8933725`.
+
+**Task 3** — `GlobalPickupEntry` component at `frontend/src/components/seller/global-pickup-entry.tsx` was already present with the correct implementation from a prior commit. My Write produced identical content, confirming it matches the spec.
+
+Verification: `pnpm typecheck && pnpm lint` both pass cleanly.
+</teammate-message>
+
+<teammate-message teammate_id="task2-3-api-and-component" color="yellow">
+{"type":"idle_notification","from":"task2-3-api-and-component","timestamp":"2026-03-08T00:39:00.207Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"task5-window-simplify has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="task5-window-simplify" color="orange">
+{"type":"shutdown_approved","requestId":"shutdown-1772930341388@task5-window-simplify","from":"task5-window-simplify","timestamp":"2026-03-08T00:39:05.122Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"task2-3-api-and-component has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="task2-3-api-and-component" color="yellow">
+{"type":"shutdown_approved","requestId":"shutdown-1772930353817@task2-3-api-and-component","from":"task2-3-api-and-component","timestamp":"2026-03-08T00:39:21.312Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="task6-page-tabs" color="pink" summary="Task 6 complete — seller page split into tabs">
+Task 6 is complete. Here's what I did:
+
+**File modified:** `/Users/brandonqueener/Cursor Projects/Local-Roots/frontend/src/app/seller/stores/[storeId]/page.tsx`
+
+**Changes:**
+1. Added `tab` state (`"pickups" | "manage"`, defaults to `"pickups"`)
+2. Deleted all support popover state, refs, hooks, and JSX (supportOpen, supportBtnRef, supportPanelRef, supportPos, useLayoutEffect, click-outside useEffect)
+3. Deleted per-order pickup code state and functions (pickupCodeByOrderId, confirmPickup, handlePickupCodeChange)
+4. Added imports: `GlobalPickupEntry`, `PayoutSummaryCard`, `formatMoney`
+5. Removed unused imports: `useLayoutEffect`, `useRef`
+6. Added tab bar (Pickups / Manage toggle) after header
+7. **Pickups tab**: PickupWindowList, GlobalPickupEntry, inline payout summary line, OrderList (with simplified props — no more pickupCodeByOrderId/onConfirmPickup/onPickupCodeChange/payoutSummary)
+8. **Manage tab**: SubscriptionPlanList, SubscriberList, PayoutSummaryCard
+9. Removed header subtitle, removed Support button (kept Settings link)
+10. ConfirmDialog and all async functions retained
+
+**Verification:** `pnpm typecheck` and `pnpm lint` both pass clean.
+
+**Commit:** `105cf12` — `feat: split seller dashboard into Pickups/Manage tabs with global code entry`
+
+Net result: 104 insertions, 185 deletions — the page is significantly simpler.
+</teammate-message>
+
+<teammate-message teammate_id="task6-page-tabs" color="pink">
+{"type":"idle_notification","from":"task6-page-tabs","timestamp":"2026-03-08T01:24:20.212Z","idleReason":"available"}
+</teammate-message>

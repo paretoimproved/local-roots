@@ -1,0 +1,21 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "bbc306da5a8e",
+  "session_id": "47432d30-2d43-4d94-b137-1872c12dd7cf",
+  "strategy": "auto-commit",
+  "created_at": "2026-03-08T01:25:37.009865Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "frontend/src/components/seller/manual-pickup-entry.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "9ab72153aa38",
+  "token_usage": {
+    "input_tokens": 282,
+    "cache_creation_tokens": 639517,
+    "cache_read_tokens": 17709620,
+    "output_tokens": 67061,
+    "api_call_count": 162
+  }
+}
