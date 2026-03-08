@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { sellerApi, type SellerOrder } from "@/lib/seller-api";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
 import { StatusPill } from "@/components/seller/status-pills";
@@ -61,10 +61,15 @@ export function GlobalPickupEntry({
     }
   }
 
-  // TODO(human): Add auto-lookup logic here. When the farmer types the 6th digit,
-  // should the lookup trigger automatically? Consider debouncing, error cases,
-  // and whether auto-confirm is too risky (payment capture is irreversible).
-  // You have access to: code (string), busy (boolean), handleLookup (async function).
+  // Auto-lookup when the 6th digit is entered
+  useEffect(() => {
+    if (code.length !== 6 || busy || preview) return;
+    const id = setTimeout(() => {
+      handleLookup();
+    }, 250);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {

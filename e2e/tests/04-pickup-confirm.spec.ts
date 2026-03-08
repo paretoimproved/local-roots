@@ -31,19 +31,21 @@ test.describe("Pickup confirmation", () => {
       [{ offering_id: offering.id, quantity: 1 }],
     );
 
-    // Navigate to seller dashboard and select the pickup window
+    // Navigate to seller dashboard (auto-selects pickup window)
     await sellerPage.goto(`/seller/stores/${liveSellerContext.storeId}`);
-    const windowSelect = sellerPage.locator("select").first();
-    await windowSelect.selectOption({ index: 1 });
 
     // Find the order and mark it ready
     await expect(sellerPage.getByText(buyerEmail)).toBeVisible();
     await sellerPage.getByRole("button", { name: "Mark ready" }).first().click();
 
-    // Now confirm pickup with the code
-    await expect(sellerPage.getByLabel("Pickup code")).toBeVisible();
-    await sellerPage.getByLabel("Pickup code").fill(order.pickup_code);
-    await sellerPage.getByRole("button", { name: "Confirm pickup" }).first().click();
+    // Use the global pickup entry to confirm pickup
+    const codeInput = sellerPage.getByPlaceholder("000000");
+    await expect(codeInput).toBeVisible();
+    await codeInput.fill(order.pickup_code);
+
+    // Auto-lookup fires after 250ms — wait for the preview to appear
+    await expect(sellerPage.getByText(buyerEmail.split("@")[0])).toBeVisible();
+    await sellerPage.getByRole("button", { name: "Confirm pickup" }).click();
 
     // Verify via API that order status is now picked_up
     const updated = await getOrderViaApi(order.id, orderToken);
