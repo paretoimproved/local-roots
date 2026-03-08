@@ -1,0 +1,8 @@
+
+
+Three agents running in parallel:
+- **Tasks 2-3**: API client method + GlobalPickupEntry component
+- **Task 4**: OrderList redesign with grouped sections
+- **Task 5**: PickupWindowList simplification
+
+Waiting for all three to complete before moving to Task 6 (page restructure), which depends on all of them.
