@@ -1,6 +1,11 @@
 package v1
 
-import "testing"
+import (
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
 
 func TestIsAllowedTransition(t *testing.T) {
 	cases := []struct {
@@ -51,6 +56,33 @@ func TestIsAllowedTransition(t *testing.T) {
 		if got := isAllowedTransition(tc.from, tc.to); got != tc.want {
 			t.Fatalf("isAllowedTransition(%q,%q)=%v want %v", tc.from, tc.to, got, tc.want)
 		}
+	}
+}
+
+func TestLookupByCode_Validation(t *testing.T) {
+	api := SellerOrdersAPI{} // nil DB — we only test early validation returns.
+
+	cases := []struct {
+		name   string
+		body   string
+		status int
+	}{
+		{"empty body", "", http.StatusBadRequest},
+		{"empty pickup_code", `{"pickup_code":""}`, http.StatusBadRequest},
+		{"non-digit code", `{"pickup_code":"abcdef"}`, http.StatusBadRequest},
+		{"too short code", `{"pickup_code":"123"}`, http.StatusBadRequest},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, "/v1/seller/stores/s1/orders/lookup-by-code", strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			rr := httptest.NewRecorder()
+			api.LookupByCode(rr, req, AuthUser{ID: "user-1", Role: "seller"}, StoreContext{StoreID: "00000000-0000-0000-0000-000000000001"})
+			if rr.Code != tc.status {
+				t.Errorf("got %d want %d: %s", rr.Code, tc.status, rr.Body.String())
+			}
+		})
 	}
 }
 

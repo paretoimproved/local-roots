@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/paretoimproved/local-roots/backend/internal/payments/stripepay"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
+
+var sixDigitRe = regexp.MustCompile(`^\d{6}$`)
 
 type SellerOrdersAPI struct {
 	DB                     *pgxpool.Pool
@@ -458,6 +461,143 @@ func (a SellerOrdersAPI) ConfirmPickup(w http.ResponseWriter, r *http.Request, u
 		"pickup_window_id": result.PickupWindowID,
 		"status":           "picked_up",
 	})
+}
+
+type LookupByCodeRequest struct {
+	PickupCode string `json:"pickup_code"`
+}
+
+// LookupByCode finds an active order by its 6-digit pickup code within the seller's store.
+func (a SellerOrdersAPI) LookupByCode(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
+	var in LookupByCodeRequest
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+	in.PickupCode = strings.TrimSpace(in.PickupCode)
+	if !sixDigitRe.MatchString(in.PickupCode) {
+		resp.BadRequest(w, "pickup_code must be exactly 6 digits")
+		return
+	}
+
+	rows, err := a.DB.Query(r.Context(), `
+		select
+			o.id::text,
+			o.store_id::text,
+			o.pickup_window_id::text,
+			o.buyer_email,
+			o.buyer_name,
+			o.buyer_phone,
+			o.status,
+			o.payment_method,
+			o.payment_status,
+			o.subtotal_cents,
+			o.buyer_fee_cents,
+			o.total_cents,
+			o.captured_cents,
+			o.created_at,
+
+			oi.id::text,
+			oi.offering_id::text,
+			oi.product_title,
+			oi.product_unit,
+			oi.price_cents,
+			oi.quantity,
+			oi.line_total_cents
+		from orders o
+		left join order_items oi on oi.order_id = o.id
+		where o.store_id = $1::uuid and o.pickup_code = $2 and o.status in ('placed', 'ready')
+		order by o.created_at desc, oi.created_at asc
+		limit 20
+	`, sc.StoreID, in.PickupCode)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
+
+	var order *SellerOrder
+	for rows.Next() {
+		var (
+			o         SellerOrder
+			itemID    *string
+			offering  *string
+			title     *string
+			unit      *string
+			price     *int
+			qty       *int
+			lineTotal *int
+		)
+
+		if err := rows.Scan(
+			&o.ID,
+			&o.StoreID,
+			&o.PickupWindowID,
+			&o.BuyerEmail,
+			&o.BuyerName,
+			&o.BuyerPhone,
+			&o.Status,
+			&o.PaymentMethod,
+			&o.PaymentStatus,
+			&o.SubtotalCents,
+			&o.BuyerFeeCents,
+			&o.TotalCents,
+			&o.CapturedCents,
+			&o.CreatedAt,
+
+			&itemID,
+			&offering,
+			&title,
+			&unit,
+			&price,
+			&qty,
+			&lineTotal,
+		); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+
+		if order == nil {
+			o.Items = make([]OrderItem, 0)
+			order = &o
+		}
+
+		if itemID != nil {
+			it := OrderItem{
+				ID:           *itemID,
+				OfferingID:   offering,
+				ProductTitle: "",
+				ProductUnit:  "",
+			}
+			if title != nil {
+				it.ProductTitle = *title
+			}
+			if unit != nil {
+				it.ProductUnit = *unit
+			}
+			if price != nil {
+				it.PriceCents = *price
+			}
+			if qty != nil {
+				it.Quantity = *qty
+			}
+			if lineTotal != nil {
+				it.LineTotalCents = *lineTotal
+			}
+			order.Items = append(order.Items, it)
+		}
+	}
+	if rows.Err() != nil {
+		resp.Internal(w, rows.Err())
+		return
+	}
+
+	if order == nil {
+		resp.NotFound(w, "no active order found for this pickup code")
+		return
+	}
+
+	resp.OK(w, order)
 }
 
 // mode:

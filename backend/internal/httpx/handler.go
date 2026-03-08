@@ -125,6 +125,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ListOrdersForPickupWindow)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.UpdateOrderStatus)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", WithRateLimit("pickup", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ConfirmPickup))))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/lookup-by-code", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.LookupByCode)))
 
 	pickupConfirm := v1.PickupConfirmAPI{DB: deps.DB, Stripe: stripeClient, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
 	mux.HandleFunc("GET /v1/seller/pickup/preview", authAPI.RequireUser(pickupConfirm.Preview))
