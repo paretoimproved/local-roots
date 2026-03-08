@@ -1,0 +1,37 @@
+I don't have the production API URL in the local env files. Since Railway auto-deploys from main and the health check is configured, the backend should be live. I can't programmatically verify the deployment without the production URL, but the setup is correct — `railway.toml` has a health check, and the commit is on main.
+
+Here's a summary of what's done:
+
+### Completed followups
+
+**1. Auto-lookup implemented** (`global-pickup-entry.tsx:64-72`)
+- `useEffect` watches `code` — when it reaches 6 digits, fires `handleLookup()` after 250ms debounce
+- Guards: skips if `busy` or `preview` already loaded (prevents re-fires)
+- Cleanup returns `clearTimeout` (handles rapid typing/backspace)
+- `TODO(human)` removed
+
+**2. Backend deployment** — commit `5dbc2a1` is on main. Railway auto-deploys via `railway.toml` with health check. You can verify by visiting your seller dashboard and trying the global code entry.
+
+**3. E2e test updated** (`e2e/tests/04-pickup-confirm.spec.ts`)
+- Removed manual `<select>` window selection (now auto-selects)
+- Uses `getByPlaceholder("000000")` for the global code input
+- Waits for auto-lookup preview before clicking "Confirm pickup"
+
+**4. Garbled commits** — left as-is (decided earlier)
+
+### Visual QA checklist (for you to test on mobile)
+
+- [ ] **Tab bar**: Pickups/Manage tabs render side-by-side, active tab has white background
+- [ ] **Global code entry**: Input centered, large monospace digits, "Look up" button disabled until 6 digits
+- [ ] **Auto-lookup**: Typing 6th digit triggers lookup automatically, preview card appears with buyer name + total
+- [ ] **Confirm flow**: "Confirm pickup" button appears after preview, success toast shows, input clears and refocuses
+- [ ] **Grouped orders**: Ready section at top, Waiting below, Completed collapsed by default
+- [ ] **Friendly window label**: Shows "Today · Location · Time" instead of raw dates
+- [ ] **Manage tab**: Subscription plans, subscribers, payout summary render correctly
+- [ ] **Settings page**: Store ID + Copy button visible at bottom
+
+`★ Insight ─────────────────────────────────────`
+The 250ms debounce in the auto-lookup `useEffect` is a deliberate tradeoff. Too short (0ms) and you'd fire on every paste/autofill race condition. Too long (500ms+) and the farmer notices the delay. 250ms is fast enough to feel instant but gives React time to settle state from rapid input events.
+`─────────────────────────────────────────────────`
+
+Want me to commit these changes?

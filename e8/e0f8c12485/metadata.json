@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "e8e0f8c12485",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "e2e/tests/04-pickup-confirm.spec.ts",
+    "frontend/src/components/seller/global-pickup-entry.tsx"
+  ],
+  "sessions": [
+    {
+      "metadata": "/e8/e0f8c12485/0/metadata.json",
+      "transcript": "/e8/e0f8c12485/0/full.jsonl",
+      "context": "",
+      "content_hash": "/e8/e0f8c12485/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 50767,
+    "cache_read_tokens": 900769,
+    "output_tokens": 4785,
+    "api_call_count": 15
+  }
+}

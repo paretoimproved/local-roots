@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "e8e0f8c12485",
+  "session_id": "47432d30-2d43-4d94-b137-1872c12dd7cf",
+  "strategy": "auto-commit",
+  "created_at": "2026-03-08T03:18:57.972967Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "e2e/tests/04-pickup-confirm.spec.ts",
+    "frontend/src/components/seller/global-pickup-entry.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "05c9bb880c30",
+  "checkpoint_transcript_start": 958,
+  "transcript_lines_at_start": 958,
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 50767,
+    "cache_read_tokens": 900769,
+    "output_tokens": 4785,
+    "api_call_count": 15
+  }
+}
