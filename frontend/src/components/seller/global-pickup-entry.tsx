@@ -61,6 +61,11 @@ export function GlobalPickupEntry({
     }
   }
 
+  // TODO(human): Add auto-lookup logic here. When the farmer types the 6th digit,
+  // should the lookup trigger automatically? Consider debouncing, error cases,
+  // and whether auto-confirm is too risky (payment capture is irreversible).
+  // You have access to: code (string), busy (boolean), handleLookup (async function).
+
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === "Enter") {
       e.preventDefault();
