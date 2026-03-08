@@ -460,6 +460,16 @@ export const sellerApi = {
       },
     ),
 
+  lookupByCode: (token: string, storeId: string, pickupCode: string) =>
+    requestJSON<SellerOrder>(
+      `/v1/seller/stores/${storeId}/orders/lookup-by-code`,
+      {
+        method: "POST",
+        token,
+        body: JSON.stringify({ pickup_code: pickupCode }),
+      },
+    ),
+
   listSubscriptionPlans: (token: string, storeId: string) =>
     requestJSON<SellerSubscriptionPlan[]>(
       `/v1/seller/stores/${storeId}/subscription-plans`,
