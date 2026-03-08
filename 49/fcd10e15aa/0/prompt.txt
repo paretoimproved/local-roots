@@ -1,0 +1,54 @@
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"task6-page-tabs has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="task6-page-tabs" color="pink">
+{"type":"shutdown_approved","requestId":"shutdown-1772933068509@task6-page-tabs","from":"task6-page-tabs","timestamp":"2026-03-08T01:24:33.559Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="task7-store-id-settings" color="cyan" summary="Task 7 done: Store ID added to settings page">
+Task 7 complete. Added the "Support" section with Store ID display and copy button to the settings page at `frontend/src/app/seller/stores/[storeId]/settings/page.tsx`. The section is placed after the Danger Zone section, before the ConfirmDialog. Both `storeId` and `showToast` were already in scope. Typecheck and lint pass. Committed as `6a29711`.
+</teammate-message>
+
+<teammate-message teammate_id="task7-store-id-settings" color="cyan">
+{"type":"idle_notification","from":"task7-store-id-settings","timestamp":"2026-03-08T01:39:58.564Z","idleReason":"available"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="task8-dead-code" color="red" summary="Task 8 complete: removed dead ManualPickupEntry">
+Task 8 (dead code cleanup) is complete.
+
+**Findings:**
+- **ManualPickupEntry** (`frontend/src/components/seller/manual-pickup-entry.tsx`) — dead code. Only referenced within its own file, no imports anywhere. Deleted.
+- **PayoutSummaryCard** — still used in the store page (Manage tab, line 397). Kept.
+- **Modified files** (`page.tsx`, `order-list.tsx`, `pickup-window-list.tsx`) — all imports are clean, no unused imports found.
+
+**Verification:** `pnpm typecheck`, `pnpm lint`, and `go test ./...` all pass.
+
+**Commit:** `05ecf84` — `chore: remove dead code from seller dashboard redesign`
+</teammate-message>
+
+<teammate-message teammate_id="task8-dead-code" color="red">
+{"type":"idle_notification","from":"task8-dead-code","timestamp":"2026-03-08T01:40:05.964Z","idleReason":"available"}
+</teammate-message>
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"task7-store-id-settings has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="task7-store-id-settings" color="cyan">
+{"type":"shutdown_approved","requestId":"shutdown-1772934004466@task7-store-id-settings","from":"task7-store-id-settings","timestamp":"2026-03-08T01:40:09.205Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>
+
+---
+
+<teammate-message teammate_id="system">
+{"type":"teammate_terminated","message":"task8-dead-code has shut down."}
+</teammate-message>
+
+<teammate-message teammate_id="task8-dead-code" color="red">
+{"type":"shutdown_approved","requestId":"shutdown-1772934016112@task8-dead-code","from":"task8-dead-code","timestamp":"2026-03-08T01:40:18.980Z","paneId":"in-process","backendType":"in-process"}
+</teammate-message>

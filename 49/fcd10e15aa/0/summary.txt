@@ -1,0 +1,10 @@
+● **Learn by Doing**
+
+**Context:** The seller dashboard redesign is complete. The `GlobalPickupEntry` component has a two-step flow: type code → "Look up" → see preview → "Confirm pickup". There's an opportunity to make this faster for farmers who confirm dozens of pickups per market day.
+
+**Your Task:** In `frontend/src/components/seller/global-pickup-entry.tsx`, implement auto-lookup logic at the `TODO(human)` comment. When the farmer types the 6th digit, the lookup should trigger automatically without needing to tap "Look up".
+
+**Guidance:** Consider these trade-offs:
+- **Debounce vs. immediate**: If the farmer fat-fingers a digit and quickly backspaces, an immediate lookup wastes an API call. A short debounce (200-300ms) lets them correct before the call fires.
+- **Auto-confirm**: The confirm step captures payment (irreversible). Auto-confirming would be dangerous — keep that as a manual tap. But auto-lookup is safe since it's read-only.
+- **Implementation**: You'll likely want a `useEffect` that watches `code` length, plus a `useRef` for debounce timeout cleanup. The `handleLookup` function reads from `code` state, so consider passing the code value directly or using a ref.
