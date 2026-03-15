@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { buyerAuthApi } from "@/lib/buyer-api";
@@ -125,6 +126,14 @@ function BuyerLoginInner() {
   return (
     <section className="mx-auto max-w-md">
       <div className="lr-card lr-card-strong p-6">
+        <Image
+          src="/local-roots-logo.png"
+          alt="LocalRoots"
+          width={48}
+          height={48}
+          className="mb-4"
+  
+        />
         <h1 className="text-lg font-semibold text-[color:var(--lr-ink)]">
           Sign in
         </h1>

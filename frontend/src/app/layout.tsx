@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist_Mono, Spline_Sans } from "next/font/google";
+import Image from "next/image";
 import Link from "next/link";
 import { BuyerNavLink } from "@/components/buyer-nav-link";
-import { LocalRootsLogo } from "@/components/local-roots-logo";
 import { SellerNavLink } from "@/components/seller-nav-link";
 import { Footer } from "@/components/footer";
 import { AnalyticsProvider } from "@/components/analytics-provider";
@@ -27,12 +27,6 @@ export const metadata: Metadata = {
     template: "%s — LocalRoots",
   },
   description: "Local pickup marketplace for produce and food",
-  icons: {
-    icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
-      { url: "/favicon.ico", sizes: "32x32" },
-    ],
-  },
 };
 
 export default function RootLayout({
@@ -56,7 +50,14 @@ export default function RootLayout({
             <div className="mx-auto max-w-5xl px-6 py-10">
               <header className="flex flex-wrap items-end justify-between gap-4">
                 <Link href="/" className="group flex items-center gap-3">
-                  <LocalRootsLogo size={36} className="shrink-0" />
+                  <Image
+                    src="/local-roots-logo.png"
+                    alt=""
+                    width={40}
+                    height={40}
+                    className="shrink-0"
+                    priority
+                  />
                   <div className="grid gap-0.5">
                     <div className="text-xl font-semibold tracking-tight">
                       <span className="font-[family-name:var(--font-lr-serif)]">

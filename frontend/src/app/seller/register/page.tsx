@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
@@ -57,6 +58,14 @@ export default function SellerRegisterPage() {
 
   return (
     <div className="mx-auto max-w-md">
+      <Image
+        src="/local-roots-logo.png"
+        alt="LocalRoots"
+        width={64}
+        height={64}
+        className="mb-6"
+
+      />
       <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
         Create seller account
       </h1>

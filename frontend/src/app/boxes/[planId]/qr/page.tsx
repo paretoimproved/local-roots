@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import Image from "next/image";
 import Link from "next/link";
 
 import { requestJSON } from "@/lib/http";
@@ -94,7 +95,8 @@ export default async function BoxQrPosterPage({
         <section className="rounded-[2rem] bg-white/70 p-8 shadow-[0_30px_90px_rgba(38,28,10,0.12)] ring-1 ring-[color:var(--lr-border)] print:shadow-none print:ring-0">
           <div className="flex flex-wrap items-start justify-between gap-6">
             <div className="grid gap-2">
-              <div className="text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
+              <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[color:var(--lr-muted)]">
+                <Image src="/local-roots-logo.png" alt="" width={24} height={24} />
                 LocalRoots
               </div>
               <h1 className="text-3xl font-semibold tracking-tight">
