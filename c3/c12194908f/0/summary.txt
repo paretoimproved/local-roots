@@ -1,0 +1,1 @@
+217KB, alpha-fixed, resized. Hard refresh `localhost:3000` (`Cmd+Shift+R`) — the light background pixels are now truly transparent, and the `mix-blend-multiply` darkening is gone.
