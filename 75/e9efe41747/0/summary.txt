@@ -1,0 +1,65 @@
+---
+
+```
++====================================================================+
+|            MEGA PLAN REVIEW — COMPLETION SUMMARY                   |
++====================================================================+
+| Mode selected        | SELECTIVE EXPANSION                         |
+| System Audit         | Clean main branch, no stashes, 0 TODOs in   |
+|                      | production code, Phases 1-7 complete         |
+| Step 0               | SELECTIVE EXPANSION, 6/6 cherry-picks        |
+|                      | accepted, 1 architecture decision resolved   |
+| Section 1  (Arch)    | 1 issue found (box_updates schema — resolved) |
+| Section 2  (Errors)  | 11 error paths mapped, 0 GAPS                |
+| Section 3  (Security)| 7 threats evaluated, 0 High severity         |
+| Section 4  (Data/UX) | 10 edge cases mapped, 0 unhandled            |
+|                      | 1 decision (digest timezone — resolved)      |
+| Section 5  (Quality) | 2 notes (DRY analytics, cron organization)   |
+| Section 6  (Tests)   | Diagram produced, 0 gaps                     |
+| Section 7  (Perf)    | 1 index needed (noted for implementation)    |
+| Section 8  (Observ)  | 0 gaps, logging spec produced                |
+| Section 9  (Deploy)  | 0 risks, rollback plan documented             |
+| Section 10 (Future)  | Reversibility: 5/5, debt items: 0            |
+| Section 11 (Design)  | State coverage mapped, no blocking issues    |
++--------------------------------------------------------------------+
+| NOT in scope         | written (9 items)                            |
+| What already exists  | written (7 reusable subsystems)              |
+| Dream state delta    | written (~60% of gap closed)                 |
+| Error/rescue registry| 11 methods, 0 CRITICAL GAPS                  |
+| Failure modes        | 13 total, 0 CRITICAL GAPS                    |
+| TODOS.md updates     | 1 item added (next pickup badge)             |
+| Scope proposals      | 6 proposed, 6 accepted                       |
+| CEO plan             | written                                      |
+| Lake Score           | 6/6 recommendations chose complete option   |
+| Diagrams produced    | 3 (system architecture, re-engagement flow,  |
+|                      | data flow with shadow paths)                 |
+| Stale diagrams found | 0                                            |
+| Unresolved decisions | 0                                            |
++====================================================================+
+```
+
+```
++====================================================================+
+|                    REVIEW READINESS DASHBOARD                       |
++====================================================================+
+| Review          | Runs | Last Run            | Status    | Required |
+|-----------------|------|---------------------|-----------|----------|
+| Eng Review      |  0   | —                   | —         | YES      |
+| CEO Review      |  1   | 2026-03-18 15:30    | CLEAR     | no       |
+| Design Review   |  0   | —                   | —         | no       |
++--------------------------------------------------------------------+
+| VERDICT: NOT CLEARED — Eng Review not yet run                       |
++====================================================================+
+```
+
+---
+
+`★ Insight ─────────────────────────────────────`
+**Why re-engagement before analytics:** The plan prioritizes buyer re-engagement (Task 1) over seller analytics (Task 2) even though analytics endpoints already exist. This follows the **North Star metric** principle — completed pickups per week is driven more by buyers actually showing up than by sellers looking at dashboards. A lapsed subscriber nudge email has a direct, measurable path to the North Star. Analytics enhancement is important for seller retention, but it's a second-order effect.
+
+**Cron as growth engine:** Notice how 6 of the 8 scheduler jobs after Phase 8 are email-related. The in-process cron + Resend pattern is becoming the platform's primary retention mechanism. At scale (1000+ sellers), this will need to evolve into a proper job queue with observability — but for Phase 8's scale, the simple scheduler is the right choice.
+`─────────────────────────────────────────────────`
+
+---
+
+The plan is reviewed and clean. **Next step:** Run `/plan-eng-review` on the Phase 8 plan to clear the Eng Review gate before implementation. Would you like to proceed with that, or start implementing?

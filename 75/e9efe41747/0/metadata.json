@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "75e9efe41747",
+  "session_id": "2def5933-7d7d-48c7-9c80-b3730c4d8579",
+  "strategy": "auto-commit",
+  "created_at": "2026-03-18T13:51:20.513892Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "TODOS.md",
+    "docs/plans/2026-03-18-phase-8-growth-retention.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6a4f267c19ab",
+  "checkpoint_transcript_start": 162,
+  "transcript_lines_at_start": 162,
+  "token_usage": {
+    "input_tokens": 1863,
+    "cache_creation_tokens": 140390,
+    "cache_read_tokens": 2201411,
+    "output_tokens": 25366,
+    "api_call_count": 20
+  }
+}
