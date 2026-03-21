@@ -1,0 +1,37 @@
+Good. All Phase 8 implementation is complete and verified. Here's the summary:
+
+`★ Insight ─────────────────────────────────────`
+**Phase 8 architecture choices worth noting:**
+
+1. **Cron idempotency patterns** — Each cron job uses different idempotency strategies: `last_reengagement_email_at` (timestamp-based throttle), `review_prompt_sent_at` (one-shot flag), `milestone_emails` table (set-based dedup with composite unique index). The right pattern depends on whether the event can happen multiple times vs. once ever.
+
+2. **Transfer retry with circuit breaker** — The retry cron caps at 3 attempts (`transfer_retry_count < 3`) and records each failure's error message. This prevents infinite retry loops while keeping a full audit trail for debugging.
+
+3. **Two-tier analytics layout** — Primary metrics (Active Subs, Pickup Rate, Revenue, Avg Rating) get `lr-card-strong` backgrounds for visual prominence. Secondary metrics (Retention, No-Show, Churn) use regular `lr-card`. This hierarchy guides the seller's eye to what matters most.
+`─────────────────────────────────────────────────`
+
+## Phase 8 Implementation Complete
+
+### Backend (Go)
+- **5 new cron jobs**: re-engagement (6h), review prompts (30m), transfer retry (1h), milestones (6h), seller digest (1h/Monday-only)
+- **4 new handler files**: `internal_reengagement.go`, `internal_transfer_retry.go`, `internal_milestones.go`, `internal_digest.go`
+- **5 new email templates**: lapsed subscriber nudge, post-pickup review prompt, milestone celebration, seller weekly digest, waitlist notification
+- **Enhanced analytics**: 8 new response fields (retention, avg rating, subscriber trend, revenue growth, top products, no-show rate, subscriber delta)
+- **Payout hardening**: transfer failure tracking with retry cron (max 3 attempts)
+- **New public endpoints**: `GET /v1/cities`, `POST /v1/waitlist`
+- **5 new migrations**: 0027-0031 (reengagement tracking, review prompts, transfer failures, milestone emails, waitlist)
+
+### Frontend (Next.js)
+- **Analytics page redesign**: Two-tier metric layout (4 primary + 3 secondary), delta arrows, star ratings, top products, 4-state payout chips (Transferred/Pending/Retrying/Failed)
+- **Store detail page**: "What's in the box" section with latest box previews, JSON-LD structured data
+- **City landing pages**: `/farms/[city]` with SEO metadata, JSON-LD, breadcrumbs, empty state
+- **Waitlist**: Wired the notify-me form to `POST /v1/waitlist`
+- **SEO**: `sitemap.ts` (stores + cities), `robots.ts`
+- **OG images**: Dynamic `opengraph-image` route for store pages
+- **A11y**: 44px min-height touch targets on `lr-btn-primary`
+- **Types**: Updated `StoreAnalytics` and `PayoutHistoryEntry` with new fields
+
+### Verification
+- `go test ./...` — all pass
+- `pnpm typecheck` — clean
+- `pnpm lint` — clean

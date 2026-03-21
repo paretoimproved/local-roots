@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "353e89dbc0a7",
+  "session_id": "2def5933-7d7d-48c7-9c80-b3730c4d8579",
+  "strategy": "auto-commit",
+  "created_at": "2026-03-21T13:49:13.591502Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/internal/api/v1/internal_digest.go",
+    "backend/internal/api/v1/internal_milestones.go",
+    "backend/internal/api/v1/internal_reengagement.go",
+    "backend/internal/api/v1/internal_transfer_retry.go",
+    "frontend/src/app/farms/[city]/page.tsx",
+    "frontend/src/app/globals.css",
+    "frontend/src/app/robots.ts",
+    "frontend/src/app/seller/stores/[storeId]/analytics/page.tsx",
+    "frontend/src/app/sitemap.ts",
+    "frontend/src/app/stores/[storeId]/opengraph-image/route.tsx",
+    "frontend/src/app/stores/[storeId]/page.tsx",
+    "frontend/src/app/stores/page.tsx",
+    "frontend/src/lib/api.ts",
+    "frontend/src/lib/seller-api.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "fe1518ab63b8",
+  "checkpoint_transcript_start": 424,
+  "transcript_lines_at_start": 424,
+  "token_usage": {
+    "input_tokens": 74,
+    "cache_creation_tokens": 280558,
+    "cache_read_tokens": 7864146,
+    "output_tokens": 41585,
+    "api_call_count": 64,
+    "subagent_tokens": {
+      "input_tokens": 103,
+      "cache_creation_tokens": 200219,
+      "cache_read_tokens": 1535200,
+      "output_tokens": 27814,
+      "api_call_count": 69
+    }
+  }
+}

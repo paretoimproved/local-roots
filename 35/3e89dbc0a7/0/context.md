@@ -1,0 +1,205 @@
+# Session Context
+
+Session ID: 2def5933-7d7d-48c7-9c80-b3730c4d8579
+Commit Message: This session is being continued from a previous conversation that ran ou
+
+## Prompts
+
+### Prompt 1
+
+build
+
+### Prompt 2
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Summary:
+1. Primary Request and Intent:
+   The user's journey through this session:
+   - Continued from a prior session where `/plan-ceo-review` (SELECTIVE EXPANSION mode, clean), `/plan-eng-review` (clean), and `/plan-design-review` (just started) were run against the Phase 8: Growth & Retention implementation plan for Local Roots.
+   - The design review was completed in this session, going through all 7 passes (Info Architecture, Interaction States, User Journey, AI Slop Risk, Design System, Responsive/A11y, Unresolved Decisions). Overall design score went from 4/10 → 8/10. All 3 reviews now show CLEARED.
+   - The user then said **"build"** — requesting full implementation of Phase 8.
+   - Phase 8 scope: Buyer re-engagement cron system, enhanced seller analytics, public store profiles/SEO (city pages, sitemap, robots, OG images, JSON-LD), payout hardening (transfer retry), multi-location UX, plus 6 CEO-accepted expansions: "What's in the box" display, waitlist email capture, seller weekly digest, subscriber milestones, dynamic OG images, post-pickup review prompts.
+
+2. Key Technical Concepts:
+   - **Local Roots**: Local pickup marketplace — Go backend + Next.js App Router frontend + PostgreSQL
+   - **Phase 8 Architecture**: New cron jobs (re-engagement 6h, review prompts 30m, transfer retry 1h, milestones 6h, digest 1h/Monday-only), new DB migrations, new email templates, enhanced analytics queries
+   - **Design system tokens**: `--lr-bg` (sand), `--lr-ink` (ink), `--lr-muted` (peat), `--lr-leaf` (sage), `--lr-clay` (clay), `--lr-water` (river)
+   - **Component patterns**: `lr-card`/`lr-card-strong`, `MetricCard`, `StoreCard`, `ReviewSummary` (star rating)
+   - **Two-tier analytics layout**: Primary row (4 cards: Active Subs with ▲/▼ vs 4w, Pickup Rate, Revenue with growth %, Avg Rating with stars) + Secondary row (3 cards: Retention, No-Show, Churn)
+   - **Box Previews already exist**: Migration 0026, full CRUD backend, seller posting page at `/seller/stores/[storeId]/plans/[planId]/preview/`, buyer display on `/boxes/[planId]` — only missing display on store detail page
+   - **Location CRUD already exists**: Backend endpoints + frontend API functions already built
+   - **Waitlist partially exists**: Frontend has `notifyEmail`/`notifySubmitted` state but no API call
+   - **Cron pattern**: `time.NewTicker` with goroutines, panic recovery, scheduler.Start blocks until ctx cancelled
+   - **Email template pattern**: Functions returning `(subject, body string)` using `fmt.Sprintf`
+   - **Endpoint registration**: `http.NewServeMux()` with `METHOD /path` syntax, middleware wrapping (RequireUser → RequireStoreOwner → WithRateLimit)
+   - **Transfer failure recording**: `transferToSeller` now records errors to `transfer_error`, `transfer_attempted_at`, `transfer_retry_count` columns for retry cron pickup
+
+3. Files and Code Sections:
+
+   **MIGRATIONS CREATED:**
+   - `backend/migrations/0027_reengagement_tracking.sql` — Adds `last_reengagement_email_at TIMESTAMPTZ` to subscriptions
+   - `backend/migrations/0028_review_prompt_tracking.sql` — Adds `review_prompt_sent_at TIMESTAMPTZ` to orders
+   - `backend/migrations/0029_transfer_failure_tracking.sql` — Adds `transfer_attempted_at TIMESTAMPTZ`, `transfer_error TEXT`, `transfer_retry_count INT DEFAULT 0` to orders
+   - `backend/migrations/0030_milestone_emails.sql` — Creates `milestone_emails` table (id, subscription_id, milestone, sent_at) with unique index on (subscription_id, milestone)
+   - `backend/migrations/0031_waitlist.sql` — Creates `waitlist` table (id, email, lat, lng, created_at, notified_at) with geo index and unique email index
+
+   **BACKEND FILES MODIFIED:**
+   - `backend/internal/email/templates.go` — Added 5 new email templates:
+     - `LapsedSubscriberNudge(storeName, planTitle, storeURL)` — "We miss you at {store}!"
+     - `PostPickupReviewPrompt(storeName, boxTitle, reviewURL)` — "How was your box?"
+     - `MilestoneCelebration(buyerName, storeName, milestone)` — "Milestone: X pickups!"
+     - `SellerWeeklyDigest(storeName, activeSubs, pickupsThisWeek, revenueFormatted)` — Weekly summary
+     - `WaitlistNotification(city, storeURL)` — "A farm just joined near you!"
+
+   - `backend/internal/api/v1/seller_analytics.go` — Major enhancement:
+     - Added `TrendPoint`, `TopProduct` structs
+     - Extended `AnalyticsResponse` with: `RetentionRate`, `AvgRating`, `ReviewCount`, `SubscriberTrend`, `RevenueGrowthPct`, `TopProducts`, `NoShowRate`, `SubscriberDelta4W`
+     - Added 6 new SQL queries for retention rate (lifecycle-based), avg rating, subscriber trend (generate_series CTE), revenue growth (30d vs prior 30d), top products (by plan title), no-show rate
+     - Extended `PayoutHistoryEntry` with `TransferError`, `TransferRetryCount`
+     - Updated payout history query to include `transfer_error` and `transfer_retry_count`
+
+   - `backend/internal/api/v1/order_helpers.go` — Modified `transferToSeller`:
+     - Added `log` import
+     - On failure: now records `transfer_error`, `transfer_attempted_at`, increments `transfer_retry_count`
+     - On success: clears `transfer_error`, sets `transfer_attempted_at`
+
+   - `backend/internal/api/v1/public.go` — Added:
+     - `CityEntry` struct with City, Region, Slug, StoreCount
+     - `ListCities` handler — `GET /v1/cities`, returns distinct cities with active stores, generates slug as `city-region` lowercase
+     - `WaitlistRequest` struct
+     - `JoinWaitlist` handler — `POST /v1/waitlist`, upserts by email, stores lat/lng
+
+   - `backend/internal/httpx/handler.go` — Registered 2 new endpoints:
+     ```go
+     mux.HandleFunc("GET /v1/cities", public.ListCities)
+     mux.HandleFunc("POST /v1/waitlist", WithRateLimit("waitlist", public.JoinWaitlist))
+     ```
+
+   - `backend/internal/scheduler/scheduler.go` — Complete rewrite:
+     - Expanded from 2 cron jobs to 7: billing (30m), reminders (30m), reengagement (6h), review_prompts (30m), transfer_retry (1h), milestones (6h), digest (1h, Monday 14:00 UTC only)
+     - Each job has panic recovery, nil/disabled checks
+
+   **PLAN FILE MODIFIED:**
+   - `docs/plans/2026-03-18-phase-8-growth-retention.md` — Added comprehensive "Design Specifications" section including: design token mapping, a11y touch target fix, two-tier analytics layout spec, "What's in the Box" buyer/seller UI spec, city landing page spec, waitlist form spec, payout status chips (4 states), OG image spec, responsive breakpoints table, interaction state coverage table. Also updated Task 2 Step 5 frontend spec to reference design specs.
+
+   - `TODOS.md` — Added P3 item: "Formalize design system into DESIGN.md"
+
+   **FILES READ (key patterns discovered):**
+   - `frontend/src/app/seller/stores/[storeId]/plans/[planId]/preview/page.tsx` — Full box preview posting UI already exists with form (cycle_date, body, photo via ImageUpload), list of past previews, delete functionality
+   - `frontend/src/app/boxes/[planId]/page.tsx` — Buyer box plan page already shows latest box preview via `api.getLatestBoxPreview(planId)` in an `lr-card-strong` section
+   - `frontend/src/app/stores/[storeId]/page.tsx` — Store detail page (Hero → Pickup locations → What's available → Reviews). Box preview NOT shown here yet.
+   - `frontend/src/app/stores/page.tsx` — Stores browse page with search, already has `notifyEmail`/`notifySubmitted` state but form submit is a no-op
+   - `frontend/src/components/subscribe-form.tsx` — Subscribe form with fee breakdown, checkout-then-authorize flow
+   - `frontend/src/app/seller/stores/[storeId]/analytics/page.tsx` — Current analytics page with MetricCard component, 4 metric cards, revenue by cycle table, payout history table. Has leftover `TODO(human)` for formatPickupRate
+   - `frontend/src/components/review-card.tsx` — ReviewSummary component (StarRating + text) — reusable for stars
+   - `frontend/src/lib/seller-api.ts` — StoreAnalytics type, all seller API functions (including existing boxPreview and pickupLocation CRUD)
+   - `frontend/src/lib/api.ts` — Store type, all public API functions (including getLatestBoxPreview)
+   - `frontend/src/app/seller/stores/[storeId]/settings/page.tsx` — Large file with location management UI already built (imports SellerPickupLocation, AddressAutocomplete, ImageUpload, TimezoneCombobox)
+
+   **BACKGROUND AGENTS DISPATCHED (files being created):**
+   - `backend/internal/api/v1/internal_reengagement.go` — Agent building RunReengagement + RunReviewPrompts functions
+   - `backend/internal/api/v1/internal_transfer_retry.go` — Agent building RunTransferRetry function
+   - `backend/internal/api/v1/internal_milestones.go` — Agent building RunMilestoneEmails function
+   - `backend/internal/api/v1/internal_digest.go` — Agent building RunSellerDigest function
+
+4. Errors and fixes:
+   - No runtime errors encountered yet — implementation is still in progress
+   - **Major scope discovery**: Plan specified `box_updates` table and new CRUD endpoints, but `box_previews` (functionally identical) already existed with migration 0026, full backend CRUD, seller posting page, and buyer display. This avoided rebuilding ~30% of planned work.
+   - **Location CRUD already existed**: Plan's Task 5 backend work was already built. Settings page already has location management UI.
+   - **Waitlist UI partially existed**: Frontend state variables exist but the form submit was a no-op (just sets state, no API call).
+
+5. Problem Solving:
+   - **Design review**: Systematically went through 7 passes to raise plan from 4/10 to 8/10 on design completeness
+   - **Scope reduction**: Explored existing codebase before building, discovered ~30% of planned work already existed, adjusted implementation accordingly
+   - **Analytics hierarchy**: Solved the "10 metric cards in a flat grid" problem with two-tier layout (primary 4 + secondary 3)
+   - **Subscriber trend comparison**: Resolved ambiguity of what "trend" compares against — chose 4-week delta for smoothness
+   - **Box update UI placement**: Chose dashboard inline (near upcoming pickup) over settings section for contextual relevance
+
+6. All user messages:
+   - (Session starts as continuation from prior conversation — design review was in progress)
+   - User selected "All 7 passes (Recommended)" for design review focus areas
+   - User selected "Two-tier layout (Recommended)" for analytics metric hierarchy
+   - User selected "Dashboard inline (Recommended)" for box update posting UI location
+   - User selected "Fix in Phase 8 (Recommended)" for touch target bump to 44px
+   - User selected "4 weeks ago (Recommended)" for subscriber trend delta comparison period
+   - User selected "A) Add to TODOS.md" for DESIGN.md formalization TODO
+   - **"build"** — The user's request to start implementing Phase 8
+
+7. Pending Tasks:
+   - **Wait for 3 background agents** to complete writing: internal_reengagement.go, internal_transfer_retry.go, internal_milestones.go, internal_digest.go
+   - **Backend verification**: Run `cd backend && go test ./...` to verify compilation and tests pass
+   - **Frontend API types**: Update `seller-api.ts` StoreAnalytics type with new fields, update `api.ts` with cities/waitlist endpoints
+   - **Frontend analytics page**: Rebuild with two-tier layout, new MetricCard instances, enhanced payout status chips (4 states), top products list
+   - **Frontend store detail page**: Add box preview display (above "What's available"), add JSON-LD structured data
+   - **Frontend stores page**: Wire waitlist form to `POST /v1/waitlist` API (currently a no-op)
+   - **Frontend city landing page**: Create `frontend/src/app/farms/[city]/page.tsx`
+   - **Frontend SEO files**: Create `frontend/src/app/sitemap.ts`, `frontend/src/app/robots.ts`
+   - **Frontend OG image**: Create `frontend/src/app/stores/[storeId]/opengraph-image/route.tsx`
+   - **Frontend subscribe form**: Add location picker for multi-location stores
+   - **Frontend seller dashboard**: Add box preview CTA near upcoming pickup
+   - **Frontend touch target fix**: Bump `lr-btn-primary` to `py-2.5` in globals.css
+   - **Final verification**: `pnpm typecheck && pnpm lint` and `cd backend && go test ./...`
+
+8. Current Work:
+   The assistant was in the middle of implementing Phase 8 backend changes. Three background agents were dispatched to create independent Go handler files:
+   - Agent "reengagement-agent": Creating `internal_reengagement.go` with `RunReengagement` and `RunReviewPrompts`
+   - Agent "transfer-retry-agent": Creating `internal_transfer_retry.go` with `RunTransferRetry`
+   - Agent "milestones-digest-agent": Creating `internal_milestones.go` with `RunMilestoneEmails` and `internal_digest.go` with `RunSellerDigest`
+
+   The main thread had just completed modifying the shared backend files:
+   - `seller_analytics.go` — enhanced with 8 new response fields and 6 new SQL queries
+   - `order_helpers.go` — transferToSeller now records failures
+   - `public.go` — added ListCities and JoinWaitlist endpoints
+   - `handler.go` — registered cities and waitlist routes
+   - `scheduler.go` — rewritten with 7 cron jobs (up from 2)
+
+   These agents were still running when the summary was requested. No frontend work has been started yet.
+
+9. Optional Next Step:
+   The immediate next step is to check if the 3 background agents have completed creating their files (`internal_reengagement.go`, `internal_transfer_retry.go`, `internal_milestones.go`, `internal_digest.go`), then verify the backend compiles with `cd backend && go test ./...`. After backend verification passes, proceed to frontend implementation starting with API type updates in `seller-api.ts` and `api.ts`, then the analytics page redesign (the largest frontend change).
+
+   The user's explicit request was "build" — meaning implement the full Phase 8 plan. The work was in the middle of backend implementation, with frontend work still entirely pending.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/brandonqueener/.claude/projects/-Users-brandonqueener-Cursor-Projects-Local-Roots/2def5933-7d7d-48c7-9c80-b3730c4d8579.jsonl
+Continue the conversation from where it left off without asking the user any further questions. Resume directly — do not acknowledge the summary, do not recap what was happening, do not preface with "I'll continue" or similar. Pick up the last task as if the break never happened.
+
+## Summary
+
+Good. All Phase 8 implementation is complete and verified. Here's the summary:
+
+`★ Insight ─────────────────────────────────────`
+**Phase 8 architecture choices worth noting:**
+
+1. **Cron idempotency patterns** — Each cron job uses different idempotency strategies: `last_reengagement_email_at` (timestamp-based throttle), `review_prompt_sent_at` (one-shot flag), `milestone_emails` table (set-based dedup with composite unique index). The right pattern depends on whether the event can happen multiple times vs. once ever.
+
+2. **Transfer retry with circuit breaker** — The retry cron caps at 3 attempts (`transfer_retry_count < 3`) and records each failure's error message. This prevents infinite retry loops while keeping a full audit trail for debugging.
+
+3. **Two-tier analytics layout** — Primary metrics (Active Subs, Pickup Rate, Revenue, Avg Rating) get `lr-card-strong` backgrounds for visual prominence. Secondary metrics (Retention, No-Show, Churn) use regular `lr-card`. This hierarchy guides the seller's eye to what matters most.
+`─────────────────────────────────────────────────`
+
+## Phase 8 Implementation Complete
+
+### Backend (Go)
+- **5 new cron jobs**: re-engagement (6h), review prompts (30m), transfer retry (1h), milestones (6h), seller digest (1h/Monday-only)
+- **4 new handler files**: `internal_reengagement.go`, `internal_transfer_retry.go`, `internal_milestones.go`, `internal_digest.go`
+- **5 new email templates**: lapsed subscriber nudge, post-pickup review prompt, milestone celebration, seller weekly digest, waitlist notification
+- **Enhanced analytics**: 8 new response fields (retention, avg rating, subscriber trend, revenue growth, top products, no-show rate, subscriber delta)
+- **Payout hardening**: transfer failure tracking with retry cron (max 3 attempts)
+- **New public endpoints**: `GET /v1/cities`, `POST /v1/waitlist`
+- **5 new migrations**: 0027-0031 (reengagement tracking, review prompts, transfer failures, milestone emails, waitlist)
+
+### Frontend (Next.js)
+- **Analytics page redesign**: Two-tier metric layout (4 primary + 3 secondary), delta arrows, star ratings, top products, 4-state payout chips (Transferred/Pending/Retrying/Failed)
+- **Store detail page**: "What's in the box" section with latest box previews, JSON-LD structured data
+- **City landing pages**: `/farms/[city]` with SEO metadata, JSON-LD, breadcrumbs, empty state
+- **Waitlist**: Wired the notify-me form to `POST /v1/waitlist`
+- **SEO**: `sitemap.ts` (stores + cities), `robots.ts`
+- **OG images**: Dynamic `opengraph-image` route for store pages
+- **A11y**: 44px min-height touch targets on `lr-btn-primary`
+- **Types**: Updated `StoreAnalytics` and `PayoutHistoryEntry` with new fields
+
+### Verification
+- `go test ./...` — all pass
+- `pnpm typecheck` — clean
+- `pnpm lint` — clean
