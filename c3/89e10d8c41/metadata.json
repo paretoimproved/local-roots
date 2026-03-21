@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "c389e10d8c41",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gstack/qa-reports/baseline.json",
+    ".gstack/qa-reports/qa-report-localhost-3000-2026-03-21.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/c3/89e10d8c41/0/metadata.json",
+      "transcript": "/c3/89e10d8c41/0/full.jsonl",
+      "context": "",
+      "content_hash": "/c3/89e10d8c41/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 153,
+    "cache_creation_tokens": 154804,
+    "cache_read_tokens": 14947913,
+    "output_tokens": 24197,
+    "api_call_count": 120
+  }
+}
