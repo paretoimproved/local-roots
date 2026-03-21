@@ -26,6 +26,9 @@ coverage
 # Claude/Cursor AI scratch
 .claude/
 
+# gstack QA artifacts (screenshots, browser logs, reports)
+.gstack/
+
 # agent-ops artifacts/state (repo adapter folder is committed; artifacts are not)
 .agent-ops/artifacts/
 .agent-ops-state/
