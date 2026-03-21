@@ -1,0 +1,59 @@
+---
+
+```
++====================================================================+
+|         DESIGN PLAN REVIEW — COMPLETION SUMMARY                    |
++====================================================================+
+| System Audit         | No DESIGN.md, 4 new pages, 3 modified      |
+| Step 0               | 4/10 initial, all 7 passes selected         |
+| Pass 1  (Info Arch)  | 3/10 → 7/10 — two-tier analytics, box       |
+|                      | placement, city page layout defined          |
+| Pass 2  (States)     | 1/10 → 8/10 — full state table for 8        |
+|                      | features, warm empty states specified        |
+| Pass 3  (Journey)    | 3/10 → 8/10 — 3 journeys mapped             |
+| Pass 4  (AI Slop)    | 6/10 → 8/10 — OG image branded, city        |
+|                      | page uses existing StoreCard, no charts      |
+| Pass 5  (Design Sys) | 5/10 → 8/10 — token map added, no new       |
+|                      | tokens, reuse existing components            |
+| Pass 6  (Responsive) | 1/10 → 8/10 — breakpoints per surface,      |
+|                      | a11y specs, touch target fix accepted        |
+| Pass 7  (Decisions)  | 4 resolved, 0 deferred                      |
++--------------------------------------------------------------------+
+| NOT in scope         | written (4 items)                            |
+| What already exists  | written (8 reusable patterns)                |
+| TODOS.md updates     | 1 item added (DESIGN.md formalization, P3)   |
+| Decisions made       | 6 added to plan                              |
+| Decisions deferred   | 0                                            |
+| Overall design score | 4/10 → 8/10                                  |
++====================================================================+
+```
+
+Plan is design-complete. Run `/design-review` after implementation for visual QA.
+
+**Decisions made:**
+1. Two-tier metric card layout (primary 4 + secondary 3)
+2. Box update posting inline on seller dashboard (not settings)
+3. Subscriber trend delta = vs 4 weeks ago
+4. OG image: sand bg, sage accent, ink text (no gradients)
+5. Touch targets bumped to 44px (`py-2.5`)
+6. City page reuses StoreCard + warm waitlist empty state
+
+```
++====================================================================+
+|                    REVIEW READINESS DASHBOARD                       |
++====================================================================+
+| Review          | Runs | Last Run            | Status    | Required |
+|-----------------|------|---------------------|-----------|----------|
+| Eng Review      |  1   | 2026-03-18 16:00    | CLEAR     | YES      |
+| CEO Review      |  1   | 2026-03-18 15:30    | CLEAR     | no       |
+| Design Review   |  1   | 2026-03-21 10:00    | CLEAR(FULL)| no      |
++--------------------------------------------------------------------+
+| VERDICT: CLEARED — All three reviews passed                         |
++====================================================================+
+```
+
+`★ Insight ─────────────────────────────────────`
+The design review added ~80 lines of design spec to the plan — interaction states, responsive breakpoints, empty state copy, a11y requirements. Without this, implementation would have produced generic "No data" empty states and flat metric grids. The key takeaway: **backend plans describe data flows; design specs describe what the user sees.** Both are needed before touching code.
+`─────────────────────────────────────────────────`
+
+All three reviews are clear. The Phase 8 plan is ready for implementation.
