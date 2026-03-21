@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { api } from "@/lib/api";
-import type { PickupWindow, SubscriptionPlan, Offering, ReviewsResponse } from "@/lib/api";
+import type { PickupWindow, SubscriptionPlan, Offering, ReviewsResponse, BoxPreviewPublic } from "@/lib/api";
 import { formatMoney } from "@/lib/ui";
 import { ReviewSummary, ReviewCard } from "@/components/review-card";
 
@@ -21,7 +21,12 @@ export async function generateMetadata({
     return {
       title,
       description,
-      openGraph: { title, description, type: "website" },
+      openGraph: {
+        title,
+        description,
+        type: "website",
+        images: [`/stores/${storeId}/opengraph-image`],
+      },
     };
   } catch {
     return { title: "Farm — Local Roots" };
@@ -182,13 +187,58 @@ export default async function StoreDetailPage({
     }
   }
 
+  // Fetch the latest box preview for each live plan (in parallel)
+  const boxPreviewResults = await Promise.allSettled(
+    livePlans.map((p) => api.getLatestBoxPreview(p.id))
+  );
+  const boxPreviews = new Map<string, BoxPreviewPublic>();
+  livePlans.forEach((p, i) => {
+    const r = boxPreviewResults[i];
+    if (r.status === "fulfilled" && r.value) {
+      boxPreviews.set(p.id, r.value);
+    }
+  });
+
   const hasSubscriptions = livePlans.length > 0;
   const hasWalkUp = walkUpOfferings.length > 0;
   const hasAvailable = hasSubscriptions || hasWalkUp;
   const hasReviews = reviews && reviews.review_count > 0;
 
+  // JSON-LD structured data
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "LocalBusiness",
+    name: store.name,
+    description: store.description ?? `Fresh local food from ${store.name}`,
+    ...(store.image_url ? { image: store.image_url } : {}),
+    ...(store.city && store.region
+      ? {
+          address: {
+            "@type": "PostalAddress",
+            addressLocality: store.city,
+            addressRegion: store.region,
+          },
+        }
+      : {}),
+    ...(hasReviews
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: reviews.avg_rating,
+            reviewCount: reviews.review_count,
+          },
+        }
+      : {}),
+  };
+
   return (
     <div className="grid gap-8">
+      {/* JSON-LD structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       {/* ── Breadcrumb ────────────────────────────────────────── */}
       <nav className="text-sm text-[color:var(--lr-muted)]">
         <Link className="hover:text-[color:var(--lr-ink)] hover:underline" href="/stores">
@@ -397,6 +447,44 @@ export default async function StoreDetailPage({
                         </div>
                       )}
                     </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── What's in the box (latest previews) ────────────── */}
+      {boxPreviews.size > 0 ? (
+        <section className="grid gap-4">
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            What&apos;s in the box
+          </h2>
+          <div className="grid gap-4 md:grid-cols-2">
+            {livePlans.map((plan) => {
+              const preview = boxPreviews.get(plan.id);
+              if (!preview) return null;
+              return (
+                <div key={plan.id} className="lr-card lr-card-strong overflow-hidden">
+                  {preview.photo_url ? (
+                    <div className="relative aspect-[16/9] w-full">
+                      <Image
+                        src={preview.photo_url}
+                        alt={`Latest box from ${plan.title}`}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 768px) 100vw, 400px"
+                      />
+                    </div>
+                  ) : null}
+                  <div className="p-5">
+                    <p className="text-xs font-medium uppercase tracking-wide" style={{ color: "var(--lr-muted)" }}>
+                      {plan.title} &middot; {preview.cycle_date}
+                    </p>
+                    <p className="mt-2 text-sm" style={{ color: "var(--lr-ink)" }}>
+                      {preview.body}
+                    </p>
                   </div>
                 </div>
               );

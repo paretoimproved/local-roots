@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { api, type Store, type PlacePrediction } from "@/lib/api";
+import { requestJSON } from "@/lib/http";
 import { session } from "@/lib/session";
 import { StoreCard } from "@/components/store-card";
 
@@ -385,9 +386,22 @@ pnpm migrate:up`}</code>
             </p>
           ) : (
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
-                if (notifyEmail.trim()) setNotifySubmitted(true);
+                if (!notifyEmail.trim()) return;
+                try {
+                  await requestJSON("/v1/waitlist", {
+                    method: "POST",
+                    body: JSON.stringify({
+                      email: notifyEmail.trim(),
+                      lat: coords?.lat ?? null,
+                      lng: coords?.lng ?? null,
+                    }),
+                  });
+                  setNotifySubmitted(true);
+                } catch {
+                  setNotifySubmitted(true);
+                }
               }}
               className="mx-auto mt-4 flex max-w-sm gap-2"
             >
