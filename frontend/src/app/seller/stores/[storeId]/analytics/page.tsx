@@ -150,7 +150,8 @@ export default function SellerAnalyticsPage() {
 
     load();
     return () => { cancelled = true; };
-  }, [token, storeId, showToast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token, storeId]);
 
   if (!token) return null;
 
@@ -230,7 +231,7 @@ export default function SellerAnalyticsPage() {
       </div>
 
       {/* Secondary metrics row */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         <MetricCard
           label="Retention"
           value={analytics.retention_rate > 0 ? `${(analytics.retention_rate * 100).toFixed(0)}%` : "—"}

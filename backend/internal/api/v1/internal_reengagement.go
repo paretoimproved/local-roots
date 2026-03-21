@@ -29,7 +29,7 @@ func RunReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.C
 	}
 
 	rows, err := db.Query(ctx, `
-		SELECT s.id::text, s.buyer_email, s.buyer_name, sp.title as plan_title,
+		SELECT s.id::text, s.buyer_email, sp.title as plan_title,
 		       sp.cadence, st.name as store_name, st.id::text as store_id
 		FROM subscriptions s
 		JOIN subscription_plans sp ON sp.id = s.plan_id
@@ -59,7 +59,6 @@ func RunReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.C
 	type candidate struct {
 		subID      string
 		buyerEmail string
-		buyerName  string
 		planTitle  string
 		cadence    string
 		storeName  string
@@ -69,7 +68,7 @@ func RunReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.C
 	var candidates []candidate
 	for rows.Next() {
 		var c candidate
-		if err := rows.Scan(&c.subID, &c.buyerEmail, &c.buyerName, &c.planTitle, &c.cadence, &c.storeName, &c.storeID); err != nil {
+		if err := rows.Scan(&c.subID, &c.buyerEmail, &c.planTitle, &c.cadence, &c.storeName, &c.storeID); err != nil {
 			return ReengagementResult{}, err
 		}
 		candidates = append(candidates, c)
