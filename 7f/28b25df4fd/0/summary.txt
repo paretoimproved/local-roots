@@ -1,0 +1,1 @@
+All 3 auto-fixes applied, verified (typecheck + lint + go test all pass). The one finding that would have cost real money — the transfer retry sending `total_cents` to sellers instead of `subtotal_cents` — is fixed.

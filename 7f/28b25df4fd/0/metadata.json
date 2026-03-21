@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "7f28b25df4fd",
+  "session_id": "2def5933-7d7d-48c7-9c80-b3730c4d8579",
+  "strategy": "auto-commit",
+  "created_at": "2026-03-21T14:03:53.484007Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/internal/api/v1/internal_transfer_retry.go",
+    "frontend/src/app/farms/[city]/page.tsx",
+    "frontend/src/app/sitemap.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "aa485b7e1f4c",
+  "checkpoint_transcript_start": 821,
+  "transcript_lines_at_start": 821,
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 128236,
+    "cache_read_tokens": 3698535,
+    "output_tokens": 13526,
+    "api_call_count": 31
+  }
+}

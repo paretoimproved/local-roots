@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "7f28b25df4fd",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "backend/internal/api/v1/internal_transfer_retry.go",
+    "frontend/src/app/farms/[city]/page.tsx",
+    "frontend/src/app/sitemap.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7f/28b25df4fd/0/metadata.json",
+      "transcript": "/7f/28b25df4fd/0/full.jsonl",
+      "context": "",
+      "content_hash": "/7f/28b25df4fd/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 34,
+    "cache_creation_tokens": 128236,
+    "cache_read_tokens": 3698535,
+    "output_tokens": 13526,
+    "api_call_count": 31
+  }
+}
