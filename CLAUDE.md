@@ -126,6 +126,7 @@ Frontend (`frontend/`):
 | 2026-02 | `useSearchParams()` pages fail Vercel build without Suspense | Wrap default export in `<Suspense>`, move component body to inner function — required for Next.js 16 static generation |
 | 2026-03 | 401 interceptor in `requestJSON` redirected login/register pages to themselves, causing Google OAuth loop | Auth pages (`/login`, `/register`, `/auth/*`) must be excluded from 401 session-expiry redirects — their 401s are login failures, not expired sessions |
 | 2026-03 | `showToast` in useEffect deps caused infinite re-render loop on login pages with `?expired=1` | `showToast` is unstable (its `useCallback` depends on `timerId` state). Use a ref guard (`shownExpiredRef`) to fire the toast only once |
+| 2026-03 | Agent sessions committed working artifacts directly to main, causing divergent history on merge | Always create a feature branch before any work. Never commit to main directly. |
 
 ---
 
@@ -138,6 +139,7 @@ Frontend (`frontend/`):
 - **Never commit `.env`** — it's gitignored for a reason
 - **Never add seller fees** — zero-cost-to-farmer is the core differentiator
 - **Never skip verification** — run typecheck + lint (frontend) and go test (backend) before marking work complete
+- **Never commit feature work directly to `main`** — always use a feature branch and merge via PR
 
 ---
 
@@ -160,6 +162,16 @@ Frontend (`frontend/`):
 ---
 
 ## Workflow
+
+### Feature Branches — Always
+- **Never commit feature work directly to `main`.** Always create a feature branch first.
+- Branch naming: `phase-N-description` for phases, `fix/description` for bug fixes, `chore/description` for maintenance
+- Create the branch before writing any code: `git checkout -b phase-N-feature-name`
+- All commits go on the feature branch. Ship via `/ship` which handles merge, test, review, and PR creation.
+- After PR merges, sync local main: `git checkout main && git pull origin main`
+
+### Why This Matters
+Working directly on main causes divergent history when feature branches are later merged via PR. This leads to messy `git reset --hard` cleanups and lost context. Feature branches keep main clean and make `/ship` + `/review` workflows reliable.
 
 ### Plan First
 - Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
