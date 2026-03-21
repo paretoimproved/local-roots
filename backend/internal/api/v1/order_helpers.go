@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"log"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -10,8 +11,7 @@ import (
 )
 
 // transferToSeller transfers funds from a captured payment to the seller's
-// Stripe Connect account. It silently no-ops if the seller has no active
-// Connect account or if the transfer amount is zero.
+// Stripe Connect account. Records failures for retry by the transfer retry cron.
 func transferToSeller(ctx context.Context, db *pgxpool.Pool, sc *stripepay.Client, storeID, orderID, piID string, amount int, idempotencyPrefix string) {
 	if amount <= 0 || sc == nil || !sc.Enabled() {
 		return
@@ -30,10 +30,26 @@ func transferToSeller(ctx context.Context, db *pgxpool.Pool, sc *stripepay.Clien
 	}
 	chargeID, _ := sc.GetChargeIDFromPaymentIntent(ctx, piID)
 	transferID, err := sc.CreateTransfer(ctx, amount, *connectAccountID, chargeID, idempotencyPrefix+orderID)
-	if err == nil && transferID != "" {
+	if err != nil {
+		// Record failure for retry cron to pick up.
+		log.Printf("transfer: failed order=%s err=%v", orderID, err)
 		_, _ = db.Exec(ctx, `
 			update orders
-			set stripe_transfer_id = $2, updated_at = now()
+			set transfer_attempted_at = now(),
+			    transfer_error = $2,
+			    transfer_retry_count = transfer_retry_count + 1,
+			    updated_at = now()
+			where id = $1::uuid
+		`, orderID, err.Error())
+		return
+	}
+	if transferID != "" {
+		_, _ = db.Exec(ctx, `
+			update orders
+			set stripe_transfer_id = $2,
+			    transfer_attempted_at = now(),
+			    transfer_error = null,
+			    updated_at = now()
 			where id = $1::uuid
 		`, orderID, transferID)
 	}
