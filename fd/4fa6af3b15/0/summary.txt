@@ -1,0 +1,32 @@
+Everything's in place. Here's a summary of all changes:
+
+`★ Insight ─────────────────────────────────────`
+**Automated enforcement > written rules**: The branch protection hook (`guard-main-branch.sh`) uses `jq` to parse the tool input JSON that Claude Code passes to PreToolUse hooks. This is the same pattern as middleware — intercept the request, inspect it, and block before execution. The dirty-tree hook is non-blocking (exit 0) because it's informational, not preventive.
+
+**Settings layering**: `.claude/settings.json` (project, committed) holds hooks and broad permissions. `.claude/settings.local.json` (user, gitignored) holds personal permissions and output style. This separation means hooks are shared across all collaborators but personal preferences stay local.
+`─────────────────────────────────────────────────`
+
+### What changed:
+
+**New hooks** (`.claude/hooks/`):
+- `guard-main-branch.sh` — blocks `git commit` on main/master (PreToolUse, exit 2)
+- `check-dirty-tree.sh` — warns about uncommitted changes when session stops (Stop, exit 0)
+
+**`.claude/settings.json`** — registered both hooks alongside existing `entire` hooks
+
+**`CLAUDE.md`** (192 → 136 lines, -29%):
+- Removed Session Protocol section (replaced by hooks)
+- Deduplicated rules (goose format: 3→1 mention, never-commit-main: 3→1, verification: consolidated)
+- Graduated stable mistakes into Constraints/Conventions (goose, Suspense, await params, feature branches)
+- Kept only 3 recent/specific mistakes in Common Mistakes table
+- Removed "Why This Matters" explanation
+- Updated stale refs (Next.js 15+ → 16, "e.g. Railway" → "deployed on Railway")
+- Added email template testing and cron function conventions
+
+**`.claude/settings.local.json`** (85 → 56 lines, -34%):
+- Removed 15 one-off PIL/sips/python3 logo permissions
+- Removed 3 one-off gh api deployment commands
+- Removed 4 hardcoded-path pnpm commands
+- Consolidated duplicate `mcp__linear__get_issue` (3→1)
+- Removed stale `WebFetch` for old Vercel preview domain
+- Grouped remaining permissions logically (git, gh, pnpm, filesystem, other)

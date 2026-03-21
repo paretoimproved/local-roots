@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "fd4fa6af3b15",
+  "strategy": "auto-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".claude/hooks/check-dirty-tree.sh",
+    ".claude/hooks/guard-main-branch.sh",
+    ".claude/settings.json",
+    ".claude/settings.local.json",
+    "CLAUDE.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fd/4fa6af3b15/0/metadata.json",
+      "transcript": "/fd/4fa6af3b15/0/full.jsonl",
+      "context": "",
+      "content_hash": "/fd/4fa6af3b15/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 17,
+    "cache_creation_tokens": 107670,
+    "cache_read_tokens": 1455484,
+    "output_tokens": 11491,
+    "api_call_count": 13
+  }
+}
