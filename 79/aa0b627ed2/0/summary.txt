@@ -1,0 +1,30 @@
+---
+
+## Review Complete
+
+```
+Scope Check: CLEAN
+Intent: Phase 8 — Growth & Retention (cron jobs, analytics, SEO, waitlist, digests, milestones)
+Delivered: Exactly that — 28 files across backend crons, frontend analytics/SEO/city pages
+```
+
+**Pre-Landing Review: 4 issues (0 critical, 4 informational) — 3 auto-fixed, 1 noted**
+
+| # | Severity | File | Problem | Action |
+|---|----------|------|---------|--------|
+| 1 | INFO | `internal_reengagement.go:32` | Dead `buyer_name` in SQL SELECT | AUTO-FIXED |
+| 2 | INFO | `analytics/page.tsx:153` | `showToast` in useEffect deps (infinite loop risk) | AUTO-FIXED |
+| 3 | INFO | `analytics/page.tsx:233` | `grid-cols-3` without mobile breakpoint | AUTO-FIXED |
+| 4 | INFO | 5 new backend files | No Go tests for cron handlers | Noted — defer to TODOS |
+
+**Design Review (lite): 1 finding — 1 auto-fixed. AI Slop: clean.**
+
+**TODOS: No items closed. No new items required (test gap is informational).**
+
+**Documentation: README.md milestones stale — will be updated by `/document-release` during `/ship`.**
+
+`★ Insight ─────────────────────────────────────`
+The `showToast` dependency issue is subtle — it only causes an infinite loop when the API *consistently fails*, creating a feedback cycle: fail → toast → identity change → re-render → re-fetch → fail. The `cancelled` flag prevents state updates after unmount but doesn't break the loop while mounted. The seller store page already solved this with an eslint-disable comment, establishing the pattern.
+`─────────────────────────────────────────────────`
+
+**STATUS: DONE** — Eng review complete, 3 auto-fixes applied, all verified (Go builds, typecheck passes, lint passes). You can now re-run `/ship`.
