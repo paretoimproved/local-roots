@@ -190,4 +190,14 @@ export const api = {
       method: "GET",
       cache: "no-store",
     }),
+  listCities: () =>
+    requestJSON<{ city: string; region: string; slug: string; store_count: number }[]>("/v1/cities", {
+      method: "GET",
+      next: { revalidate: 300 },
+    }),
+  joinWaitlist: (email: string, lat?: number, lng?: number) =>
+    requestJSON<{ id: string }>("/v1/waitlist", {
+      method: "POST",
+      body: JSON.stringify({ email, lat, lng }),
+    }),
 };

@@ -11,18 +11,21 @@ import {
 import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
+import { StarRating } from "@/components/review-card";
 
 function MetricCard({
   label,
   value,
   sub,
+  accent,
 }: {
   label: string;
   value: string;
   sub?: string;
+  accent?: boolean;
 }) {
   return (
-    <div className="lr-card p-5">
+    <div className={accent ? "lr-card lr-card-strong p-5" : "lr-card p-5"}>
       <p className="text-xs uppercase tracking-wide" style={{ color: "var(--lr-muted)" }}>
         {label}
       </p>
@@ -38,11 +41,70 @@ function MetricCard({
   );
 }
 
-// TODO(human): Implement this function to decide how to display the pickup rate.
-// Parameters available from analytics: rate (0-1 decimal), pickedUpCount, totalOrders.
-// Consider: color-coding thresholds, showing fraction vs percentage, contextual messaging.
+function DeltaArrow({ delta }: { delta: number }) {
+  if (delta === 0) return <span className="text-xs" style={{ color: "var(--lr-muted)" }}>—</span>;
+  const isUp = delta > 0;
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 text-xs font-medium"
+      style={{ color: isUp ? "var(--lr-leaf)" : "var(--lr-clay)" }}
+    >
+      {isUp ? "▲" : "▼"} {Math.abs(delta)} vs 4w ago
+    </span>
+  );
+}
+
+function PayoutStatusChip({ entry }: { entry: PayoutHistoryEntry }) {
+  if (entry.transfer_id) {
+    return (
+      <span
+        className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+        style={{ backgroundColor: "rgba(47, 107, 79, 0.1)", color: "var(--lr-leaf)" }}
+      >
+        Transferred
+      </span>
+    );
+  }
+  if (entry.transfer_error && entry.transfer_retry_count >= 3) {
+    return (
+      <span
+        className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+        style={{ backgroundColor: "rgba(220, 38, 38, 0.1)", color: "#dc2626" }}
+        title={entry.transfer_error}
+      >
+        Failed
+      </span>
+    );
+  }
+  if (entry.transfer_error) {
+    return (
+      <span
+        className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+        style={{ backgroundColor: "rgba(179, 93, 46, 0.1)", color: "var(--lr-clay)" }}
+        title={`Retry ${entry.transfer_retry_count}/3: ${entry.transfer_error}`}
+      >
+        Retrying
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
+      style={{ backgroundColor: "rgba(74, 70, 60, 0.1)", color: "var(--lr-muted)" }}
+    >
+      Pending
+    </span>
+  );
+}
+
 function formatPickupRate(rate: number): string {
-  return `${(rate * 100).toFixed(1)}%`;
+  return `${(rate * 100).toFixed(0)}%`;
+}
+
+function formatGrowth(pct: number | null): string | undefined {
+  if (pct == null) return undefined;
+  const sign = pct >= 0 ? "+" : "";
+  return `${sign}${pct.toFixed(0)}% vs prior 30d`;
 }
 
 export default function SellerAnalyticsPage() {
@@ -122,22 +184,61 @@ export default function SellerAnalyticsPage() {
         </Link>
       </div>
 
-      {/* Key metric cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        <MetricCard
-          label="Active Subscribers"
-          value={String(analytics.active_subscribers)}
-          sub={`${analytics.total_subscribers} total`}
-        />
+      {/* Primary metrics row */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+        <div className="lr-card lr-card-strong p-5">
+          <p className="text-xs uppercase tracking-wide" style={{ color: "var(--lr-muted)" }}>
+            Active Subscribers
+          </p>
+          <p className="text-2xl font-semibold mt-1" style={{ color: "var(--lr-ink)" }}>
+            {analytics.active_subscribers}
+          </p>
+          <DeltaArrow delta={analytics.subscriber_delta_4w} />
+        </div>
         <MetricCard
           label="Pickup Rate"
           value={formatPickupRate(analytics.pickup_rate)}
           sub={`${analytics.picked_up_count} of ${analytics.total_orders} orders`}
+          accent
         />
         <MetricCard
-          label="Total Revenue"
+          label="Revenue"
           value={formatMoney(analytics.total_revenue_cents)}
-          sub="from picked-up orders"
+          sub={formatGrowth(analytics.revenue_growth_pct)}
+          accent
+        />
+        <div className="lr-card lr-card-strong p-5">
+          <p className="text-xs uppercase tracking-wide" style={{ color: "var(--lr-muted)" }}>
+            Avg Rating
+          </p>
+          {analytics.avg_rating != null ? (
+            <>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-2xl font-semibold" style={{ color: "var(--lr-ink)" }}>
+                  {analytics.avg_rating.toFixed(1)}
+                </p>
+                <StarRating rating={Math.round(analytics.avg_rating)} />
+              </div>
+              <p className="text-xs mt-1" style={{ color: "var(--lr-muted)" }}>
+                {analytics.review_count} {analytics.review_count === 1 ? "review" : "reviews"}
+              </p>
+            </>
+          ) : (
+            <p className="text-2xl font-semibold mt-1" style={{ color: "var(--lr-muted)" }}>—</p>
+          )}
+        </div>
+      </div>
+
+      {/* Secondary metrics row */}
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <MetricCard
+          label="Retention"
+          value={analytics.retention_rate > 0 ? `${(analytics.retention_rate * 100).toFixed(0)}%` : "—"}
+          sub="30-day retention"
+        />
+        <MetricCard
+          label="No-Show Rate"
+          value={analytics.no_show_rate > 0 ? `${(analytics.no_show_rate * 100).toFixed(1)}%` : "0%"}
         />
         <MetricCard
           label="Churn"
@@ -145,6 +246,29 @@ export default function SellerAnalyticsPage() {
           sub="canceled subscriptions"
         />
       </div>
+
+      {/* Top Products */}
+      {analytics.top_products && analytics.top_products.length > 0 && (
+        <section className="lr-card p-5 mb-8">
+          <h2 className="text-lg font-semibold mb-3" style={{ color: "var(--lr-ink)" }}>
+            Top Products
+          </h2>
+          <div className="space-y-2">
+            {analytics.top_products.map((p, i) => (
+              <div
+                key={p.title}
+                className="flex items-center justify-between py-1.5"
+                style={{ borderBottom: i < analytics.top_products.length - 1 ? "1px solid var(--lr-border)" : undefined }}
+              >
+                <span className="text-sm" style={{ color: "var(--lr-ink)" }}>{p.title}</span>
+                <span className="text-sm tabular-nums" style={{ color: "var(--lr-muted)" }}>
+                  {p.quantity} orders &middot; {formatMoney(p.revenue_cents)}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Revenue by cycle table */}
       {analytics.revenue_by_cycle.length > 0 && (
@@ -216,17 +340,7 @@ export default function SellerAnalyticsPage() {
                     <td className="py-2 text-right">{formatMoney(p.platform_fee_cents)}</td>
                     <td className="py-2 text-right">{formatMoney(p.total_cents)}</td>
                     <td className="py-2 pl-4">
-                      <span
-                        className="inline-block px-2 py-0.5 rounded-full text-xs font-medium"
-                        style={{
-                          backgroundColor: p.transfer_id
-                            ? "rgba(47, 107, 79, 0.1)"
-                            : "rgba(179, 93, 46, 0.1)",
-                          color: p.transfer_id ? "var(--lr-leaf)" : "var(--lr-clay)",
-                        }}
-                      >
-                        {p.transfer_id ? "Transferred" : "Pending"}
-                      </span>
+                      <PayoutStatusChip entry={p} />
                     </td>
                   </tr>
                 ))}

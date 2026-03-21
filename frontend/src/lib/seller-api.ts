@@ -196,6 +196,17 @@ export type RevenueByCycle = {
   pickups: number;
 };
 
+export type TrendPoint = {
+  date: string;
+  value: number;
+};
+
+export type TopProduct = {
+  title: string;
+  quantity: number;
+  revenue_cents: number;
+};
+
 export type StoreAnalytics = {
   active_subscribers: number;
   total_subscribers: number;
@@ -205,6 +216,14 @@ export type StoreAnalytics = {
   picked_up_count: number;
   pickup_rate: number;
   revenue_by_cycle: RevenueByCycle[];
+  retention_rate: number;
+  avg_rating: number | null;
+  review_count: number;
+  subscriber_trend: TrendPoint[];
+  revenue_growth_pct: number | null;
+  top_products: TopProduct[];
+  no_show_rate: number;
+  subscriber_delta_4w: number;
 };
 
 export type PayoutHistoryEntry = {
@@ -215,6 +234,8 @@ export type PayoutHistoryEntry = {
   platform_fee_cents: number;
   status: string;
   transfer_id: string | null;
+  transfer_error: string | null;
+  transfer_retry_count: number;
 };
 
 export type BoxPreview = {
