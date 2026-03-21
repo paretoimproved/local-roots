@@ -39,6 +39,8 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}", public.GetPickupWindow)
 	mux.HandleFunc("GET /v1/pickup-windows/{pickupWindowId}/offerings", public.ListPickupWindowOfferings)
 	mux.HandleFunc("GET /v1/stores/{storeId}/reviews", public.ListStoreReviews)
+	mux.HandleFunc("GET /v1/cities", public.ListCities)
+	mux.HandleFunc("POST /v1/waitlist", WithRateLimit("waitlist", public.JoinWaitlist))
 
 	sub := v1.SubscriptionAPI{
 		DB:              deps.DB,

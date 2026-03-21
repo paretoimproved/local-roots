@@ -1,9 +1,15 @@
 import type { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://localroots.com";
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://localroots.farm";
+
   return {
-    rules: { userAgent: "*", allow: "/", disallow: ["/seller/", "/buyer/", "/pickup/"] },
-    sitemap: `${base}/sitemap.xml`,
+    rules: {
+      userAgent: "*",
+      allow: "/",
+      disallow: ["/seller/", "/auth/", "/login", "/register"],
+    },
+    sitemap: `${siteUrl}/sitemap.xml`,
   };
 }

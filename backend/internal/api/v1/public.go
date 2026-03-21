@@ -214,6 +214,96 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	resp.OK(w, out)
 }
 
+// CityEntry represents a city with active stores.
+type CityEntry struct {
+	City       string `json:"city"`
+	Region     string `json:"region"`
+	Slug       string `json:"slug"`
+	StoreCount int    `json:"store_count"`
+}
+
+func (a PublicAPI) ListCities(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+
+	rows, err := a.DB.Query(r.Context(), `
+		select pl.city, pl.region, count(distinct s.id)::int
+		from stores s
+		join pickup_locations pl on pl.store_id = s.id
+		where s.is_active = true
+			and s.is_demo = false
+			and exists (
+				select 1 from subscription_plans sp
+				where sp.store_id = s.id and sp.is_active = true and sp.is_live = true
+			)
+		group by pl.city, pl.region
+		order by count(distinct s.id) desc
+	`)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer rows.Close()
+
+	out := make([]CityEntry, 0)
+	for rows.Next() {
+		var c CityEntry
+		if err := rows.Scan(&c.City, &c.Region, &c.StoreCount); err != nil {
+			resp.Internal(w, err)
+			return
+		}
+		c.Slug = strings.ToLower(strings.ReplaceAll(c.City, " ", "-")) + "-" + strings.ToLower(c.Region)
+		out = append(out, c)
+	}
+	if rows.Err() != nil {
+		resp.Internal(w, rows.Err())
+		return
+	}
+
+	resp.OK(w, out)
+}
+
+// WaitlistRequest is the body for POST /v1/waitlist.
+type WaitlistRequest struct {
+	Email string   `json:"email"`
+	Lat   *float64 `json:"lat,omitempty"`
+	Lng   *float64 `json:"lng,omitempty"`
+}
+
+func (a PublicAPI) JoinWaitlist(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+
+	var in WaitlistRequest
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+	in.Email = strings.TrimSpace(in.Email)
+	if in.Email == "" || !strings.Contains(in.Email, "@") {
+		resp.BadRequest(w, "email is required")
+		return
+	}
+
+	_, err := a.DB.Exec(r.Context(), `
+		insert into waitlist (email, lat, lng)
+		values ($1, $2, $3)
+		on conflict (lower(email)) do update set
+			lat = coalesce(excluded.lat, waitlist.lat),
+			lng = coalesce(excluded.lng, waitlist.lng)
+	`, in.Email, in.Lat, in.Lng)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, map[string]bool{"joined": true})
+}
+
 type PickupWindow struct {
 	ID             string    `json:"id"`
 	StartAt        time.Time `json:"start_at"`

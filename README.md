@@ -37,8 +37,14 @@ Backend (requires Go 1.24+ installed):
 pnpm dev:backend
 ```
 
-## Next milestones
+## Current status
 
-- Schema + order state machine (pickup-window centric)
-- Stripe Connect (Express) onboarding + checkout + webhook idempotency
-- Seller fulfillment UI + post-fulfillment reviews
+Core marketplace is live: subscription plans, Stripe checkout + Connect payouts, pickup
+fulfillment with QR codes, buyer reviews, and seller analytics dashboard.
+
+Recent additions (v0.8.0):
+- Seller analytics (subscribers, revenue, pickup rate, retention, top products)
+- Growth crons (re-engagement, review prompts, milestones, weekly digest)
+- SEO (city landing pages, sitemap, OG images, JSON-LD)
+- Payout hardening (transfer retry with error tracking)
+- Waitlist email capture

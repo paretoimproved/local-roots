@@ -201,3 +201,83 @@ If you'd like to resubscribe, visit the store page.
 `, planTitle, storeName)
 	return
 }
+
+func LapsedSubscriberNudge(storeName, planTitle, storeURL string) (subject string, body string) {
+	subject = fmt.Sprintf("We miss you at %s!", storeName)
+	body = fmt.Sprintf(`Hi there!
+
+It's been a while since your last pickup from %s. Your %s box is waiting for you!
+
+Don't miss out on fresh, local food. Your next box is just around the corner.
+
+Visit the store:
+  %s
+
+— Local Roots
+`, storeName, planTitle, storeURL)
+	return
+}
+
+func PostPickupReviewPrompt(storeName, boxTitle, reviewURL string) (subject string, body string) {
+	subject = fmt.Sprintf("How was your box from %s?", storeName)
+	body = fmt.Sprintf(`Hi there!
+
+Thanks for picking up your %s box from %s!
+
+We'd love to hear how it was. Your feedback helps the farmer and other buyers.
+
+Leave a review:
+  %s
+
+— Local Roots
+`, boxTitle, storeName, reviewURL)
+	return
+}
+
+func MilestoneCelebration(buyerName, storeName, milestone string) (subject string, body string) {
+	subject = fmt.Sprintf("Milestone: %s pickups from %s!", milestone, storeName)
+	greeting := "Hi there!"
+	if buyerName != "" {
+		greeting = fmt.Sprintf("Hi %s!", buyerName)
+	}
+	body = fmt.Sprintf(`%s
+
+You've completed %s pickups from %s. That's amazing!
+
+Thank you for supporting local food and your community farmer. Here's to many more!
+
+— Local Roots
+`, greeting, milestone, storeName)
+	return
+}
+
+func SellerWeeklyDigest(storeName string, activeSubs, pickupsThisWeek, revenueFormatted string) (subject string, body string) {
+	subject = fmt.Sprintf("Weekly digest: %s", storeName)
+	body = fmt.Sprintf(`Hi there!
+
+Here's your weekly summary for %s:
+
+  Active subscribers: %s
+  Pickups this week:  %s
+  Revenue this week:  %s
+
+Log in to your dashboard for full analytics.
+
+— Local Roots
+`, storeName, activeSubs, pickupsThisWeek, revenueFormatted)
+	return
+}
+
+func WaitlistNotification(city, storeURL string) (subject string, body string) {
+	subject = fmt.Sprintf("A farm just joined near %s!", city)
+	body = fmt.Sprintf(`Hi there!
+
+Great news — a new farm just joined Local Roots near %s!
+
+Check it out and subscribe to start getting fresh, local food:
+  %s
+
+— Local Roots
+`, city, storeURL)
+	return
+}

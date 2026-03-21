@@ -18,13 +18,28 @@ import (
 // Jobs:
 //   - Billing authorization: every 30 minutes
 //   - Pickup reminders: every 30 minutes (offset by 15 min)
+//   - Re-engagement emails: every 6 hours
+//   - Review prompts: every 30 minutes
+//   - Transfer retry: every hour
+//   - Milestone emails: every 6 hours
+//   - Seller weekly digest: every hour (sends only on Monday 14:00 UTC)
 func Start(ctx context.Context, db *pgxpool.Pool, stripeClient *stripepay.Client, emailClient *email.Client, frontendURL string) {
 	billingTicker := time.NewTicker(30 * time.Minute)
 	reminderTicker := time.NewTicker(30 * time.Minute)
+	reengagementTicker := time.NewTicker(6 * time.Hour)
+	reviewPromptTicker := time.NewTicker(30 * time.Minute)
+	transferRetryTicker := time.NewTicker(1 * time.Hour)
+	milestoneTicker := time.NewTicker(6 * time.Hour)
+	digestTicker := time.NewTicker(1 * time.Hour)
 	defer billingTicker.Stop()
 	defer reminderTicker.Stop()
+	defer reengagementTicker.Stop()
+	defer reviewPromptTicker.Stop()
+	defer transferRetryTicker.Stop()
+	defer milestoneTicker.Stop()
+	defer digestTicker.Stop()
 
-	log.Printf("scheduler: started (billing=30m, reminders=30m)")
+	log.Printf("scheduler: started (billing=30m, reminders=30m, reengagement=6h, review_prompts=30m, transfer_retry=1h, milestones=6h, digest=1h)")
 
 	// Run billing immediately on startup, then on tick.
 	go runBilling(ctx, db, stripeClient)
@@ -47,6 +62,16 @@ func Start(ctx context.Context, db *pgxpool.Pool, stripeClient *stripepay.Client
 			go runBilling(ctx, db, stripeClient)
 		case <-reminderTicker.C:
 			go runReminders(ctx, db, emailClient, frontendURL)
+		case <-reengagementTicker.C:
+			go runReengagement(ctx, db, emailClient, frontendURL)
+		case <-reviewPromptTicker.C:
+			go runReviewPrompts(ctx, db, emailClient, frontendURL)
+		case <-transferRetryTicker.C:
+			go runTransferRetry(ctx, db, stripeClient)
+		case <-milestoneTicker.C:
+			go runMilestones(ctx, db, emailClient)
+		case <-digestTicker.C:
+			go runDigest(ctx, db, emailClient)
 		}
 	}
 }
@@ -88,5 +113,111 @@ func runReminders(ctx context.Context, db *pgxpool.Pool, emailClient *email.Clie
 		return
 	}
 	log.Printf("scheduler: reminders candidates=%d sent=%d",
+		result.Candidates, result.Sent)
+}
+
+func runReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("scheduler: reengagement panic: %v", r)
+		}
+	}()
+
+	if db == nil || emailClient == nil || !emailClient.Enabled() {
+		return
+	}
+
+	result, err := v1.RunReengagement(ctx, db, emailClient, frontendURL)
+	if err != nil {
+		log.Printf("scheduler: reengagement error: %v", err)
+		return
+	}
+	log.Printf("scheduler: reengagement candidates=%d sent=%d",
+		result.Candidates, result.Sent)
+}
+
+func runReviewPrompts(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL string) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("scheduler: review_prompts panic: %v", r)
+		}
+	}()
+
+	if db == nil || emailClient == nil || !emailClient.Enabled() {
+		return
+	}
+
+	result, err := v1.RunReviewPrompts(ctx, db, emailClient, frontendURL)
+	if err != nil {
+		log.Printf("scheduler: review_prompts error: %v", err)
+		return
+	}
+	log.Printf("scheduler: review_prompts candidates=%d sent=%d",
+		result.Candidates, result.Sent)
+}
+
+func runTransferRetry(ctx context.Context, db *pgxpool.Pool, stripeClient *stripepay.Client) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("scheduler: transfer_retry panic: %v", r)
+		}
+	}()
+
+	if db == nil || stripeClient == nil || !stripeClient.Enabled() {
+		return
+	}
+
+	result, err := v1.RunTransferRetry(ctx, db, stripeClient)
+	if err != nil {
+		log.Printf("scheduler: transfer_retry error: %v", err)
+		return
+	}
+	log.Printf("scheduler: transfer_retry candidates=%d retried=%d failed=%d",
+		result.Candidates, result.Retried, result.Failed)
+}
+
+func runMilestones(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("scheduler: milestones panic: %v", r)
+		}
+	}()
+
+	if db == nil || emailClient == nil || !emailClient.Enabled() {
+		return
+	}
+
+	result, err := v1.RunMilestoneEmails(ctx, db, emailClient)
+	if err != nil {
+		log.Printf("scheduler: milestones error: %v", err)
+		return
+	}
+	log.Printf("scheduler: milestones candidates=%d sent=%d",
+		result.Candidates, result.Sent)
+}
+
+func runDigest(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client) {
+	defer func() {
+		if r := recover(); r != nil {
+			log.Printf("scheduler: digest panic: %v", r)
+		}
+	}()
+
+	if db == nil || emailClient == nil || !emailClient.Enabled() {
+		return
+	}
+
+	// Only send on Monday around 14:00 UTC (9 AM ET).
+	now := time.Now().UTC()
+	if now.Weekday() != time.Monday || now.Hour() != 14 {
+		return
+	}
+
+	result, err := v1.RunSellerDigest(ctx, db, emailClient)
+	if err != nil {
+		log.Printf("scheduler: digest error: %v", err)
+		return
+	}
+	log.Printf("scheduler: digest candidates=%d sent=%d",
 		result.Candidates, result.Sent)
 }

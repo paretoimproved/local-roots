@@ -290,12 +290,20 @@ export default function SellerStorePage() {
           <h1 className="text-2xl font-semibold tracking-tight">Store</h1>
         </div>
 
-        <Link
-          className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
-          href={`/seller/stores/${storeId}/settings`}
-        >
-          Settings
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+            href={`/seller/stores/${storeId}/analytics`}
+          >
+            Analytics
+          </Link>
+          <Link
+            className="lr-btn lr-chip px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+            href={`/seller/stores/${storeId}/settings`}
+          >
+            Settings
+          </Link>
+        </div>
       </header>
 
       {error ? (

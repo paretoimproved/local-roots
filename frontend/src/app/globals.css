@@ -111,6 +111,7 @@ h3 {
   border-color: rgba(47, 107, 79, 0.35);
   background: linear-gradient(135deg, rgba(47, 107, 79, 0.94), rgba(31, 108, 120, 0.88));
   color: #fbfbf8;
+  min-height: 44px; /* a11y touch target */
 }
 
 .lr-btn-primary:hover {
