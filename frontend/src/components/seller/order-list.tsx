@@ -14,6 +14,7 @@ interface OrderListProps {
     status: "ready" | "canceled" | "no_show",
     opts?: { waive_fee?: boolean },
   ) => void;
+  onRefundOrder?: (orderId: string) => void;
 }
 
 export function OrderList({
@@ -21,6 +22,7 @@ export function OrderList({
   selectedWindowId,
   busyOrderId,
   onSetOrderStatus,
+  onRefundOrder,
 }: OrderListProps) {
   const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [showCompleted, setShowCompleted] = useState(false);
@@ -209,6 +211,19 @@ export function OrderList({
                   </button>
                 </>
               )}
+              {o.payment_status === "paid" &&
+                (o.status === "picked_up" || o.status === "ready") &&
+                onRefundOrder && (
+                  <button
+                    type="button"
+                    className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-rose-700 disabled:opacity-50"
+                    onClick={() => onRefundOrder(o.id)}
+                    disabled={busyOrderId === o.id}
+                    title="Issue a full refund to the buyer's card."
+                  >
+                    Refund
+                  </button>
+                )}
             </div>
           </div>
         )}

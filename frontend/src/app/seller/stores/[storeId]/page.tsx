@@ -15,6 +15,7 @@ import { session } from "@/lib/session";
 import { useToast } from "@/components/toast";
 import { formatMoney, friendlyErrorMessage, parseApiError } from "@/lib/ui";
 import { ConfirmDialog } from "@/components/confirm-dialog";
+import { RefundModal } from "@/components/refund-modal";
 import { PickupWindowList } from "@/components/seller/pickup-window-list";
 import { SubscriptionPlanList } from "@/components/seller/subscription-plan-list";
 import { OrderList } from "@/components/seller/order-list";
@@ -44,6 +45,8 @@ export default function SellerStorePage() {
   const [tab, setTab] = useState<"pickups" | "manage">("pickups");
   const [generatingCycle, setGeneratingCycle] = useState(false);
   const [busyOrderId, setBusyOrderId] = useState<string | null>(null);
+  const [refundOrderId, setRefundOrderId] = useState<string | null>(null);
+  const [refundLoading, setRefundLoading] = useState(false);
   const [togglingPlan, setTogglingPlan] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
     title: string;
@@ -252,6 +255,22 @@ export default function SellerStorePage() {
     }
   }
 
+  async function executeRefund() {
+    if (!token || !refundOrderId || !selectedWindowId) return;
+    setRefundLoading(true);
+    try {
+      await sellerApi.refundOrder(token, storeId, refundOrderId);
+      const os = await sellerApi.listOrders(token, storeId, selectedWindowId);
+      setOrders(os);
+      showToast({ kind: "success", message: "Refund initiated. The buyer will be credited shortly." });
+    } catch (e: unknown) {
+      showToast({ kind: "error", message: friendlyErrorMessage(e) });
+    } finally {
+      setRefundLoading(false);
+      setRefundOrderId(null);
+    }
+  }
+
   function cancelSubscription(subId: string) {
     setConfirmAction({
       title: "Cancel subscription?",
@@ -379,6 +398,7 @@ export default function SellerStorePage() {
             selectedWindowId={selectedWindowId}
             busyOrderId={busyOrderId}
             onSetOrderStatus={setOrderStatus}
+            onRefundOrder={setRefundOrderId}
           />
         </div>
       )}
@@ -419,6 +439,22 @@ export default function SellerStorePage() {
         }}
         onCancel={() => setConfirmAction(null)}
       />
+
+      {(() => {
+        const refundOrder = refundOrderId
+          ? (orders ?? []).find((o) => o.id === refundOrderId)
+          : null;
+        return (
+          <RefundModal
+            isOpen={refundOrderId !== null}
+            onClose={() => setRefundOrderId(null)}
+            onConfirm={executeRefund}
+            amount={refundOrder ? formatMoney(refundOrder.total_cents) : ""}
+            buyerName={refundOrder?.buyer_name ?? undefined}
+            loading={refundLoading}
+          />
+        );
+      })()}
     </div>
   );
 }

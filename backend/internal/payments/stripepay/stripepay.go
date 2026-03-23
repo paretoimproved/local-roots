@@ -414,3 +414,19 @@ func (c *Client) CancelPaymentIntent(ctx context.Context, paymentIntentID string
 	_, err := c.api.PaymentIntents.Cancel(paymentIntentID, p)
 	return err
 }
+
+// Refund issues a full refund for the given PaymentIntent. Returns the Stripe refund ID.
+func (c *Client) Refund(ctx context.Context, paymentIntentID string) (string, error) {
+	if !c.Enabled() {
+		return "", ErrNotConfigured
+	}
+	params := &stripe.RefundParams{
+		PaymentIntent: stripe.String(paymentIntentID),
+	}
+	params.Context = ctx
+	r, err := c.api.Refunds.New(params)
+	if err != nil {
+		return "", err
+	}
+	return r.ID, nil
+}
