@@ -396,6 +396,10 @@ git commit -m "feat: how-it-works explainer on store browse page"
 - Modify: `frontend/src/app/seller/stores/[storeId]/setup/box/page.tsx` (E3)
 - Modify: `frontend/src/app/farms/[city]/page.tsx` (E2)
 
+- [ ] **Step 0.5: Update policies page with Help link**
+
+In `frontend/src/app/policies/page.tsx`, update the "Contact support" references (lines ~130 and ~155-156) to link to `/help`: `<a href="/help" className="underline" style={{ color: 'var(--lr-leaf)' }}>Get help</a>`.
+
 - [ ] **Step 1: Add inline tips to box setup**
 
 In the box creation form, add tip text in `--lr-muted` below relevant fields:
@@ -474,6 +478,12 @@ Create `backend/internal/api/v1/admin.go`:
 
 Run: `cd backend && go test ./internal/api/v1/ -run "TestRequireAdmin|TestAdminDashboard" -v`
 Expected: PASS
+
+- [ ] **Step 4.5: Consolidate existing inline admin checks**
+
+Replace existing inline `role == "admin"` checks with the new `RequireAdmin` middleware:
+- `backend/internal/api/v1/public.go` lines ~81-85: demo store visibility check — refactor to use `RequireAdmin` or keep inline (it's a read-path filter, not a route guard). Decision: keep inline here since it's filtering query results, not guarding an endpoint.
+- Note: `store_middleware.go` and `seller.go` admin checks are for demo store access, not route guarding. They should NOT use `RequireAdmin` middleware. The consolidation claim in the design spec was overly broad — the inline checks serve a different purpose (data filtering) than the middleware (route access). Document this distinction in a code comment on `RequireAdmin`.
 
 - [ ] **Step 5: Wire routes in handler.go**
 
@@ -562,6 +572,7 @@ func (c *Client) Refund(ctx context.Context, paymentIntentID string) (string, er
 ```
 
 Full refund only (no amount parameter — refunds entire PaymentIntent).
+Note: The design spec line 57 mentions `Refund(ctx, paymentIntentID, amountCents)` with 3 params — that's stale. The plan's 2-param version is correct for "full refund only."
 
 - [ ] **Step 6: Add charge.refunded webhook handler**
 
@@ -579,6 +590,8 @@ case "charge.refunded":
 
 Note: `charge.refunded` contains a Charge object, not a PaymentIntent. Access PI via `ch.PaymentIntent.ID`.
 
+**DEPLOYMENT REQUIREMENT:** Before deploying, add `charge.refunded` to the Stripe Dashboard webhook endpoint configuration (Settings → Webhooks → select endpoint → Add events). Without this, Stripe won't send the event and refunds won't sync to the DB. Document this in `docs/ops/stripe-webhook-prod.md`.
+
 - [ ] **Step 7: Add refund endpoint to seller_orders.go**
 
 Add `RefundOrder(w, r, u AuthUser, sc StoreContext)` method to `SellerOrdersAPI`:
@@ -590,6 +603,17 @@ Add `RefundOrder(w, r, u AuthUser, sc StoreContext)` method to `SellerOrdersAPI`
 - On Stripe error, return 500 (DB state unchanged — webhook-only update pattern)
 - On success, return 200 `{"ok": true, "message": "Refund initiated"}`
 - The actual `payment_status` update to `refunded` happens via the `charge.refunded` webhook
+
+- [ ] **Step 7.5: Write RefundOrder handler tests**
+
+Create tests in `backend/internal/api/v1/seller_orders_test.go` (or new file):
+- `TestRefundOrder_NilDB` — nil guard returns 503
+- `TestRefundOrder_NilStripe` — nil guard returns 503
+- `TestRefundOrder_InvalidOrderStatus` — order with `payment_status != 'paid'` returns 400
+- `TestRefundOrder_InvalidStatus` — order with `status = 'placed'` returns 400
+- `TestRefundOrder_AlreadyRefunded` — `payment_status = 'refunded'` returns 200 (idempotent)
+
+Note: Full integration test (with real DB + mocked Stripe) follows the pattern in `orders_integration_test.go` and requires `DATABASE_URL`.
 
 - [ ] **Step 8: Wire route in handler.go**
 
@@ -691,10 +715,15 @@ func hashRefreshToken(token string) string {
 }
 ```
 
-Add `issueTokenPair(ctx, w, db, jwtSecret, userID, role, tokenVersion)` helper:
+Add **package-level** function (NOT a method on AuthAPI — it must be callable from `OAuthAPI` and `BuyerAuthAPI` too):
+```go
+func issueTokenPair(ctx context.Context, db *pgxpool.Pool, jwtSecret string, userID string, role string, tokenVersion int) (*AuthResponse, error)
+```
 - Signs JWT (4h TTL, same as today)
 - Generates refresh token, stores hash in DB with 30-day expiry
 - Returns `AuthResponse` with `token` (JWT) and `refresh_token` (opaque)
+
+**IMPORTANT:** `buyer_auth.go:Verify` currently returns a raw `map[string]any{"token": ..., "user": ...}` not the `AuthResponse` struct. Switching to `issueTokenPair` will change the response shape to include `refresh_token`. The frontend buyer auth code in `frontend/src/app/buyer/auth/verify/page.tsx` (and any code parsing the verify response) must be updated to handle the new `refresh_token` field. This is additive (new field) not destructive (existing fields unchanged), so it's backward-compatible — but the frontend should store the refresh token.
 
 Update `AuthResponse`:
 ```go
@@ -751,7 +780,7 @@ Update all login/auth response handlers to store both tokens.
 
 - [ ] **Step 9: Add 401 refresh interceptor**
 
-In `frontend/src/lib/api.ts` (or new `auth-refresh.ts`), modify the 401 handler:
+In `frontend/src/lib/http.ts` (the actual location of the 401 intercept logic, lines ~43-61), modify the 401 handler:
 - Before redirecting to login, check if refresh token exists
 - If yes, attempt `POST /v1/auth/refresh` with the refresh token
 - If refresh succeeds, store new tokens, retry original request
