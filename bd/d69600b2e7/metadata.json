@@ -1,0 +1,17 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "bdd69600b2e7",
+  "strategy": "auto-commit",
+  "branch": "phase-9-eugene-launch-safety-net",
+  "checkpoints_count": 0,
+  "files_touched": null,
+  "sessions": [
+    {
+      "metadata": "/bd/d69600b2e7/0/metadata.json",
+      "transcript": "/bd/d69600b2e7/0/full.jsonl",
+      "context": "",
+      "content_hash": "/bd/d69600b2e7/0/content_hash.txt",
+      "prompt": ""
+    }
+  ]
+}
