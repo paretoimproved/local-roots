@@ -202,7 +202,7 @@ If you'd like to resubscribe, visit the store page.
 	return
 }
 
-func LapsedSubscriberNudge(storeName, planTitle, storeURL string) (subject string, body string) {
+func LapsedSubscriberNudge(storeName, planTitle, storeURL, unsubscribeURL string) (subject string, body string) {
 	subject = fmt.Sprintf("We miss you at %s!", storeName)
 	body = fmt.Sprintf(`Hi there!
 
@@ -214,7 +214,10 @@ Visit the store:
   %s
 
 — Local Roots
-`, storeName, planTitle, storeURL)
+
+---
+Unsubscribe from marketing emails: %s
+`, storeName, planTitle, storeURL, unsubscribeURL)
 	return
 }
 
@@ -234,7 +237,7 @@ Leave a review:
 	return
 }
 
-func MilestoneCelebration(buyerName, storeName, milestone string) (subject string, body string) {
+func MilestoneCelebration(buyerName, storeName, milestone, unsubscribeURL string) (subject string, body string) {
 	subject = fmt.Sprintf("Milestone: %s pickups from %s!", milestone, storeName)
 	greeting := "Hi there!"
 	if buyerName != "" {
@@ -247,7 +250,10 @@ You've completed %s pickups from %s. That's amazing!
 Thank you for supporting local food and your community farmer. Here's to many more!
 
 — Local Roots
-`, greeting, milestone, storeName)
+
+---
+Unsubscribe from marketing emails: %s
+`, greeting, milestone, storeName, unsubscribeURL)
 	return
 }
 
@@ -268,7 +274,7 @@ Log in to your dashboard for full analytics.
 	return
 }
 
-func WaitlistNotification(city, storeURL string) (subject string, body string) {
+func WaitlistNotification(city, storeURL, unsubscribeURL string) (subject string, body string) {
 	subject = fmt.Sprintf("A farm just joined near %s!", city)
 	body = fmt.Sprintf(`Hi there!
 
@@ -278,6 +284,9 @@ Check it out and subscribe to start getting fresh, local food:
   %s
 
 — Local Roots
-`, city, storeURL)
+
+---
+Unsubscribe from marketing emails: %s
+`, city, storeURL, unsubscribeURL)
 	return
 }

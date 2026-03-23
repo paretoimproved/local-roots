@@ -57,7 +57,7 @@ func main() {
 	defer cancel()
 
 	if cfg.Env == "prod" {
-		go scheduler.Start(ctx, pool, stripeClient, emailClient, cfg.FrontendURL)
+		go scheduler.Start(ctx, pool, stripeClient, emailClient, cfg.FrontendURL, cfg.JWTSecret)
 	}
 
 	go func() {

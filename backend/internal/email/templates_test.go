@@ -88,7 +88,7 @@ func TestPaymentReceipt(t *testing.T) {
 }
 
 func TestLapsedSubscriberNudge(t *testing.T) {
-	subj, body := LapsedSubscriberNudge("Green Acres", "Weekly Veggie Box", "https://localroots.farm/stores/abc")
+	subj, body := LapsedSubscriberNudge("Green Acres", "Weekly Veggie Box", "https://localroots.farm/stores/abc", "https://localroots.farm/unsubscribe?token=tok123")
 
 	if !strings.Contains(subj, "Green Acres") {
 		t.Errorf("subject should contain store name, got %q", subj)
@@ -98,6 +98,9 @@ func TestLapsedSubscriberNudge(t *testing.T) {
 	}
 	if !strings.Contains(body, "https://localroots.farm/stores/abc") {
 		t.Error("body should contain store URL")
+	}
+	if !strings.Contains(body, "Unsubscribe") {
+		t.Error("body should contain Unsubscribe link")
 	}
 }
 
@@ -116,7 +119,7 @@ func TestPostPickupReviewPrompt(t *testing.T) {
 }
 
 func TestMilestoneCelebration(t *testing.T) {
-	subj, body := MilestoneCelebration("Alice", "Green Acres", "10")
+	subj, body := MilestoneCelebration("Alice", "Green Acres", "10", "https://localroots.farm/unsubscribe?token=tok123")
 	if !strings.Contains(subj, "10") {
 		t.Errorf("subject should contain milestone count, got %q", subj)
 	}
@@ -126,9 +129,12 @@ func TestMilestoneCelebration(t *testing.T) {
 	if !strings.Contains(body, "Green Acres") {
 		t.Error("body should contain store name")
 	}
+	if !strings.Contains(body, "Unsubscribe") {
+		t.Error("body should contain Unsubscribe link")
+	}
 
 	// Empty buyer name falls back to generic greeting
-	_, bodyNoName := MilestoneCelebration("", "Farm", "5")
+	_, bodyNoName := MilestoneCelebration("", "Farm", "5", "https://localroots.farm/unsubscribe?token=tok123")
 	if !strings.Contains(bodyNoName, "Hi there!") {
 		t.Error("empty buyer name should use generic greeting")
 	}
@@ -151,12 +157,22 @@ func TestSellerWeeklyDigest(t *testing.T) {
 }
 
 func TestWaitlistNotification(t *testing.T) {
-	subj, body := WaitlistNotification("Austin", "https://localroots.farm/stores/xyz")
+	subj, body := WaitlistNotification("Austin", "https://localroots.farm/stores/xyz", "https://localroots.farm/unsubscribe?token=tok123")
 	if !strings.Contains(subj, "Austin") {
 		t.Errorf("subject should contain city, got %q", subj)
 	}
 	if !strings.Contains(body, "https://localroots.farm/stores/xyz") {
 		t.Error("body should contain store URL")
+	}
+	if !strings.Contains(body, "Unsubscribe") {
+		t.Error("body should contain Unsubscribe link")
+	}
+}
+
+func TestPickupReminderNoUnsubscribeLink(t *testing.T) {
+	_, body := PickupReminder("Weekly Veggie Box", "Sat Feb 14 at 10:00 AM", "Downtown Market", "ABC123", "https://localroots.com/orders/xyz?t=tok")
+	if strings.Contains(body, "Unsubscribe") {
+		t.Error("transactional PickupReminder should not contain Unsubscribe link")
 	}
 }
 
@@ -175,19 +191,19 @@ func TestTemplatesReturnNonEmpty(t *testing.T) {
 		{"MagicLink", func() (string, string) { return MagicLink("URL") }},
 		{"PaymentReceipt", func() (string, string) { return PaymentReceipt("$10", "Box", "URL") }},
 		{"LapsedSubscriberNudge", func() (string, string) {
-			return LapsedSubscriberNudge("Store", "Plan", "URL")
+			return LapsedSubscriberNudge("Store", "Plan", "URL", "https://example.com/unsubscribe?token=tok")
 		}},
 		{"PostPickupReviewPrompt", func() (string, string) {
 			return PostPickupReviewPrompt("Store", "Box", "URL")
 		}},
 		{"MilestoneCelebration", func() (string, string) {
-			return MilestoneCelebration("Name", "Store", "5")
+			return MilestoneCelebration("Name", "Store", "5", "https://example.com/unsubscribe?token=tok")
 		}},
 		{"SellerWeeklyDigest", func() (string, string) {
 			return SellerWeeklyDigest("Store", "10", "5", "$100")
 		}},
 		{"WaitlistNotification", func() (string, string) {
-			return WaitlistNotification("City", "URL")
+			return WaitlistNotification("City", "URL", "https://example.com/unsubscribe?token=tok")
 		}},
 	}
 

@@ -20,7 +20,7 @@ type ReengagementResult struct {
 // RunReengagement finds active subscribers who haven't picked up in 2+ cycles
 // (based on plan cadence) and sends them a nudge email. Idempotent: only sends
 // once per 14 days per subscription (last_reengagement_email_at).
-func RunReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL string) (ReengagementResult, error) {
+func RunReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL, jwtSecret string) (ReengagementResult, error) {
 	if db == nil {
 		return ReengagementResult{}, fmt.Errorf("database not configured")
 	}
@@ -81,9 +81,17 @@ func RunReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.C
 	baseURL := strings.TrimRight(frontendURL, "/")
 
 	for _, c := range candidates {
-		storeURL := baseURL + "/stores/" + c.storeID
+		// Skip opted-out users.
+		var optedOut bool
+		_ = db.QueryRow(ctx, `SELECT email_marketing_opt_out FROM users WHERE lower(email) = lower($1)`, c.buyerEmail).Scan(&optedOut)
+		if optedOut {
+			continue
+		}
 
-		subj, body := email.LapsedSubscriberNudge(c.storeName, c.planTitle, storeURL)
+		storeURL := baseURL + "/stores/" + c.storeID
+		unsubURL := UnsubscribeLink(c.buyerEmail, frontendURL, jwtSecret)
+
+		subj, body := email.LapsedSubscriberNudge(c.storeName, c.planTitle, storeURL, unsubURL)
 		if err := emailClient.Send(c.buyerEmail, subj, body); err != nil {
 			log.Printf("reengagement: failed to send to %s (sub=%s): %v", c.buyerEmail, c.subID, err)
 			continue

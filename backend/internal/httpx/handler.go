@@ -163,6 +163,9 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("PATCH /v1/seller/stores/{storeId}/subscription-plans/{planId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.UpdatePlan)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.GenerateNextCycle)))
 
+	unsub := v1.UnsubscribeAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
+	mux.HandleFunc("GET /v1/unsubscribe", unsub.Unsubscribe)
+
 	geo := v1.GeoAPI{GooglePlacesAPIKey: deps.Config.GooglePlacesAPIKey}
 	mux.HandleFunc("GET /v1/places/autocomplete", WithRateLimit("geo", geo.PublicAutocomplete))
 	mux.HandleFunc("GET /v1/geocode", WithRateLimit("geo", geo.PublicGeocode))
