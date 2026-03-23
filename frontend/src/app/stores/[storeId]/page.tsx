@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
+import { notFound } from "next/navigation";
 import { api } from "@/lib/api";
 import type { PickupWindow, SubscriptionPlan, Offering, ReviewsResponse, BoxPreviewPublic } from "@/lib/api";
 import { formatMoney } from "@/lib/ui";
@@ -154,22 +155,7 @@ export default async function StoreDetailPage({
     reviewsResult.status === "fulfilled" ? reviewsResult.value : null;
 
   if (!store) {
-    const err =
-      storeResult.status === "rejected"
-        ? storeResult.reason instanceof Error
-          ? storeResult.reason.message
-          : "Unknown error"
-        : "Store not found";
-    return (
-      <div className="grid gap-6">
-        <div className="lr-card lr-card-strong p-6">
-          <p className="text-sm font-medium text-[color:var(--lr-ink)]">
-            Could not load store
-          </p>
-          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">{err}</p>
-        </div>
-      </div>
-    );
+    notFound();
   }
 
   const storeName = store.name;

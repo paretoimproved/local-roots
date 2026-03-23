@@ -7,6 +7,7 @@ import { api, type Store, type PlacePrediction } from "@/lib/api";
 import { requestJSON } from "@/lib/http";
 import { session } from "@/lib/session";
 import { StoreCard } from "@/components/store-card";
+import { HowItWorks } from "@/components/how-it-works";
 
 const RADIUS_OPTIONS = [
   { label: "10 mi", km: 16 },
@@ -420,6 +421,8 @@ pnpm migrate:up`}</code>
           )}
         </div>
       ) : null}
+
+      <HowItWorks />
 
       {stores && stores.length > 0 ? (
         <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
