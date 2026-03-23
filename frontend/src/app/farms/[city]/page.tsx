@@ -176,6 +176,19 @@ export default async function CityPage({
         </p>
       </section>
 
+      {/* ── Eugene-specific content ───────────────────────────── */}
+      {slug === 'eugene-or' && (
+        <section className="lr-card p-6 mb-8">
+          <h2 className="font-serif text-xl mb-2">Local Food in Eugene</h2>
+          <p className="text-sm" style={{ color: 'var(--lr-muted)' }}>
+            Eugene&apos;s Willamette Valley is home to some of Oregon&apos;s finest small farms.
+            From the Lane County Farmers Market to neighborhood farm stands, local food
+            is part of the culture here. Subscribe to a farm box and pick up fresh,
+            seasonal food on your schedule.
+          </p>
+        </section>
+      )}
+
       {/* ── Store grid ────────────────────────────────────────── */}
       {stores.length > 0 ? (
         <section className="lr-animate">

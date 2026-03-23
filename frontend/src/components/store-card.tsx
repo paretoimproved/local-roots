@@ -105,6 +105,11 @@ export function StoreCard({ store: s, compact = false, isNew = false }: StoreCar
                 New
               </span>
             )}
+            {s.next_pickup_date && (
+              <span className="lr-chip px-2.5 py-0.5 text-xs font-medium" style={{ color: 'var(--lr-leaf)' }}>
+                Next: {new Date(s.next_pickup_date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              </span>
+            )}
           </div>
         )}
       </div>
