@@ -1,6 +1,10 @@
 package v1
 
 import (
+	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"net/http"
 	"strings"
 	"time"
@@ -26,8 +30,51 @@ type AuthUser struct {
 }
 
 type AuthResponse struct {
-	Token string   `json:"token"`
-	User  AuthUser `json:"user"`
+	Token        string   `json:"token"`
+	RefreshToken string   `json:"refresh_token,omitempty"`
+	User         AuthUser `json:"user"`
+}
+
+// generateRefreshToken creates a cryptographically random 32-byte hex string.
+func generateRefreshToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// hashRefreshToken returns the SHA-256 hex digest of the given token.
+func hashRefreshToken(token string) string {
+	h := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(h[:])
+}
+
+// issueTokenPair signs a JWT and creates a refresh token stored in the DB.
+func issueTokenPair(ctx context.Context, db *pgxpool.Pool, jwtSecret string, userID, role string, tokenVersion int) (*AuthResponse, error) {
+	tok, err := auth.SignJWT([]byte(jwtSecret), userID, role, 4*time.Hour, tokenVersion)
+	if err != nil {
+		return nil, err
+	}
+
+	refreshRaw, err := generateRefreshToken()
+	if err != nil {
+		return nil, err
+	}
+
+	hash := hashRefreshToken(refreshRaw)
+	_, err = db.Exec(ctx, `
+		INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
+		VALUES ($1::uuid, $2, now() + interval '30 days')
+	`, userID, hash)
+	if err != nil {
+		return nil, err
+	}
+
+	return &AuthResponse{
+		Token:        tok,
+		RefreshToken: refreshRaw,
+	}, nil
 }
 
 type registerRequest struct {
@@ -97,13 +144,14 @@ func (a AuthAPI) Register(w http.ResponseWriter, r *http.Request) {
 	var tokenVersion int
 	_ = a.DB.QueryRow(r.Context(), `select token_version from users where id = $1::uuid`, u.ID).Scan(&tokenVersion)
 
-	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 4*time.Hour, tokenVersion)
+	ar, err := issueTokenPair(r.Context(), a.DB, a.JWTSecret, u.ID, u.Role, tokenVersion)
 	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
+	ar.User = u
 
-	resp.OK(w, AuthResponse{Token: tok, User: u})
+	resp.OK(w, ar)
 }
 
 type loginRequest struct {
@@ -163,13 +211,104 @@ func (a AuthAPI) Login(w http.ResponseWriter, r *http.Request) {
 	var tokenVersion int
 	_ = a.DB.QueryRow(r.Context(), `select token_version from users where id = $1::uuid`, u.ID).Scan(&tokenVersion)
 
-	tok, err := auth.SignJWT([]byte(a.JWTSecret), u.ID, u.Role, 4*time.Hour, tokenVersion)
+	ar, err := issueTokenPair(r.Context(), a.DB, a.JWTSecret, u.ID, u.Role, tokenVersion)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	ar.User = u
+
+	resp.OK(w, ar)
+}
+
+type refreshRequest struct {
+	RefreshToken string `json:"refresh_token"`
+}
+
+func (a AuthAPI) Refresh(w http.ResponseWriter, r *http.Request) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if strings.TrimSpace(a.JWTSecret) == "" {
+		resp.ServiceUnavailable(w, "auth not configured")
+		return
+	}
+
+	var in refreshRequest
+	if err := resp.DecodeJSON(w, r, &in); err != nil {
+		resp.BadRequest(w, "invalid json")
+		return
+	}
+
+	token := strings.TrimSpace(in.RefreshToken)
+	if token == "" {
+		resp.BadRequest(w, "missing refresh_token")
+		return
+	}
+
+	hash := hashRefreshToken(token)
+
+	var id, userID string
+	var used bool
+	var expiresAt time.Time
+	err := a.DB.QueryRow(r.Context(), `
+		SELECT id::text, user_id::text, used, expires_at
+		FROM refresh_tokens
+		WHERE token_hash = $1
+	`, hash).Scan(&id, &userID, &used, &expiresAt)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			resp.Unauthorized(w, "invalid refresh token")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	if used {
+		resp.Unauthorized(w, "refresh token already used")
+		return
+	}
+	if time.Now().After(expiresAt) {
+		resp.Unauthorized(w, "refresh token expired")
+		return
+	}
+
+	// Mark as used (rotation).
+	_, err = a.DB.Exec(r.Context(), `
+		UPDATE refresh_tokens SET used = true, updated_at = now() WHERE id = $1::uuid
+	`, id)
 	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
 
-	resp.OK(w, AuthResponse{Token: tok, User: u})
+	// Look up user.
+	var u AuthUser
+	var tokenVersion int
+	err = a.DB.QueryRow(r.Context(), `
+		SELECT id::text, email, role, display_name, token_version
+		FROM users
+		WHERE id = $1::uuid
+	`, userID).Scan(&u.ID, &u.Email, &u.Role, &u.DisplayName, &tokenVersion)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			resp.Unauthorized(w, "user not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	ar, err := issueTokenPair(r.Context(), a.DB, a.JWTSecret, u.ID, u.Role, tokenVersion)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	ar.User = u
+
+	resp.OK(w, ar)
 }
 
 func (a AuthAPI) RequireUser(next func(http.ResponseWriter, *http.Request, AuthUser)) http.HandlerFunc {

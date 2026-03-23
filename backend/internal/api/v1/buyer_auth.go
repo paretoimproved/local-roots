@@ -10,7 +10,6 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/paretoimproved/local-roots/backend/internal/auth"
 	"github.com/paretoimproved/local-roots/backend/internal/email"
 	"github.com/paretoimproved/local-roots/backend/internal/resp"
 )
@@ -165,24 +164,22 @@ func (a BuyerAuthAPI) Verify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Sign JWT (4-hour expiry for buyers).
+	// Issue JWT + refresh token pair (4-hour JWT, 30-day refresh).
 	var tokenVersion int
 	_ = a.DB.QueryRow(r.Context(), `select token_version from users where id = $1::uuid`, userID).Scan(&tokenVersion)
 
-	tok, err := auth.SignJWT([]byte(a.JWTSecret), userID, "buyer", 4*time.Hour, tokenVersion)
+	ar, err := issueTokenPair(r.Context(), a.DB, a.JWTSecret, userID, "buyer", tokenVersion)
 	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
+	ar.User = AuthUser{
+		ID:    userID,
+		Email: emailAddr,
+		Role:  "buyer",
+	}
 
-	resp.OK(w, map[string]any{
-		"token": tok,
-		"user": map[string]any{
-			"id":    userID,
-			"email": emailAddr,
-			"role":  "buyer",
-		},
-	})
+	resp.OK(w, ar)
 }
 
 // GetMe returns the authenticated buyer's info. Gated behind RequireUser.

@@ -63,6 +63,38 @@ describe("session (browser)", () => {
     expect(store["localroots_token"]).toBeUndefined();
     expect(store["localroots_buyer_token"]).toBeUndefined();
   });
+
+  // Refresh token tests
+  it("returns null when no refresh token is stored", () => {
+    expect(session.getRefreshToken()).toBeNull();
+  });
+
+  it("stores and retrieves a refresh token", () => {
+    session.setRefreshToken("rt_abc");
+    expect(session.getRefreshToken()).toBe("rt_abc");
+  });
+
+  it("clears a refresh token", () => {
+    session.setRefreshToken("rt_abc");
+    session.clearRefreshToken();
+    expect(session.getRefreshToken()).toBeNull();
+  });
+
+  it("uses the correct localStorage key for refresh token", () => {
+    session.setRefreshToken("rt_xyz");
+    expect(window.localStorage.setItem).toHaveBeenCalledWith(
+      "localroots_refresh_token",
+      "rt_xyz",
+    );
+  });
+
+  it("clearToken also clears refresh token", () => {
+    store["localroots_token"] = "tok";
+    store["localroots_refresh_token"] = "rt";
+    session.clearToken();
+    expect(store["localroots_token"]).toBeUndefined();
+    expect(store["localroots_refresh_token"]).toBeUndefined();
+  });
 });
 
 describe("session (SSR / no window)", () => {
@@ -84,5 +116,17 @@ describe("session (SSR / no window)", () => {
 
   it("clearToken does not throw when window is undefined", () => {
     expect(() => session.clearToken()).not.toThrow();
+  });
+
+  it("getRefreshToken returns null when window is undefined", () => {
+    expect(session.getRefreshToken()).toBeNull();
+  });
+
+  it("setRefreshToken does not throw when window is undefined", () => {
+    expect(() => session.setRefreshToken("rt")).not.toThrow();
+  });
+
+  it("clearRefreshToken does not throw when window is undefined", () => {
+    expect(() => session.clearRefreshToken()).not.toThrow();
   });
 });

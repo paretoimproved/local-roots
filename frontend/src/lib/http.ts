@@ -20,6 +20,34 @@ export type RequestJSONInit = RequestInit & {
   next?: { revalidate?: number };
 };
 
+/** Attempt to refresh the session using the stored refresh token. Returns true on success. */
+async function tryRefreshSession(): Promise<boolean> {
+  const refreshToken = session.getRefreshToken();
+  if (!refreshToken) return false;
+
+  try {
+    // Raw fetch — must NOT go through requestJSON to avoid infinite 401 loop.
+    const res = await fetch(`${apiBaseUrl()}/v1/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+      cache: "no-store",
+    });
+
+    if (!res.ok) return false;
+
+    const data = await res.json();
+    if (data.token) {
+      session.setToken(data.token);
+      if (data.refresh_token) session.setRefreshToken(data.refresh_token);
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export async function requestJSON<T>(
   path: string,
   init: RequestJSONInit = {},
@@ -41,19 +69,42 @@ export async function requestJSON<T>(
     const text = await res.text().catch(() => "");
 
     if (res.status === 401 && typeof window !== "undefined") {
-      const path = window.location.pathname;
-      // Never redirect login/register pages — their 401s are login failures, not session expiry.
-      const isAuthPage = /^\/(seller|buyer)\/(login|register|auth)/.test(path);
+      const currentPath = window.location.pathname;
+      // Never redirect login/register/auth pages — their 401s are login failures, not session expiry.
+      const isAuthPage = /^\/(seller|buyer)\/(login|register|auth)/.test(currentPath);
+
       if (!isAuthPage) {
+        // Attempt silent refresh before giving up.
+        const refreshed = await tryRefreshSession();
+
+        if (refreshed) {
+          // Retry the original request once with the new token.
+          const retryHeaders = new Headers(init.headers);
+          retryHeaders.set("Content-Type", "application/json");
+          const newToken = init.token ? session.getToken() : null;
+          if (newToken) retryHeaders.set("Authorization", `Bearer ${newToken}`);
+
+          const retryRes = await fetch(`${apiBaseUrl()}${path}`, {
+            ...init,
+            headers: retryHeaders,
+            cache,
+          });
+
+          if (retryRes.ok) {
+            return (await retryRes.json()) as T;
+          }
+          // Retry also failed — fall through to redirect.
+        }
+
         session.clearToken();
         let loginUrl: string | null = null;
-        if (path.startsWith("/seller") || path.startsWith("/pickup/confirm")) {
+        if (currentPath.startsWith("/seller") || currentPath.startsWith("/pickup/confirm")) {
           loginUrl = "/seller/login";
-        } else if (path.startsWith("/buyer")) {
+        } else if (currentPath.startsWith("/buyer")) {
           loginUrl = "/buyer/login";
         }
         if (loginUrl) {
-          const next = path + window.location.search;
+          const next = currentPath + window.location.search;
           window.location.href = `${loginUrl}?expired=1&next=${encodeURIComponent(next)}`;
           throw new SessionExpiredError();
         }
