@@ -124,6 +124,63 @@ Constraints: Full refund only (no partial). Only for orders where `payment_statu
 - "New on Local Roots" badge for recently launched stores
 - Social sharing buttons on store pages
 
+## Design Specifications (added by design review)
+
+### Design Tokens (from globals.css)
+- `--lr-bg` (#f6f1e8 sand) — page backgrounds
+- `--lr-ink` (#1c1b16) — primary text
+- `--lr-muted` (#4a463c peat) — secondary text, labels
+- `--lr-leaf` (#2f6b4f sage) — CTAs, positive actions, links
+- `--lr-clay` (#b35d2e clay) — warnings, destructive actions
+- `--lr-water` (#1f6c78 river) — accents
+- `lr-card` / `lr-card-strong` — frosted glass cards (78%/92% opacity)
+- `lr-btn` / `lr-btn-primary` — ghost / sage gradient pill buttons
+- **NEW: `lr-btn-destructive`** — clay solid, white text, pill, 44px min (for refund)
+- `lr-chip` — pill badges (for next-pickup badge)
+- Typography: serif for headings (h1-h3), sans for body
+
+### Page Layouts
+
+**FAQ/Help page (`/help`):** 2-column (buyer/seller) on desktop, stacked mobile. `lr-card` sections with serif question headings. Flat list (not accordion). Contact: `hello@localroots.com` in `--lr-leaf`. CTA at bottom: "Still need help?"
+
+**Admin Dashboard (`/admin`):** 4 `lr-card-strong` metric cards (2×2 on mobile). Values in 2xl. Recent orders table in `lr-card` below. Empty state: "No activity yet. Metrics appear after your first pickup."
+
+**Not-found page (404):** Centered `lr-card-strong`. Logo + serif 2xl "This farm isn't on Local Roots yet" + muted body + `lr-btn-primary` "Browse Farms".
+
+**Refund modal:** Frosted glass backdrop (`backdrop-filter: blur(8px)`, 50% black overlay). `lr-card-strong` content (480px max, full-width bottom sheet on mobile). `lr-btn-destructive` for confirm. Focus-trapped, `Escape` closes, `aria-modal="true"`.
+
+**"How it works":** 3-column on desktop, stacked on mobile. Serif numbered headings, base body. No icons — text only. Subtraction default.
+
+### Interaction States
+```
+FEATURE              | LOADING          | EMPTY              | ERROR            | SUCCESS
+─────────────────────|──────────────────|────────────────────|──────────────────|──────────────
+FAQ/Help             | N/A (static)     | N/A                | N/A              | Content renders
+Refund button        | "Refunding..."   | N/A                | Toast: "Refund   | Toast: "Refunded"
+                     | disabled+spinner |                    |  failed: {msg}"  |  + status update
+Admin dashboard      | Skeleton cards   | "No activity yet"  | ErrorAlert+retry | lr-animate
+Next pickup badge    | N/A (SSR)        | Badge omitted      | Omit badge       | lr-chip style
+"How it works"       | N/A (static)     | N/A                | N/A              | 3-step render
+Not-found page       | N/A              | N/A                | N/A              | 404 content+CTA
+Eugene landing       | N/A (SSR)        | Waitlist signup     | ErrorAlert       | Farm cards
+```
+
+### Responsive Behavior
+- FAQ: 2-col → 1-col at `md` breakpoint
+- Admin metrics: 4-col → 2×2 grid at `md`
+- Admin orders table: full table → card list on mobile (hide low-priority columns)
+- "How it works": 3-col → stacked at `sm`
+- Refund modal: centered overlay → bottom sheet on mobile
+- 404: same layout, narrower padding on mobile
+
+### Accessibility
+- Refund modal: focus trap, `Escape` closes, `aria-modal="true"`, `role="dialog"`
+- Destructive button: `aria-label="Refund $45.00 to buyer"`
+- Admin metrics: `aria-live="polite"` for screen reader updates
+- FAQ: `<details>/<summary>` or `aria-expanded` pattern
+- All pages: `<main>` landmark, proper heading hierarchy (h1→h2→h3)
+- Touch targets: ≥44px on all interactive elements (existing standard)
+
 ## Architecture Decisions
 - Refund flow: seller-initiated only (no buyer self-service). Seller clicks "Refund" on order → backend calls Stripe Refund API → webhook syncs `payment_status` to `refunded`.
 - Admin dashboard: read-only. No admin actions beyond viewing. Backend `RequireAdmin` middleware enforces access. Frontend route guard is convenience only.
@@ -156,3 +213,15 @@ infrastructure.                  capability, local content.    buyer waitlists.
                                  Refresh tokens for daily
                                  use. CAN-SPAM compliant.
 ```
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 2 | CLEAR | 6 proposals, 5 accepted, 0 deferred. Spec-reviewed 2 rounds (5/10 → 7/10). |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 2 | CLEAR | 2 issues (refund sync, refresh location), 0 critical gaps. 40 test specs written. |
+| Design Review | `/plan-design-review` | UI/UX gaps | 2 | CLEAR | score: 3/10 → 8/10, 4 decisions made. Design specs added to plan. |
+
+- **UNRESOLVED:** 0 across all reviews.
+- **VERDICT:** CEO + ENG + DESIGN CLEARED — ready to implement.
