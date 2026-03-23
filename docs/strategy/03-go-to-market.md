@@ -137,9 +137,15 @@ This is the most important channel: each farmer converts their own existing cust
 | Manageable geography | Pickup locations within 20-minute drive for most buyers |
 | Limited existing competition | No dominant local CSA platform |
 
-**Recommended first markets:** College towns and mid-size cities with strong farm-to-table culture. Examples: Asheville NC, Portland ME, Burlington VT, Ann Arbor MI, Madison WI, Boise ID, or comparable cities near the founder's location for in-person support.
+**Selected first market: Eugene, OR.** Eugene was chosen for the following reasons:
 
-**Expansion pattern:** Concentric. After proving the model in City 1, expand to 2-3 similar cities within the same state or region. State-level expansion enables shared relationships with state ag extensions and cooperative networks.
+- **Right size:** ~175K population — large enough to find engaged food buyers, small enough to achieve network density quickly.
+- **Strong local food culture:** Eugene has a deep farm-to-table tradition, significant CSA adoption, and a health-conscious, university-influenced population (University of Oregon).
+- **Rich farm supply:** Lane County hosts 75+ farms, 24+ CSAs, and the Lane County Farmers Market (100+ vendors, operating 11 months/year). The Willamette Valley is one of the most productive agricultural regions in the Pacific Northwest.
+- **Limited platform competition:** No dominant local CSA platform operating in the market.
+- **Founder proximity:** Close enough for the in-person, relationship-first launch strategy the playbook requires.
+
+**Expansion pattern:** Concentric. After proving the model in Eugene, expand to 2-3 similar Oregon/Pacific Northwest cities (e.g., Corvallis, Bend, Salem). State-level expansion enables shared relationships with Oregon State Extension Service and Oregon cooperative networks. Comparable second-market candidates nationwide: Asheville NC, Burlington VT, Ann Arbor MI, Madison WI, Boise ID.
 
 ---
 
@@ -291,8 +297,8 @@ The biggest pricing risk is buyers paying farmers directly (cash/Venmo) to avoid
 
 | Day | Action |
 |-----|--------|
-| 1-3 | Choose launch metro area. Confirm 3+ active farmers markets in the area. |
-| 3-5 | Visit all target farmers markets. Buy from vendors. Take notes on who has existing pre-order or CSA programs, who has the biggest crowds, who is most tech-comfortable. |
+| 1-3 | Launch metro: Eugene, OR. Lane County Farmers Market (100+ vendors, 11 months/year) is the primary target venue. Confirm additional markets in the area (Saturday Market, producer-only markets). |
+| 3-5 | Visit all target farmers markets. Buy from vendors. Take notes on who has existing pre-order or CSA programs, who has the biggest crowds, who is most tech-comfortable. The Willamette Valley farm community is tight-knit — early relationships compound quickly. |
 | 5-7 | Build a list of 30-50 target farmers with names, what they sell, and contact info (often on market websites or farm social media). |
 | 7-10 | Prepare pitch materials: one-page handout, QR code poster template, 60-second elevator pitch script. |
 | 10-14 | Set up landing pages: farmer signup page, buyer-facing farm directory for the metro area. Ensure the farmer onboarding flow takes under 5 minutes. |
