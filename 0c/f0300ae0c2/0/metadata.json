@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.7",
+  "checkpoint_id": "0cf0300ae0c2",
+  "session_id": "a82319ab-ac7f-481c-9297-234906fe5722",
+  "strategy": "auto-commit",
+  "created_at": "2026-03-23T03:16:34.493737Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/designs/eugene-soft-launch.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6f9f309db31a",
+  "checkpoint_transcript_start": 632,
+  "transcript_lines_at_start": 632,
+  "token_usage": {
+    "input_tokens": 37,
+    "cache_creation_tokens": 63609,
+    "cache_read_tokens": 5652195,
+    "output_tokens": 24217,
+    "api_call_count": 30,
+    "subagent_tokens": {
+      "input_tokens": 2715,
+      "cache_creation_tokens": 126546,
+      "cache_read_tokens": 1439078,
+      "output_tokens": 11612,
+      "api_call_count": 26
+    }
+  }
+}
