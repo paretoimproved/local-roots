@@ -1,0 +1,16 @@
+All 6 reviewer issues fixed. The plan is ready.
+
+`★ Insight ─────────────────────────────────────`
+**The review caught a cross-struct dependency issue:** `issueTokenPair` needed to be callable from `AuthAPI`, `OAuthAPI`, and `BuyerAuthAPI` — three different structs. Making it a package-level function instead of a method solves this cleanly. This is the kind of implementation detail that would have caused 30+ minutes of confusion during coding if not specified upfront.
+`─────────────────────────────────────────────────`
+
+---
+
+Plan complete and saved to `docs/superpowers/plans/2026-03-22-eugene-launch-safety-net.md`. 14 tasks, ~80 steps, all review issues addressed.
+
+**Two execution options:**
+
+1. **Subagent-Driven (recommended)** — I dispatch a fresh subagent per task, review between tasks, fast iteration
+2. **Inline Execution** — Execute tasks in this session, batch execution with checkpoints
+
+Which approach?
