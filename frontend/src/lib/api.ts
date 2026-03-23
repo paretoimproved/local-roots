@@ -10,6 +10,7 @@ export type Store = {
   region?: string | null;
   distance_km?: number | null;
   is_demo?: boolean;
+  next_pickup_date?: string | null;
 };
 
 export type PickupLocation = {

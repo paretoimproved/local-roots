@@ -25,6 +25,7 @@ function VerifyInner() {
       .then((res) => {
         if (cancelled) return;
         session.setToken(res.token);
+        if (res.refresh_token) session.setRefreshToken(res.refresh_token);
         router.replace("/buyer");
       })
       .catch((err: unknown) => {

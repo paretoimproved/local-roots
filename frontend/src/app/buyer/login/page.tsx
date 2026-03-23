@@ -62,6 +62,7 @@ function BuyerLoginInner() {
     try {
       const res = await oauthApi.googleLogin(idToken, "buyer");
       session.setToken(res.token);
+      if (res.refresh_token) session.setRefreshToken(res.refresh_token);
       if (res.user.role === "seller") {
         router.replace("/seller");
       } else {

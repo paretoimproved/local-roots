@@ -600,6 +600,87 @@ func (a SellerOrdersAPI) LookupByCode(w http.ResponseWriter, r *http.Request, u 
 	resp.OK(w, order)
 }
 
+// RefundOrder initiates a full refund for an order that has already been paid.
+// Only orders with payment_status = 'paid' and status in ('picked_up', 'ready') are eligible.
+// The DB update is deferred to the charge.refunded webhook (webhook-only pattern).
+func (a SellerOrdersAPI) RefundOrder(w http.ResponseWriter, r *http.Request, u AuthUser, sc StoreContext) {
+	if a.DB == nil {
+		resp.ServiceUnavailable(w, "database not configured")
+		return
+	}
+	if a.Stripe == nil || !a.Stripe.Enabled() {
+		resp.ServiceUnavailable(w, "payments not configured")
+		return
+	}
+
+	orderID := r.PathValue("orderId")
+	if orderID == "" || !validUUID(orderID) {
+		resp.BadRequest(w, "missing or invalid orderId")
+		return
+	}
+
+	ctx := r.Context()
+	tx, err := a.DB.Begin(ctx)
+	if err != nil {
+		resp.Internal(w, err)
+		return
+	}
+	defer tx.Rollback(ctx)
+
+	var (
+		paymentStatus         string
+		orderStatus           string
+		stripePaymentIntentID *string
+	)
+	if err := tx.QueryRow(ctx, `
+		select payment_status, status, stripe_payment_intent_id
+		from orders
+		where id = $1::uuid and store_id = $2::uuid
+		for update
+	`, orderID, sc.StoreID).Scan(&paymentStatus, &orderStatus, &stripePaymentIntentID); err != nil {
+		if err == pgx.ErrNoRows {
+			resp.NotFound(w, "order not found")
+			return
+		}
+		resp.Internal(w, err)
+		return
+	}
+
+	// Idempotent: already refunded.
+	if paymentStatus == "refunded" {
+		_ = tx.Rollback(ctx)
+		resp.OK(w, map[string]any{"ok": true, "message": "Refund initiated. The buyer will be credited shortly."})
+		return
+	}
+
+	// Only paid orders in picked_up or ready state are refundable.
+	if paymentStatus != "paid" || (orderStatus != "picked_up" && orderStatus != "ready") {
+		_ = tx.Rollback(ctx)
+		resp.BadRequest(w, "order is not eligible for refund: payment must be paid and order must be picked_up or ready")
+		return
+	}
+
+	if stripePaymentIntentID == nil || strings.TrimSpace(*stripePaymentIntentID) == "" {
+		_ = tx.Rollback(ctx)
+		resp.BadRequest(w, "order has no payment intent")
+		return
+	}
+	piID := strings.TrimSpace(*stripePaymentIntentID)
+
+	// Release the transaction lock before calling Stripe (no DB update — webhook handles it).
+	if err := tx.Rollback(ctx); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	if _, err := a.Stripe.Refund(ctx, piID); err != nil {
+		resp.Internal(w, err)
+		return
+	}
+
+	resp.OK(w, map[string]any{"ok": true, "message": "Refund initiated. The buyer will be credited shortly."})
+}
+
 // mode:
 // - "release": decrement quantity_reserved
 // - "finalize": decrement quantity_available and quantity_reserved

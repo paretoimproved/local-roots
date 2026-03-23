@@ -65,6 +65,9 @@ func TestValidPaymentTransition(t *testing.T) {
 		{"failed", "authorized", true},
 		{"failed", "paid", true},
 
+		// Refund transition — allowed.
+		{"paid", "refunded", true},
+
 		// Backward/invalid transitions — rejected.
 		{"paid", "authorized", false},
 		{"paid", "unpaid", false},
@@ -75,6 +78,7 @@ func TestValidPaymentTransition(t *testing.T) {
 		{"voided", "unpaid", false},
 		{"refunded", "paid", false},
 		{"refunded", "authorized", false},
+		{"authorized", "refunded", false},
 
 		// No-op transitions — rejected.
 		{"authorized", "authorized", false},

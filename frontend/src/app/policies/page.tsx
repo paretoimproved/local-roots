@@ -152,8 +152,11 @@ export default function PoliciesPage() {
       </section>
 
       <div className="rounded-2xl bg-white/60 p-4 text-xs text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
-        Last updated February 2026. Questions? Contact support and
-        we&rsquo;ll sort it out.
+        Last updated February 2026. Questions?{" "}
+        <Link href="/help" className="underline underline-offset-2 hover:opacity-80">
+          Contact support
+        </Link>{" "}
+        and we&rsquo;ll sort it out.
       </div>
     </div>
   );

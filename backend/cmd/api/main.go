@@ -10,6 +10,7 @@ import (
 	"time"
 	_ "time/tzdata"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/paretoimproved/local-roots/backend/internal/config"
 	"github.com/paretoimproved/local-roots/backend/internal/db"
@@ -21,6 +22,16 @@ import (
 
 func main() {
 	cfg := config.FromEnv()
+
+	if dsn := os.Getenv("SENTRY_DSN"); dsn != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:         dsn,
+			Environment: cfg.Env,
+		}); err != nil {
+			log.Printf("sentry init: %v", err)
+		}
+		defer sentry.Flush(2 * time.Second)
+	}
 
 	if cfg.Env == "prod" && len(cfg.JWTSecret) < 32 {
 		log.Fatal("JWT_SECRET must be at least 32 characters in production")
@@ -57,7 +68,7 @@ func main() {
 	defer cancel()
 
 	if cfg.Env == "prod" {
-		go scheduler.Start(ctx, pool, stripeClient, emailClient, cfg.FrontendURL)
+		go scheduler.Start(ctx, pool, stripeClient, emailClient, cfg.FrontendURL, cfg.JWTSecret)
 	}
 
 	go func() {

@@ -23,7 +23,7 @@ import (
 //   - Transfer retry: every hour
 //   - Milestone emails: every 6 hours
 //   - Seller weekly digest: every hour (sends only on Monday 14:00 UTC)
-func Start(ctx context.Context, db *pgxpool.Pool, stripeClient *stripepay.Client, emailClient *email.Client, frontendURL string) {
+func Start(ctx context.Context, db *pgxpool.Pool, stripeClient *stripepay.Client, emailClient *email.Client, frontendURL, jwtSecret string) {
 	billingTicker := time.NewTicker(30 * time.Minute)
 	reminderTicker := time.NewTicker(30 * time.Minute)
 	reengagementTicker := time.NewTicker(6 * time.Hour)
@@ -63,13 +63,13 @@ func Start(ctx context.Context, db *pgxpool.Pool, stripeClient *stripepay.Client
 		case <-reminderTicker.C:
 			go runReminders(ctx, db, emailClient, frontendURL)
 		case <-reengagementTicker.C:
-			go runReengagement(ctx, db, emailClient, frontendURL)
+			go runReengagement(ctx, db, emailClient, frontendURL, jwtSecret)
 		case <-reviewPromptTicker.C:
 			go runReviewPrompts(ctx, db, emailClient, frontendURL)
 		case <-transferRetryTicker.C:
 			go runTransferRetry(ctx, db, stripeClient)
 		case <-milestoneTicker.C:
-			go runMilestones(ctx, db, emailClient)
+			go runMilestones(ctx, db, emailClient, frontendURL, jwtSecret)
 		case <-digestTicker.C:
 			go runDigest(ctx, db, emailClient)
 		}
@@ -116,7 +116,7 @@ func runReminders(ctx context.Context, db *pgxpool.Pool, emailClient *email.Clie
 		result.Candidates, result.Sent)
 }
 
-func runReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL string) {
+func runReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL, jwtSecret string) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("scheduler: reengagement panic: %v", r)
@@ -127,7 +127,7 @@ func runReengagement(ctx context.Context, db *pgxpool.Pool, emailClient *email.C
 		return
 	}
 
-	result, err := v1.RunReengagement(ctx, db, emailClient, frontendURL)
+	result, err := v1.RunReengagement(ctx, db, emailClient, frontendURL, jwtSecret)
 	if err != nil {
 		log.Printf("scheduler: reengagement error: %v", err)
 		return
@@ -176,7 +176,7 @@ func runTransferRetry(ctx context.Context, db *pgxpool.Pool, stripeClient *strip
 		result.Candidates, result.Retried, result.Failed)
 }
 
-func runMilestones(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client) {
+func runMilestones(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL, jwtSecret string) {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Printf("scheduler: milestones panic: %v", r)
@@ -187,7 +187,7 @@ func runMilestones(ctx context.Context, db *pgxpool.Pool, emailClient *email.Cli
 		return
 	}
 
-	result, err := v1.RunMilestoneEmails(ctx, db, emailClient)
+	result, err := v1.RunMilestoneEmails(ctx, db, emailClient, frontendURL, jwtSecret)
 	if err != nil {
 		log.Printf("scheduler: milestones error: %v", err)
 		return

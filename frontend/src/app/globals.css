@@ -123,6 +123,22 @@ h3 {
   box-shadow: 0 0 0 4px rgba(47, 107, 79, 0.3);
 }
 
+.lr-btn-destructive {
+  border-color: rgba(179, 93, 46, 0.35);
+  background: linear-gradient(135deg, rgba(179, 93, 46, 0.94), rgba(179, 93, 46, 0.82));
+  color: #fbfbf8;
+  min-height: 44px;
+}
+
+.lr-btn-destructive:hover {
+  background: linear-gradient(135deg, rgba(179, 93, 46, 0.98), rgba(179, 93, 46, 0.88));
+}
+
+.lr-btn-destructive:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px rgba(179, 93, 46, 0.3);
+}
+
 .lr-field {
   border-radius: 0.9rem;
   border: 1px solid rgba(38, 28, 10, 0.14);

@@ -205,6 +205,7 @@ export default function BoxPage() {
         {titleErr && (
           <span className="text-xs text-rose-600">Box name is required.</span>
         )}
+        <p className="text-sm mt-1" style={{ color: 'var(--lr-muted)' }}>Tip: Keep it descriptive — &apos;Weekly Veggie Box&apos; or &apos;Farm Fresh Egg Share&apos;</p>
       </label>
 
       {/* Description */}
@@ -221,6 +222,7 @@ export default function BoxPage() {
         <span className="text-xs text-[color:var(--lr-muted)]">
           Optional. Shown on your box page.
         </span>
+        <p className="text-sm mt-1" style={{ color: 'var(--lr-muted)' }}>Tip: Mention specific items like &apos;seasonal greens, fresh eggs, and honey&apos;</p>
       </label>
 
       {/* Price */}
@@ -246,6 +248,7 @@ export default function BoxPage() {
             Enter a valid price greater than $0.
           </span>
         )}
+        <p className="text-sm mt-1" style={{ color: 'var(--lr-muted)' }}>Tip: Most farm boxes in your area are $35–55/week</p>
       </label>
 
       {/* Cadence radio buttons */}

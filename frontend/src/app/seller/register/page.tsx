@@ -34,6 +34,7 @@ export default function SellerRegisterPage() {
         displayName || undefined,
       );
       session.setToken(res.token);
+      if (res.refresh_token) session.setRefreshToken(res.refresh_token);
       router.replace("/seller");
     } catch (err: unknown) {
       setError(friendlyErrorMessage(err));
@@ -48,6 +49,7 @@ export default function SellerRegisterPage() {
     try {
       const res = await oauthApi.googleLogin(idToken, "seller");
       session.setToken(res.token);
+      if (res.refresh_token) session.setRefreshToken(res.refresh_token);
       router.replace("/seller");
     } catch (err: unknown) {
       setError(friendlyErrorMessage(err));

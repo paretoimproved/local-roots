@@ -89,6 +89,7 @@ func NewHandler(deps Deps) http.Handler {
 	authAPI := v1.AuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
 	mux.HandleFunc("POST /v1/auth/register", WithRateLimit("auth", authAPI.Register))
 	mux.HandleFunc("POST /v1/auth/login", WithRateLimit("auth", authAPI.Login))
+	mux.HandleFunc("POST /v1/auth/refresh", WithRateLimit("auth", authAPI.Refresh))
 
 	oauthAPI := v1.OAuthAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret, GoogleOAuthClientID: deps.Config.GoogleOAuthClientID}
 	mux.HandleFunc("POST /v1/auth/google", WithRateLimit("auth", oauthAPI.GoogleLogin))
@@ -127,6 +128,7 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("GET /v1/seller/stores/{storeId}/pickup-windows/{pickupWindowId}/orders", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ListOrdersForPickupWindow)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/status", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.UpdateOrderStatus)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/confirm-pickup", WithRateLimit("pickup", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.ConfirmPickup))))
+	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/{orderId}/refund", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.RefundOrder)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/orders/lookup-by-code", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerOrders.LookupByCode)))
 
 	pickupConfirm := v1.PickupConfirmAPI{DB: deps.DB, Stripe: stripeClient, Email: emailClient, FrontendURL: deps.Config.FrontendURL}
@@ -162,6 +164,12 @@ func NewHandler(deps Deps) http.Handler {
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.CreatePlan)))
 	mux.HandleFunc("PATCH /v1/seller/stores/{storeId}/subscription-plans/{planId}", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.UpdatePlan)))
 	mux.HandleFunc("POST /v1/seller/stores/{storeId}/subscription-plans/{planId}/generate-cycle", authAPI.RequireUser(v1.RequireStoreOwner(deps.DB, sellerSub.GenerateNextCycle)))
+
+	admin := v1.AdminAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
+	mux.HandleFunc("GET /v1/admin/dashboard", admin.RequireAdmin(admin.Dashboard))
+
+	unsub := v1.UnsubscribeAPI{DB: deps.DB, JWTSecret: deps.Config.JWTSecret}
+	mux.HandleFunc("GET /v1/unsubscribe", unsub.Unsubscribe)
 
 	geo := v1.GeoAPI{GooglePlacesAPIKey: deps.Config.GooglePlacesAPIKey}
 	mux.HandleFunc("GET /v1/places/autocomplete", WithRateLimit("geo", geo.PublicAutocomplete))

@@ -194,7 +194,7 @@ Compared to the status quo (manual CSAs, Square invoices, Facebook groups, sprea
 
 ### Investor Narrative by Stage
 
-**Pre-Seed:** "We have built the product, signed early farmers, and proven the subscription model works in [first metro]. We need capital to hire a farmer success team and expand to 3 markets."
+**Pre-Seed:** "We have built the product, signed early farmers, and proven the subscription model works in Eugene, OR. We need capital to hire a farmer success team and expand to 3 markets."
 
 **Seed:** "We have product-market fit. Farmers who join stay (80%+ retention). Buyers renew subscriptions at 70%+ rates. We need capital to build density in 10 metros and launch our SaaS tier."
 
@@ -233,7 +233,7 @@ Compared to the status quo (manual CSAs, Square invoices, Facebook groups, sprea
 **Severity:** Medium-High
 **Description:** Farming is seasonal. Northern markets may see 4-6 months of reduced activity. This creates revenue volatility and buyer churn during off-seasons.
 **Mitigation:**
-- Prioritize year-round production areas first (California, Texas, Florida, Southeast) for initial expansion.
+- Eugene/Willamette Valley has a long growing season (approximately 9-10 months) and strong year-round production of meat, eggs, dairy, and preserved goods, partially offsetting seasonal risk. For subsequent national expansion, prioritize year-round production areas (California, Pacific Northwest, Southeast) before colder northern markets.
 - Expand product scope beyond produce to include meat, dairy, eggs, preserved goods, and value-added products that have year-round availability.
 - Introduce "winter shares" and partnerships with greenhouse/indoor farms.
 - Seasonal slowdown in one region can be offset by expansion into counter-seasonal regions.
@@ -295,7 +295,7 @@ This transforms the platform's value proposition from "convenient payment proces
 **Strategy:** Nail the subscription pickup box use case in 3-5 metro areas.
 
 - Focus: Subscription box creation, Stripe billing, pickup management, QR verification.
-- Markets: Start in 2-3 mid-size metros with strong farm-to-table culture (e.g., Portland, Austin, Raleigh-Durham, Madison).
+- Markets: Launch in Eugene, OR as the first market, then expand to 2-3 similar Pacific Northwest metros (e.g., Corvallis, Bend, Salem). Eugene was selected for its right-sized population (~175K), strong local food culture, Lane County Farmers Market (100+ vendors, 11 months/year), 75+ Willamette Valley farms, 24+ CSAs in Lane County, and lack of a dominant local CSA platform. The smaller city size makes it easier to achieve network density before scaling.
 - Farmer acquisition: Farmers market field sales, agricultural extension partnerships, local food organization referrals.
 - Buyer acquisition: Organic through farmer cross-promotion (each farmer brings 20-50 existing customers).
 

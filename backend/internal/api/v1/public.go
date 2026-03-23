@@ -19,15 +19,16 @@ type PublicAPI struct {
 }
 
 type Store struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	Description *string   `json:"description"`
-	ImageURL    *string   `json:"image_url,omitempty"`
-	CreatedAt   time.Time `json:"created_at"`
-	City        *string   `json:"city,omitempty"`
-	Region      *string   `json:"region,omitempty"`
-	DistanceKM  *float64  `json:"distance_km,omitempty"`
-	IsDemo      bool      `json:"is_demo"`
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	Description    *string    `json:"description"`
+	ImageURL       *string    `json:"image_url,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	City           *string    `json:"city,omitempty"`
+	Region         *string    `json:"region,omitempty"`
+	DistanceKM     *float64   `json:"distance_km,omitempty"`
+	IsDemo         bool       `json:"is_demo"`
+	NextPickupDate *time.Time `json:"next_pickup_date,omitempty"`
 }
 
 func (a PublicAPI) GetStore(w http.ResponseWriter, r *http.Request) {
@@ -141,7 +142,8 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 						cos(radians(pl.lng) - radians($3)) +
 						sin(radians($2)) * sin(radians(pl.lat))
 					) as distance_km,
-					s.is_demo
+					s.is_demo,
+					s.id as store_id_raw
 				from stores s
 				join pickup_locations pl on pl.store_id = s.id
 				where s.is_active = true
@@ -154,15 +156,27 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 					)
 				order by s.id, distance_km asc
 			)
-			select * from distances
-			where distance_km <= $4
-			order by distance_km asc
+			select
+				d.id, d.name, d.description, d.image_url, d.created_at,
+				d.city, d.region, d.distance_km, d.is_demo,
+				npw.start_at
+			from distances d
+			left join lateral (
+				select start_at from pickup_windows
+				where pickup_windows.store_id = d.store_id_raw
+					and status = 'published'
+					and start_at > now()
+				order by start_at limit 1
+			) npw on true
+			where d.distance_km <= $4
+			order by d.distance_km asc
 			limit 100
 		`
 	} else {
 		query = `
 			select s.id::text, s.name, s.description, s.image_url, s.created_at,
-				nearest.city, nearest.region, s.is_demo
+				nearest.city, nearest.region, s.is_demo,
+				npw.start_at
 			from stores s
 			left join lateral (
 				select pl.city, pl.region
@@ -170,6 +184,13 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 				where pl.store_id = s.id
 				limit 1
 			) nearest on true
+			left join lateral (
+				select start_at from pickup_windows
+				where pickup_windows.store_id = s.id
+					and status = 'published'
+					and start_at > now()
+				order by start_at limit 1
+			) npw on true
 			where s.is_active = true
 				and ($1 = false or s.is_demo = true)
 				and exists (
@@ -194,12 +215,12 @@ func (a PublicAPI) ListStores(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var s Store
 		if hasGeo {
-			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.ImageURL, &s.CreatedAt, &s.City, &s.Region, &s.DistanceKM, &s.IsDemo); err != nil {
+			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.ImageURL, &s.CreatedAt, &s.City, &s.Region, &s.DistanceKM, &s.IsDemo, &s.NextPickupDate); err != nil {
 				resp.Internal(w, err)
 				return
 			}
 		} else {
-			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.ImageURL, &s.CreatedAt, &s.City, &s.Region, &s.IsDemo); err != nil {
+			if err := rows.Scan(&s.ID, &s.Name, &s.Description, &s.ImageURL, &s.CreatedAt, &s.City, &s.Region, &s.IsDemo, &s.NextPickupDate); err != nil {
 				resp.Internal(w, err)
 				return
 			}

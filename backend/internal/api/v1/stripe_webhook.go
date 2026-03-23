@@ -94,6 +94,14 @@ func (a StripeWebhookAPI) StripeWebhook(w http.ResponseWriter, r *http.Request) 
 				return
 			}
 		}
+	case "charge.refunded":
+		var ch stripe.Charge
+		if err := json.Unmarshal(ev.Data.Raw, &ch); err == nil && ch.PaymentIntent != nil {
+			if err := a.updatePaymentByPI(ctx, ch.PaymentIntent.ID, "refunded", nil, false); err != nil {
+				resp.Internal(w, err)
+				return
+			}
+		}
 	case "account.updated":
 		var acct stripe.Account
 		if err := json.Unmarshal(ev.Data.Raw, &acct); err == nil && acct.ID != "" {
@@ -158,6 +166,7 @@ func validPaymentTransition(from, to string) bool {
 		"authorized":      {"paid": true, "voided": true, "failed": true},
 		"requires_action": {"authorized": true, "paid": true, "failed": true, "voided": true},
 		"failed":          {"authorized": true, "paid": true},
+		"paid":            {"refunded": true},
 	}
 	m, ok := allowed[from]
 	if !ok {

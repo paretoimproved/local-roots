@@ -6,7 +6,7 @@ import (
 )
 
 func TestRunReengagement_NilDB(t *testing.T) {
-	_, err := RunReengagement(context.Background(), nil, nil, "")
+	_, err := RunReengagement(context.Background(), nil, nil, "", "")
 	if err == nil {
 		t.Error("expected error with nil db")
 	}
@@ -27,7 +27,7 @@ func TestRunSellerDigest_NilDB(t *testing.T) {
 }
 
 func TestRunMilestoneEmails_NilDB(t *testing.T) {
-	_, err := RunMilestoneEmails(context.Background(), nil, nil)
+	_, err := RunMilestoneEmails(context.Background(), nil, nil, "", "")
 	if err == nil {
 		t.Error("expected error with nil db")
 	}

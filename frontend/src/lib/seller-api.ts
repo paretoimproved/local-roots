@@ -9,6 +9,7 @@ export type AuthUser = {
 
 export type AuthResponse = {
   token: string;
+  refresh_token?: string;
   user: AuthUser;
 };
 
@@ -637,5 +638,11 @@ export const sellerApi = {
     requestJSON<PayoutHistoryEntry[]>(
       `/v1/seller/stores/${storeId}/payouts`,
       { token },
+    ),
+
+  refundOrder: (token: string, storeId: string, orderId: string) =>
+    requestJSON<{ ok: boolean; message: string }>(
+      `/v1/seller/stores/${storeId}/orders/${orderId}/refund`,
+      { method: "POST", token },
     ),
 };

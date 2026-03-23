@@ -247,6 +247,7 @@ export type BuyerAuthUser = {
 
 export type BuyerAuthResponse = {
   token: string;
+  refresh_token?: string;
   user: BuyerAuthUser;
 };
 

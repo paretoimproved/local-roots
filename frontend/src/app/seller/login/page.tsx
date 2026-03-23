@@ -46,6 +46,7 @@ function SellerLoginInner() {
     try {
       const res = await sellerApi.login(email, password);
       session.setToken(res.token);
+      if (res.refresh_token) session.setRefreshToken(res.refresh_token);
       router.replace(redirectTo);
     } catch (err: unknown) {
       setError(friendlyErrorMessage(err));
@@ -60,6 +61,7 @@ function SellerLoginInner() {
     try {
       const res = await oauthApi.googleLogin(idToken, "seller");
       session.setToken(res.token);
+      if (res.refresh_token) session.setRefreshToken(res.refresh_token);
       router.replace(redirectTo);
     } catch (err: unknown) {
       setError(friendlyErrorMessage(err));

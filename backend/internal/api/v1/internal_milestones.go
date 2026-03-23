@@ -19,7 +19,7 @@ type MilestoneResult struct {
 // RunMilestoneEmails finds subscribers who have hit cumulative pickup milestones
 // (5, 10, 25, 50) and sends a celebration email. Idempotent: only sends once
 // per subscription + milestone pair via the milestone_emails table.
-func RunMilestoneEmails(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client) (MilestoneResult, error) {
+func RunMilestoneEmails(ctx context.Context, db *pgxpool.Pool, emailClient *email.Client, frontendURL, jwtSecret string) (MilestoneResult, error) {
 	if db == nil {
 		return MilestoneResult{}, fmt.Errorf("database not configured")
 	}
@@ -93,7 +93,15 @@ func RunMilestoneEmails(ctx context.Context, db *pgxpool.Pool, emailClient *emai
 			continue
 		}
 
-		subj, body := email.MilestoneCelebration(c.buyerName, c.storeName, milestone)
+		// Skip opted-out users.
+		var optedOut bool
+		_ = db.QueryRow(ctx, `SELECT email_marketing_opt_out FROM users WHERE lower(email) = lower($1)`, c.buyerEmail).Scan(&optedOut)
+		if optedOut {
+			continue
+		}
+
+		unsubURL := UnsubscribeLink(c.buyerEmail, frontendURL, jwtSecret)
+		subj, body := email.MilestoneCelebration(c.buyerName, c.storeName, milestone, unsubURL)
 		if err := emailClient.Send(c.buyerEmail, subj, body); err != nil {
 			log.Printf("milestone: error sending email to=%s sub=%s milestone=%s: %v", c.buyerEmail, c.subscriptionID, milestone, err)
 			continue

@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -193,16 +192,15 @@ func (o OAuthAPI) GoogleLogin(w http.ResponseWriter, r *http.Request) {
 }
 
 func (o OAuthAPI) issueToken(ctx context.Context, w http.ResponseWriter, u AuthUser) {
-	ttl := 4 * time.Hour
-
 	var tokenVersion int
 	_ = o.DB.QueryRow(ctx, `select token_version from users where id = $1::uuid`, u.ID).Scan(&tokenVersion)
 
-	tok, err := auth.SignJWT([]byte(o.JWTSecret), u.ID, u.Role, ttl, tokenVersion)
+	ar, err := issueTokenPair(ctx, o.DB, o.JWTSecret, u.ID, u.Role, tokenVersion)
 	if err != nil {
 		resp.Internal(w, err)
 		return
 	}
+	ar.User = u
 
-	resp.OK(w, AuthResponse{Token: tok, User: u})
+	resp.OK(w, ar)
 }
