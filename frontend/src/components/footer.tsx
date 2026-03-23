@@ -4,6 +4,7 @@ import Link from "next/link";
 const links = [
   { label: "Browse Farms", href: "/stores" },
   { label: "Policies", href: "/policies" },
+  { label: "Help", href: "/help" },
   { label: "Start Selling", href: "/seller/register" },
   { label: "Contact", href: "mailto:hello@localroots.com" },
 ] as const;
