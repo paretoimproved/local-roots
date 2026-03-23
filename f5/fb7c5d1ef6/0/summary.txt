@@ -1,0 +1,15 @@
+CEO plan promoted to `docs/designs/eugene-soft-launch.md`.
+
+`★ Insight ─────────────────────────────────────`
+**What this review accomplished:** You went from "should we launch?" to a spec-reviewed, adversarially validated plan with 10 baseline + expansion items, 3 review additions, 3 deferred TODOs, and clear architecture decisions. The spec review caught 24 issues across 2 rounds — including factual errors about your own codebase that would have wasted implementation time. The plan is now precise enough that an engineer (or CC) can start building without asking questions.
+
+**Key strategic takeaway:** Eugene > Austin for first market. Smaller city = faster density. Lane County's 100+ farmer market is a concentrated acquisition channel. Your zero-fee model is genuinely differentiated against Local Line ($49+/mo) and Barn2Door ($99+/mo).
+`─────────────────────────────────────────────────`
+
+**STATUS: DONE**
+
+**Files changed:**
+- `TODOS.md` — 3 new items added, 1 promoted to scope
+- `docs/designs/eugene-soft-launch.md` — new (promoted CEO plan)
+
+**Next step:** Run `/plan-eng-review` to validate the architecture for B2 (refund flow), B4 (refresh tokens), and B3 (admin dashboard) before implementation.
