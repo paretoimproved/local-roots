@@ -126,7 +126,23 @@ func ExecutePickupConfirm(
 		return nil, ErrPaymentsNotConfigured
 	}
 	if stripePI == nil || strings.TrimSpace(*stripePI) == "" {
-		return nil, ErrNoPaymentIntent
+		// Just-in-time authorization: the billing cron hasn't created a PaymentIntent yet.
+		// This happens in the farmers market walk-up scenario — buyer subscribes via QR,
+		// farmer hands them the box immediately. Create + confirm a PI on the spot using
+		// the subscription's saved payment method.
+		piID, err := justInTimeAuthorize(ctx, db, stripe, orderID, storeID, totalCents)
+		if err != nil {
+			log.Printf("just-in-time authorize failed for order %s: %v", orderID, err)
+			return nil, ErrNoPaymentIntent
+		}
+		// Update the order row (inside the same FOR UPDATE lock) so capture sees the PI.
+		if _, err := tx.Exec(ctx, `
+			UPDATE orders SET stripe_payment_intent_id = $2, payment_status = 'authorized', updated_at = now()
+			WHERE id = $1::uuid
+		`, orderID, piID); err != nil {
+			return nil, err
+		}
+		stripePI = &piID
 	}
 	trimPI := strings.TrimSpace(*stripePI)
 
@@ -179,4 +195,47 @@ func ExecutePickupConfirm(
 		BuyerEmail:     buyerEmail,
 		TotalCents:     totalCents,
 	}, nil
+}
+
+// justInTimeAuthorize creates a Stripe PaymentIntent for an order whose billing
+// cron hasn't run yet. This covers the farmers market walk-up flow: buyer subscribes
+// at the stand and picks up their first box before the 5-minute cron fires.
+//
+//	ORDER ──▶ no PI? ──▶ look up subscription's saved card ──▶ create PI ──▶ return PI ID
+func justInTimeAuthorize(ctx context.Context, db *pgxpool.Pool, sc *stripepay.Client, orderID, storeID string, totalCents int) (string, error) {
+	// Look up subscription payment details (same query pattern as billing cron).
+	var customerID, paymentMethodID, subID, windowID string
+	err := db.QueryRow(ctx, `
+		SELECT sub.stripe_customer_id, sub.stripe_payment_method_id,
+		       sub.id::text, o.pickup_window_id::text
+		FROM orders o
+		JOIN subscriptions sub ON sub.id = o.subscription_id
+		WHERE o.id = $1::uuid
+	`, orderID).Scan(&customerID, &paymentMethodID, &subID, &windowID)
+	if err != nil {
+		return "", fmt.Errorf("lookup subscription details: %w", err)
+	}
+	if customerID == "" || paymentMethodID == "" {
+		return "", fmt.Errorf("subscription missing payment method")
+	}
+
+	// Create off-session PaymentIntent with manual capture (matches billing cron pattern).
+	piID, _, err := sc.CreateOffSessionAuthorization(ctx, stripepay.CreateOffSessionPaymentIntentInput{
+		AmountCents:     totalCents,
+		Currency:        "usd",
+		CustomerID:      customerID,
+		PaymentMethodID: paymentMethodID,
+		Metadata: map[string]string{
+			"order_id":         orderID,
+			"store_id":         storeID,
+			"subscription_id":  subID,
+			"pickup_window_id": windowID,
+		},
+		IdempotencyKey: "jit-auth-" + orderID,
+	})
+	if err != nil {
+		return "", fmt.Errorf("stripe authorize: %w", err)
+	}
+
+	return piID, nil
 }
