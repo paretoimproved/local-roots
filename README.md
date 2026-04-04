@@ -1,5 +1,11 @@
 # LocalRoots (Marketplace Reboot)
 
+
+## Screenshots
+
+![Local Roots](docs/screenshots/app-preview.png)
+
+
 LocalRoots is a produce/food marketplace for local pickup.
 
 ## MVP rules (to keep this shippable)
