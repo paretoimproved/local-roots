@@ -1,0 +1,314 @@
+"use client";
+
+import Link from "next/link";
+import { useParams, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { buyerApi, type GetOrderResponse } from "@/lib/buyer-api";
+import { orderToken } from "@/lib/order-token";
+import { session } from "@/lib/session";
+import { PickupCodeCard } from "@/components/pickup-code-card";
+import { ErrorAlert } from "@/components/error-alert";
+import { useToast } from "@/components/toast";
+import { formatMoney, friendlyErrorMessage } from "@/lib/ui";
+
+export default function OrderPage() {
+  return <Suspense><OrderInner /></Suspense>;
+}
+
+function OrderInner() {
+  const params = useParams<{ orderId: string }>();
+  const search = useSearchParams();
+  const orderId = params.orderId;
+  const { showToast } = useToast();
+
+  useEffect(() => { document.title = "Order — LocalRoots"; }, []);
+
+  const tokenFromQuery = search.get("t");
+  const [token, setToken] = useState<string>("");
+  const [data, setData] = useState<GetOrderResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const [rating, setRating] = useState(5);
+  const [body, setBody] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [reviewDone, setReviewDone] = useState(false);
+
+  useEffect(() => {
+    const saved = orderToken.get(orderId);
+    const effective = tokenFromQuery || saved || session.getToken() || "";
+    if (effective) {
+      setToken(effective);
+      if (tokenFromQuery) orderToken.set(orderId, tokenFromQuery);
+    }
+  }, [orderId, tokenFromQuery]);
+
+  async function load() {
+    if (!token) return;
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await buyerApi.getOrder(orderId, token);
+      setData(res);
+      setReviewDone(res.has_review);
+    } catch (e: unknown) {
+      setError(friendlyErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderId, token]);
+
+  const canReview = useMemo(() => {
+    const status = data?.order.status;
+    return status === "picked_up" && !reviewDone;
+  }, [data, reviewDone]);
+
+  async function submitReview() {
+    if (!data) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      await buyerApi.createReview(orderId, {
+        token,
+        rating,
+        body: body || null,
+      });
+      setReviewDone(true);
+      await load();
+      showToast({ kind: "success", message: "Review submitted." });
+    } catch (e: unknown) {
+      setError(friendlyErrorMessage(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="grid gap-6">
+      <div className="grid gap-1">
+        <h1 className="text-3xl font-semibold tracking-tight text-[color:var(--lr-ink)]">
+          {data ? (data.order.items[0]?.product_title || "Order") : "Order"}
+        </h1>
+        {data ? (
+          <p className="text-sm text-[color:var(--lr-muted)]">
+            {new Intl.DateTimeFormat("en-US", {
+              weekday: "short",
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }).format(new Date(data.order.created_at))}
+          </p>
+        ) : null}
+      </div>
+
+      {error ? <ErrorAlert error={error} onRetry={load} /> : null}
+
+      {loading && !data ? (
+        <section className="lr-card lr-card-strong p-6 text-center">
+          <p className="text-sm text-[color:var(--lr-muted)]">Loading order...</p>
+        </section>
+      ) : null}
+
+      {!token ? (
+        <section className="lr-card lr-card-strong p-6 text-center">
+          <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+            Sign in to view your order
+          </h2>
+          <p className="mt-2 text-sm text-[color:var(--lr-muted)]">
+            Use the link from your confirmation email, or sign in to access your
+            orders.
+          </p>
+          <a
+            className="lr-btn lr-btn-primary mt-4 inline-flex items-center justify-center px-6 py-2 text-sm font-medium"
+            href="/buyer/login"
+          >
+            Sign in
+          </a>
+        </section>
+      ) : null}
+
+      {data ? (
+        <>
+          <section className="lr-card lr-card-strong p-6">
+            <div className="flex flex-wrap items-baseline justify-between gap-4">
+              <div>
+                <div className="text-sm text-[color:var(--lr-muted)]">
+                  Status
+                </div>
+                <div className="text-lg font-semibold capitalize text-[color:var(--lr-ink)]">
+                  {data.order.status.replace(/_/g, " ")}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm text-[color:var(--lr-muted)]">Total</div>
+                <div className="text-lg font-semibold text-[color:var(--lr-ink)]">
+                  {formatMoney(data.order.total_cents)}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 grid gap-2">
+              {data.order.items.map((it) => (
+                <div
+                  key={it.id}
+                  className="flex items-baseline justify-between rounded-xl bg-white/60 px-4 py-3 ring-1 ring-[color:var(--lr-border)]"
+                >
+                  <div>
+                    <div className="font-medium text-[color:var(--lr-ink)]">
+                      {it.product_title}
+                    </div>
+                    <div className="text-sm text-[color:var(--lr-muted)]">
+                      {it.quantity} × {formatMoney(it.price_cents)} (
+                      {it.product_unit})
+                    </div>
+                  </div>
+                  <div className="text-sm font-medium text-[color:var(--lr-ink)]">
+                    {formatMoney(it.line_total_cents)}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm ring-1 ring-[color:var(--lr-border)]">
+              <div className="grid gap-2">
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-medium text-[color:var(--lr-muted)]">
+                    Subtotal
+                  </span>
+                  <span className="font-semibold text-[color:var(--lr-ink)]">
+                    {formatMoney(data.order.subtotal_cents)}
+                  </span>
+                </div>
+                {data.order.buyer_fee_cents ? (
+                  <div className="flex items-baseline justify-between gap-4">
+                    <span className="font-medium text-[color:var(--lr-muted)]">
+                      Service fee
+                    </span>
+                    <span className="font-semibold text-[color:var(--lr-ink)]">
+                      {formatMoney(data.order.buyer_fee_cents)}
+                    </span>
+                  </div>
+                ) : null}
+                <div className="h-px bg-[color:var(--lr-border)]/70" />
+                <div className="flex items-baseline justify-between gap-4">
+                  <span className="font-semibold text-[color:var(--lr-ink)]">
+                    Total
+                  </span>
+                  <span className="font-semibold text-[color:var(--lr-ink)]">
+                    {formatMoney(data.order.total_cents)}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 rounded-xl bg-white/60 p-4 text-sm text-[color:var(--lr-muted)] ring-1 ring-[color:var(--lr-border)]">
+              Payment:{" "}
+              <span className="font-medium">
+                {data.order.status === "no_show" && data.order.captured_cents > 0
+                  ? `No-show fee charged: ${formatMoney(data.order.captured_cents)}.`
+                  : data.order.payment_status === "paid"
+                    ? `Card paid${data.order.captured_cents ? `: ${formatMoney(data.order.captured_cents)} captured.` : "."}`
+                    : `Card ${data.order.payment_status} (captured on pickup confirmation).`}
+              </span>
+              {" "}
+              <Link className="underline" href="/policies">
+                Policies
+              </Link>
+            </div>
+          </section>
+
+          <PickupCodeCard
+            storeId={data.order.store_id}
+            orderId={data.order.id}
+            pickupCode={data.order.pickup_code}
+            status={data.order.status}
+          />
+
+          {canReview ? (
+            <section className="lr-card lr-card-strong p-6">
+              <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+                Leave a review
+              </h2>
+              <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                Reviews unlock after pickup is marked complete.
+              </p>
+              <div className="mt-4 grid gap-3">
+                <label className="grid gap-1">
+                  <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+                    Rating
+                  </span>
+                  <select
+                    className="lr-field px-3 py-2 text-sm"
+                    value={rating}
+                    onChange={(e) => setRating(Number(e.target.value))}
+                  >
+                    <option value={5}>5 — Excellent</option>
+                    <option value={4}>4 — Great</option>
+                    <option value={3}>3 — Good</option>
+                    <option value={2}>2 — Fair</option>
+                    <option value={1}>1 — Poor</option>
+                  </select>
+                </label>
+                <label className="grid gap-1">
+                  <span className="text-sm font-medium text-[color:var(--lr-muted)]">
+                    Comment (optional)
+                  </span>
+                  <textarea
+                    className="lr-field min-h-24 px-3 py-2 text-sm"
+                    value={body}
+                    onChange={(e) => setBody(e.target.value)}
+                    placeholder="What went well?"
+                  />
+                </label>
+                <button
+                  className="lr-btn lr-btn-primary inline-flex items-center justify-center px-4 py-2 text-sm font-medium disabled:opacity-50"
+                  disabled={submitting}
+                  onClick={submitReview}
+                  type="button"
+                >
+                  {submitting ? "Submitting…" : "Submit review"}
+                </button>
+              </div>
+            </section>
+          ) : reviewDone ? (
+            <section className="lr-card lr-card-strong p-6">
+              <h2 className="text-base font-semibold text-[color:var(--lr-ink)]">
+                Review submitted
+              </h2>
+              <p className="mt-1 text-sm text-[color:var(--lr-muted)]">
+                Thanks for the feedback.
+              </p>
+            </section>
+          ) : null}
+        </>
+      ) : null}
+
+      {data?.order.subscription_id ? (
+        <div>
+          <Link
+            className="lr-btn lr-chip inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-[color:var(--lr-ink)]"
+            href={`/subscriptions/${data.order.subscription_id}`}
+          >
+            Manage subscription
+          </Link>
+        </div>
+      ) : null}
+
+      <details className="text-xs text-[color:var(--lr-muted)]">
+        <summary className="cursor-pointer hover:text-[color:var(--lr-ink)]">Order details</summary>
+        <p className="mt-1 font-mono break-all">{orderId}</p>
+      </details>
+
+      <div>
+        <Link className="text-sm text-[color:var(--lr-muted)] hover:text-[color:var(--lr-ink)]" href="/stores">
+          Back to stores
+        </Link>
+      </div>
+    </div>
+  );
+}

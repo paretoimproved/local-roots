@@ -1,0 +1,30 @@
+# Global ownership - all files require review
+* @brandonqueener
+
+# Frontend application code
+/apps/web/ @brandonqueener
+
+# Backend API code  
+/apps/api/ @brandonqueener
+
+# Database and packages
+/packages/ @brandonqueener
+
+# Critical infrastructure files require careful review
+/.github/ @brandonqueener
+/apps/web/src/app/layout.tsx @brandonqueener
+/apps/web/src/providers/ @brandonqueener
+
+# Testing infrastructure
+/apps/web/vitest.config.ts @brandonqueener
+/apps/web/src/test/ @brandonqueener
+
+# Deployment and CI/CD
+/.github/workflows/ @brandonqueener
+/apps/web/package.json @brandonqueener
+/pnpm-lock.yaml @brandonqueener
+
+# Documentation requiring review
+/CLAUDE.md @brandonqueener
+/apps/web/CLAUDE.md @brandonqueener
+/README.md @brandonqueener

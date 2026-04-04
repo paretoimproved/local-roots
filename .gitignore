@@ -1,0 +1,59 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Local env files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.tmp
+.env.*.tmp
+
+# Testing
+coverage
+
+# Turbo
+.turbo
+
+# Vercel
+.vercel
+
+# Claude/Cursor AI scratch
+.claude/
+
+# gstack QA artifacts (screenshots, browser logs, reports)
+.gstack/
+
+# agent-ops artifacts/state (repo adapter folder is committed; artifacts are not)
+.agent-ops/artifacts/
+.agent-ops-state/
+
+# Build Outputs
+.next/
+out/
+build
+dist
+*.tsbuildinfo
+
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Misc
+.DS_Store
+*.pem
+
+# Playwright E2E
+e2e/test-results/
+e2e/playwright-report/
+e2e/.env
+
+# Local legacy artifacts (kept out of git)
+legacy/ts-stack-untracked/

@@ -1,0 +1,17 @@
+project_name = "local-roots"
+
+# Policy
+# Start conservative: agents can open PRs; you merge.
+autonomy_level = "L1"
+max_prs_per_run = 2
+
+# Start with safe paths only; expand after you trust the loop.
+allowlist_paths = [
+  "docs/",
+  "frontend/src/app/",
+  "frontend/src/components/",
+  "frontend/src/lib/",
+  "backend/internal/api/",
+  "backend/internal/httpx/",
+  "backend/internal/resp/",
+]
