@@ -78,24 +78,22 @@ describe("friendlyErrorMessage", () => {
     expect(result).toBe("Email is required");
   });
 
-  it("returns raw text for API error without JSON body", () => {
+  it("returns generic fallback for API 500 with plain text body", () => {
     const result = friendlyErrorMessage(
       new Error("API 500: Internal Server Error"),
     );
-    expect(result).toBe("Internal Server Error");
+    expect(result).toBe("Something went wrong. Please try again.");
   });
 
-  it("falls through for API error with empty capture group", () => {
-    // "API 500: " — the regex captures "" (empty) after \s* consumes the space,
-    // so m[1] is falsy and it falls through to return the raw message.
+  it("returns generic fallback for API 500 with empty body", () => {
+    // "API 500: " — body is empty after trim, no JSON, no status-specific mapping.
     const result = friendlyErrorMessage(new Error("API 500: "));
-    expect(result).toBe("API 500: ");
+    expect(result).toBe("Something went wrong. Please try again.");
   });
 
-  it("returns fallback for API error with only whitespace text", () => {
-    // "API 500: something  " — non-empty capture, but after trim the text is used
+  it("returns friendly message for API 404", () => {
     const result = friendlyErrorMessage(new Error("API 404: Not Found"));
-    expect(result).toBe("Not Found");
+    expect(result).toBe("The requested resource was not found.");
   });
 
   it("returns the original message for non-API errors", () => {

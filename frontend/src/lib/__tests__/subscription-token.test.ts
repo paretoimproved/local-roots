@@ -49,8 +49,21 @@ describe("subscriptionToken (browser)", () => {
   it("uses the correct localStorage key format", () => {
     subscriptionToken.set("sub-abc", "tok");
     expect(window.localStorage.setItem).toHaveBeenCalledWith(
-      "localroots_sub_token:sub-abc",
+      "localroots_sub_token_sub-abc",
       "tok",
+    );
+  });
+
+  it("migrates old colon-key token to underscore key on get", () => {
+    store["localroots_sub_token:sub-migrate"] = "tok_old";
+    const result = subscriptionToken.get("sub-migrate");
+    expect(result).toBe("tok_old");
+    expect(window.localStorage.setItem).toHaveBeenCalledWith(
+      "localroots_sub_token_sub-migrate",
+      "tok_old",
+    );
+    expect(window.localStorage.removeItem).toHaveBeenCalledWith(
+      "localroots_sub_token:sub-migrate",
     );
   });
 
