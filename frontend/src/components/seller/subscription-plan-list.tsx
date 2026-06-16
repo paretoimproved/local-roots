@@ -157,6 +157,14 @@ export function SubscriptionPlanList({
                           >
                             Copy link
                           </button>
+                          <Link
+                            className="lr-btn lr-btn-primary px-3 py-2 text-sm font-semibold"
+                            href={`/boxes/${p.id}/qr`}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            Print poster
+                          </Link>
                           <button
                             type="button"
                             className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
@@ -172,14 +180,6 @@ export function SubscriptionPlanList({
                               size={140}
                               label="Farmstand QR"
                             />
-                            <Link
-                              className="lr-btn lr-chip px-3 py-2 text-sm font-semibold text-[color:var(--lr-ink)]"
-                              href={`/boxes/${p.id}/qr`}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              Print poster
-                            </Link>
                             <div className="max-w-[14rem] text-right text-xs text-[color:var(--lr-muted)]">
                               Tip: print this QR at the farmstand.
                             </div>

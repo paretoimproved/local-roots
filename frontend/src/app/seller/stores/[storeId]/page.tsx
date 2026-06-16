@@ -22,6 +22,7 @@ import { OrderList } from "@/components/seller/order-list";
 import { SubscriberList } from "@/components/seller/subscriber-list";
 import { GlobalPickupEntry } from "@/components/seller/global-pickup-entry";
 import { PayoutSummaryCard } from "@/components/seller/payout-summary";
+import { ActivationChecklist } from "@/components/seller/activation-checklist";
 
 export default function SellerStorePage() {
   const params = useParams<{ storeId: string }>();
@@ -330,6 +331,12 @@ export default function SellerStorePage() {
           {error}
         </div>
       ) : null}
+
+      <ActivationChecklist
+        plans={plans}
+        subscriptions={subscriptions}
+        storeId={storeId}
+      />
 
       <div className="flex gap-1 rounded-xl bg-[color:var(--lr-border)]/50 p-1">
         <button
